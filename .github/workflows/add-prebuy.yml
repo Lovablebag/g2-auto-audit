@@ -1,0 +1,46 @@
+name: Add prebuy page
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch page and patch nav
+        run: |
+          curl -fsSL -o prebuy.html https://litter.catbox.moe/1jgwm5.txt
+          python3 << 'PY'
+          from pathlib import Path
+          extra = '\n    <a class="app-nav-link" href="./prebuy.html" data-nav="prebuy">Pre-buy Price Check</a>'
+          def add(path):
+              p=Path(path); t=p.read_text(encoding='utf-8', errors='replace')
+              if 'Pre-buy Price Check' in t:
+                  p.write_text(t, encoding='utf-8'); return
+              for needle in [
+                '<a class="app-nav-link" href="./topup.html" data-nav="topup">Top-up Desk</a>',
+                '<a class="app-nav-link is-active" href="./topup.html" data-nav="topup">Top-up Desk</a>'
+              ]:
+                  if needle in t:
+                      t=t.replace(needle, needle+extra, 1)
+                      p.write_text(t, encoding='utf-8')
+                      print('patched', path)
+                      return
+              raise SystemExit('nav not found in '+path)
+          add('index.html'); add('topup.html')
+          t=Path('index.html').read_text(encoding='utf-8', errors='replace')
+          old="if (a.getAttribute('data-nav') === 'topup') return;"
+          new="if (a.getAttribute('data-nav') === 'topup' || a.getAttribute('data-nav') === 'prebuy') return;"
+          if old in t: t=t.replace(old,new,1)
+          Path('index.html').write_text(t, encoding='utf-8')
+          assert 'Pre-buy Price Check' in Path('prebuy.html').read_text(encoding='utf-8', errors='replace')
+          print('prebuy bytes', Path('prebuy.html').stat().st_size)
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add prebuy.html index.html topup.html api/hotel-prices.js
+          git diff --cached --quiet || git commit -m "Add Pre-buy Price Check tool"
+          git push
