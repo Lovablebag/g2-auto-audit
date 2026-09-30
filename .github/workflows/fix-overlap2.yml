@@ -1,0 +1,21 @@
+name: Replace topup layout
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch fixed topup.html
+        run: |
+          curl -fsSL -o topup.html https://litter.catbox.moe/rt305f.txt
+          python3 -c "t=open('topup.html',encoding='utf-8').read(); assert '.cols{display:flex' in t; assert 'position:sticky' not in t.split('</style>')[0] or '.pv{position:static' in t; print('ok', len(t))"
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add topup.html
+          git diff --cached --quiet || git commit -m "Stop Top-up preview from covering the email editor"
+          git push
