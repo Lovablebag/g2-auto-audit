@@ -1,0 +1,40 @@
+name: Add Top-up Desk
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch Top-up page and patch Audit header
+        run: |
+          python3 << 'PY'
+          from pathlib import Path
+          import urllib.request
+          url = "https://litter.catbox.moe/6bd5se.txt"
+          urllib.request.urlretrieve(url, "topup.html")
+          data = Path("topup.html").read_text(encoding="utf-8", errors="replace")
+          assert "Top-up Desk" in data and "app-nav" in data
+          print("topup.html bytes", Path("topup.html").stat().st_size)
+          p = Path("index.html")
+          t = p.read_text(encoding="utf-8", errors="replace")
+          css = """\n.app-nav{display:flex;align-items:center;gap:6px;margin-left:18px;flex-wrap:wrap}\n.app-nav-link{color:rgba(255,255,255,.75);text-decoration:none;font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid transparent}\n.app-nav-link:hover{background:rgba(255,255,255,.12);color:#fff}\n.app-nav-link.is-active{background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.2)}\n"""
+          if ".app-nav-link" not in t:
+              t = t.replace("</style>", css + "</style>", 1)
+          old = """<header class=\"header\">\n  <div class=\"logo-mark\">G2</div>\n  <div><div class=\"header-title\">Auto Audit</div><div class=\"header-sub\">Contract Audit Platform</div></div>\n  <div class=\"header-badge\">v4.4</div>\n  <button class=\"dark-toggle\" id=\"dark-toggle\" title=\"Toggle dark mode\">\U0001f319 Dark</button>\n</header>"""
+          new = """<header class=\"header\">\n  <div class=\"logo-mark\">G2</div>\n  <div><div class=\"header-title\">G2 Travel</div><div class=\"header-sub\">Contract & Availability Tools</div></div>\n  <nav class=\"app-nav\" aria-label=\"Tools\">\n    <a class=\"app-nav-link is-active\" href=\"./\">Contract Audit</a>\n    <a class=\"app-nav-link\" href=\"./topup.html\">Top-up Desk</a>\n  </nav>\n  <div class=\"header-badge\">v4.4</div>\n  <button class=\"dark-toggle\" id=\"dark-toggle\" title=\"Toggle dark mode\">\U0001f319 Dark</button>\n</header>"""
+          if old not in t:
+              raise SystemExit("audit header not found")
+          t = t.replace(old, new, 1)
+          p.write_text(t, encoding="utf-8")
+          print("patched index.html")
+          PY
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html topup.html
+          git diff --cached --quiet || git commit -m "Add Top-up Desk and shared G2 navigation"
+          git push
