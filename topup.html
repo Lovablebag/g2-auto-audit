@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Top-up Desk · G2 Travel</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--paper:#f0f2f5;--card:#fff;--ink:#1a1a2e;--mute:#6b7a99;--line:#C0C8D8;--teal:#1A7DC4;--teal-d:#0F5A91;--tint:#B8D4EE;--wash:#E8F3FB;--amber:#B7600A;--amber-w:#FEF5EA;--ind:#0F5A91;--ind-w:#E8F3FB;--grey-w:#e8ecf4;--bad:#C0392B;--bad-w:#FDF0EF}
+*{box-sizing:border-box}
+html{font-size:15px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.45;font-variant-numeric:tabular-nums}
+button,input,textarea{font:inherit;color:inherit}
+h1,h2,h3,p{margin:0}
+.top{display:flex;align-items:center;gap:28px;padding:14px 28px;background:var(--card);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.mark{width:22px;height:22px;border-radius:5px;background:var(--tint);border:2px solid var(--teal);position:relative}
+.mark:after{content:"";position:absolute;left:4px;right:4px;top:8px;height:2px;background:var(--teal);box-shadow:0 5px 0 var(--teal)}
+.brand h1{font-size:1.15rem;font-weight:700;letter-spacing:-.01em}
+.steps{display:flex;gap:6px;list-style:none;margin:0;padding:0;flex:1}
+.steps button{display:flex;align-items:center;gap:8px;border:0;background:none;padding:6px 12px;border-radius:999px;cursor:pointer;color:var(--mute);font-weight:500}
+.steps button b{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--grey-w);font-size:.8rem}
+.steps button[aria-current=step]{color:var(--ink);background:var(--wash);font-weight:600}
+.steps button[aria-current=step] b{background:var(--teal);color:#fff}
+.steps button:disabled{cursor:default;opacity:.55}
+.tools{display:flex;gap:8px}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:7px;padding:7px 14px;cursor:pointer;font-weight:500}
+.btn:hover:not(:disabled){border-color:var(--teal);color:var(--teal-d)}
+.btn.pri{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600}
+.btn.pri:hover:not(:disabled){background:var(--teal-d);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{padding:4px 10px;font-size:.87rem}
+:focus-visible{outline:3px solid #7cc4c1;outline-offset:2px}
+main{max-width:1200px;margin:0 auto;padding:28px 28px 110px}
+h2{font-size:1.6rem;font-weight:650;letter-spacing:-.015em;margin-bottom:6px}
+.lead{color:var(--mute);max-width:64ch;margin-bottom:20px}
+.drop{border:2px dashed #8fbcb8;border-radius:12px;background:var(--card);padding:44px 24px;display:flex;flex-direction:column;gap:4px;align-items:flex-start;cursor:pointer;max-width:760px}
+.drop strong{font-size:1.25rem}
+.drop span{color:var(--mute)}
+.drop.over,.drop:hover{background:var(--wash);border-color:var(--teal)}
+.msgs{max-width:760px;margin-top:14px;display:grid;gap:8px}
+.msg{padding:9px 12px;border-radius:7px;font-size:.93rem}
+.msg.warn{background:var(--amber-w);color:var(--amber)}
+.msg.err{background:var(--bad-w);color:var(--bad)}
+.msg.ok{background:var(--wash);color:var(--teal-d)}
+.files{max-width:760px;margin-top:18px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.file{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:12px 14px;border-top:1px solid var(--line)}
+.file:first-child{border-top:0}
+.file .n{font-weight:600;overflow-wrap:anywhere}
+.file .d{color:var(--mute);font-size:.9rem}
+.actions{margin-top:20px;display:flex;gap:10px;align-items:center}
+.priv{color:var(--mute);font-size:.87rem;margin-top:14px}
+.sum{color:var(--ink);max-width:80ch;margin-bottom:16px}
+.filters{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.filters input[type=search]{border:1px solid var(--line);border-radius:7px;padding:7px 11px;min-width:260px;background:var(--card)}
+.chk{display:flex;gap:7px;align-items:center;color:var(--mute)}
+input[type=checkbox]{width:17px;height:17px;accent-color:var(--teal)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:auto}
+table.t{border-collapse:collapse;width:100%}
+table.t th{text-align:left;font-weight:600;font-size:.88rem;color:var(--mute);padding:9px 12px;border-bottom:1px solid var(--line);background:#fafcfc;white-space:nowrap}
+table.t td{padding:9px 12px;border-bottom:1px solid #e8f0ee;vertical-align:middle}
+table.t tr:last-child td{border-bottom:0}
+table.t tr.sel td{background:var(--wash)}
+table.t tr.dim td{color:#8ba09d}
+table.t .num,table.t th.num{text-align:right}
+.pn{font-weight:600}.sub{color:var(--mute);font-size:.86rem}
+.b{display:inline-block;min-width:32px;text-align:center;padding:1px 9px;border-radius:999px;font-weight:600;font-size:.9rem}
+.b.t{background:var(--wash);color:var(--teal-d)}.b.r{background:var(--ind-w);color:var(--ind)}.b.s{background:var(--grey-w);color:var(--mute)}
+.z{color:#a9b9b7}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:12px 28px;display:flex;gap:16px;align-items:center;justify-content:space-between}
+.bar>div{display:flex;gap:10px;align-items:center}
+details{margin-top:22px}
+summary{cursor:pointer;font-weight:600;padding:6px 0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}
+.seg button{border:0;background:none;padding:7px 14px;cursor:pointer;font-weight:500}
+.seg button[aria-pressed=true]{background:var(--teal);color:#fff;font-weight:600}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}
+.tab{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 12px;cursor:pointer;display:flex;gap:8px;align-items:center;text-align:left}
+.tab[aria-selected=true]{border-color:var(--teal);background:var(--wash);font-weight:600}
+.tab .k{font-size:.78rem;padding:0 7px;border-radius:999px;font-weight:600}
+.tab .k.t{background:var(--tint);color:var(--teal-d)}.tab .k.r{background:var(--ind-w);color:var(--ind)}
+.tab i{font-style:normal;color:var(--mute);font-weight:500;font-size:.85rem}
+.cols{display:grid;grid-template-columns:minmax(340px,440px) 1fr;gap:22px;align-items:start}
+@media(max-width:940px){.cols{grid-template-columns:1fr}.top{gap:12px}}
+.ed{display:grid;gap:16px}
+.field label,.rooms label{display:block;font-weight:600;font-size:.88rem;margin-bottom:4px}
+.field input,.rooms input[type=text],.tpl textarea{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;background:var(--card)}
+.field .row{display:flex;gap:8px}
+.greet{display:flex;gap:8px;align-items:center}
+.pe{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.pe h3{font-size:1.02rem;margin-bottom:10px}
+.rooms{display:grid;gap:8px;margin-bottom:10px}
+.hint{color:var(--amber);font-size:.83rem}
+table.mini{border-collapse:collapse;width:100%;font-size:.92rem}
+table.mini th{text-align:right;font-weight:600;color:var(--mute);padding:4px 6px;border-bottom:1px solid var(--line)}
+table.mini td{text-align:right;padding:4px 6px;border-bottom:1px solid #edf3f2;white-space:nowrap}
+table.mini th:nth-child(2),table.mini td:nth-child(2),table.mini th:first-child,table.mini td:first-child{text-align:left}
+table.mini tr.off td{color:#a3b3b1;text-decoration:line-through}
+.pv{position:sticky;top:12px}
+.pvbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.pvbar span{font-weight:600}
+.paper{background:#fff;border:1px solid var(--line);border-radius:10px;padding:26px 28px;overflow:auto;max-height:calc(100vh - 170px)}
+.tip{color:var(--mute);font-size:.87rem;margin-top:10px}
+dialog{border:1px solid var(--line);border-radius:12px;padding:22px 24px;max-width:640px;width:calc(100% - 32px);color:var(--ink)}
+dialog::backdrop{background:rgba(18,48,46,.35)}
+dialog h2{font-size:1.3rem}
+dialog ol{padding-left:20px;margin:12px 0}
+dialog li{margin-bottom:8px}
+.tpl{display:grid;gap:10px;margin:14px 0}
+.tpl label{font-weight:600;font-size:.88rem;display:block;margin-bottom:3px}
+.tpl textarea{min-height:56px;resize:vertical}
+.dlgfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+#toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.on{opacity:1}
+@media(prefers-reduced-motion:reduce){#toast{transition:none}}
+
+.header{background:#1A7DC4;padding:.75rem 2rem;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;border-bottom:3px solid #0F5A91;flex-wrap:wrap}
+.logo-mark{font-size:11px;font-weight:700;color:#fff;letter-spacing:.12em;text-transform:uppercase;background:rgba(255,255,255,.18);padding:4px 11px;border-radius:5px}
+.header-title{font-size:15px;font-weight:600;color:#fff}
+.header-sub{font-size:11px;color:rgba(255,255,255,.6)}
+.header-badge{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.75);font-size:11px;padding:3px 9px;border-radius:20px;margin-left:auto;font-family:monospace}
+.dark-toggle{background:none;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit}
+.dark-toggle:hover{background:rgba(255,255,255,.12);color:#fff}
+
+.app-nav{display:flex;align-items:center;gap:6px;margin-left:18px;flex-wrap:wrap}
+.app-nav-link{color:rgba(255,255,255,.75);text-decoration:none;font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid transparent}
+.app-nav-link:hover{background:rgba(255,255,255,.12);color:#fff}
+.app-nav-link.is-active{background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.2)}
+
+body.dark{--paper:#0f1117;--card:#1a1d27;--ink:#e8ecf5;--mute:#7a85a3;--line:#2e3347;--wash:#0d1e2e;--tint:#0f2a4a;--grey-w:#13161f}
+.header .tools{margin-left:0}
+@media(max-width:720px){.app-nav{margin-left:0;width:100%}}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="logo-mark">G2</div>
+  <div><div class="header-title">G2 Travel</div><div class="header-sub">Contract &amp; Availability Tools</div></div>
+  <nav class="app-nav" aria-label="Tools">
+    <a class="app-nav-link" href="./">Contract Audit</a>
+    <a class="app-nav-link is-active" href="./topup.html">Top-up Desk</a>
+  </nav>
+  <div class="header-badge">Top-up</div>
+  <button class="dark-toggle" id="dark-toggle" title="Toggle dark mode">🌙 Dark</button>
+</header>
+<div class="top" style="border-bottom:1px solid var(--line)">
+  <ol class="steps" id="steps"></ol>
+  <div class="tools">
+    <button class="btn sm" data-action="rules">Rules</button>
+    <button class="btn sm" data-action="wording">Wording</button>
+  </div>
+</div>
+<main id="app"></main>
+<div id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="fi" multiple accept=".xlsx,.xls,.csv,.tsv" hidden>
+
+<dialog id="dlgRules">
+  <h2>Rules</h2>
+  <ol>
+    <li>Skip a row when Allotment Closed or Freesale Closed says Closed. Skipped rows stay visible in the audit list.</li>
+    <li>Ask for a release reduction to 0 when Available is 0 and Total minus Sold is not 0. The stock is off sale because of a release.</li>
+    <li>Ask for a top-up when Available is at or below the limit below, for every other open row.</li>
+    <li>Requests stay generic and quote the availability. The hotel decides what to open and where.</li>
+  </ol>
+  <div class="field"><label for="thr">Top-up limit (Available at or below)</label><input id="thr" type="number" min="0" max="9" step="1" style="width:90px"></div>
+  <div class="dlgfoot"><button class="btn pri" data-action="closedlg">Done</button></div>
+</dialog>
+
+<dialog id="dlgWording">
+  <h2>Wording</h2>
+  <p class="sub">Use {property} and {city}. Put **double asterisks** around words to bold them. Your Outlook signature is added by Outlook, so leave the signature empty unless you need it.</p>
+  <div class="tpl" id="tplBox"></div>
+  <div class="dlgfoot"><button class="btn" data-action="resettpl">Reset to defaults</button><button class="btn pri" data-action="closedlg">Done</button></div>
+</dialog>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const pad=n=>String(n).padStart(2,'0');
+const iso=(y,m,d)=>y+'-'+pad(m)+'-'+pad(d);
+const fmtDate=s=>{const [y,m,d]=s.split('-').map(Number);return DOW[new Date(Date.UTC(y,m-1,d)).getUTCDay()]+' '+pad(d)+' '+MON[m-1]+' '+y};
+const fmtShort=s=>{const [y,m,d]=s.split('-').map(Number);return d+' '+MON[m-1]+' '+y};
+const dayNum=s=>{const [y,m,d]=s.split('-').map(Number);return Date.UTC(y,m-1,d)/864e5};
+const todayIso=()=>{const t=new Date();return iso(t.getFullYear(),t.getMonth()+1,t.getDate())};
+const norm=v=>String(v==null?'':v).trim().toLowerCase();
+const num=v=>{const n=Number(String(v).replace(',','.'));return isNaN(n)?0:n};
+
+const DEF_TPL={
+  topupOne:'Could you please provide a **top-up** for **{property}** for the below dates?',
+  topupMany:'Could you please provide **additional availability** for your {city} properties for the below dates?',
+  releaseOne:'Could you please **reduce the release to 0 days** for **{property}** for the below dates, so the remaining availability goes back on sale?',
+  releaseMany:'Could you please **reduce the release to 0 days** for your {city} properties for the below dates, so the remaining availability goes back on sale?',
+  releaseAlsoOne:'Also, could you please **reduce the release to 0 days** for the below dates, so the remaining availability goes back on sale?',
+  releaseAlsoMany:'Also, could you please **reduce the release to 0 days** for your {city} properties for the below dates, so the remaining availability goes back on sale?',
+  opening:'I hope you\u2019re doing well.',
+  closing:'Thank you so much in advance for checking and for your support!',
+  regards:'Kind regards,',
+  signature:''
+};
+const TPL_LABELS={topupOne:'Top-up, one property',topupMany:'Top-up, several properties',releaseOne:'Release, one property (no top-up in the same email)',releaseMany:'Release, several properties (no top-up in the same email)',releaseAlsoOne:'Release, added after a top-up in the same email',releaseAlsoMany:'Release, added after a top-up, several properties',opening:'Opening line',closing:'Closing line',regards:'Sign-off',signature:'Signature (optional)'};
+const LS='topupdesk.v1';
+let P={tpl:Object.assign({},DEF_TPL),greet:{},rooms:{},threshold:1};
+try{const s=JSON.parse(localStorage.getItem(LS)||'null');if(s){P.tpl=Object.assign({},DEF_TPL,s.tpl||{});P.greet=s.greet||{};P.rooms=s.rooms||{};P.threshold=s.threshold==null?1:s.threshold}}catch(e){}
+const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
+
+const S={step:1,files:[],rows:[],dups:0,msgs:[],threshold:P.threshold,selected:new Set(),discard:new Set(),grouping:'each',combine:true,active:0,q:'',showAll:false,subj:{}};
+
+/* ---------- parsing ---------- */
+function parseDate(v){
+  if(v==null||v==='')return null;
+  if(v instanceof Date&&!isNaN(v))return iso(v.getFullYear(),v.getMonth()+1,v.getDate());
+  if(typeof v==='number'){if(v<20000)return null;const p=XLSX.SSF.parse_date_code(v);return p?iso(p.y,p.m,p.d):null}
+  const s=String(v).trim();let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m)return iso(+m[1],+m[2],+m[3]);
+  m=s.match(/(\d{1,2})\s+([A-Za-z]{3})[a-z]*\s+(\d{4})/);
+  if(m){const i=MON.findIndex(x=>x.toLowerCase()===m[2].toLowerCase());if(i>=0)return iso(+m[3],i+1,+m[1])}
+  m=s.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})/);
+  if(m)return iso(+m[3],+m[2],+m[1]);
+  return null;
+}
+function parseStamp(v){
+  if(typeof v==='number'&&v>20000){const p=XLSX.SSF.parse_date_code(v);if(p)return {d:iso(p.y,p.m,p.d),t:pad(p.H)+':'+pad(p.M)}}
+  const d=parseDate(v);if(!d)return null;
+  const m=String(v).match(/(\d{1,2}):(\d{2})/);return {d,t:m?pad(m[1])+':'+m[2]:''};
+}
+const DEF_COLS=['country','city','property','chain','supplier','contract owner','e-mail','phone','inventory by','room/category','date','allotment','allotment closed','freesale','freesale closed','total','sold','available','closures apply','inventory type'];
+const NEED=['property','room/category','date','allotment','allotment closed','freesale','freesale closed','total','sold','available'];
+
+async function readFile(f){
+  const ext=f.name.split('.').pop().toLowerCase();
+  let wb;
+  if(['csv','tsv','txt'].includes(ext))wb=XLSX.read(await f.text(),{type:'string',raw:true});
+  else wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+  const aoa=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:''});
+  let hi=aoa.findIndex(r=>{const n=r.map(norm);return n.includes('property')&&n.includes('available')});
+  let H;
+  if(hi>=0)H=aoa[hi].map(norm);
+  else if(aoa[0]&&aoa[0].length>=18){H=DEF_COLS;hi=-1}
+  else return {error:'No table with Property and Available columns was found.'};
+  if(H.includes('contract type'))return {error:'This looks like the Availability Report, which is not needed here.'};
+  const miss=NEED.filter(n=>!H.includes(n));
+  if(miss.length)return {error:'Missing columns: '+miss.join(', ')+'.'};
+  const ix=n=>H.indexOf(n);
+  const meta={};
+  for(let i=0;i<Math.max(hi,0);i++){
+    const k=norm(aoa[i][0]),v=aoa[i][1];
+    if(k==='from date')meta.from=parseDate(v);
+    else if(k==='to date')meta.to=parseDate(v);
+    else if(k==='report date')meta.pulled=parseStamp(v);
+  }
+  const rows=[];let bad=0;
+  for(let i=hi+1;i<aoa.length;i++){
+    const r=aoa[i];const prop=String(r[ix('property')]==null?'':r[ix('property')]).trim();
+    const d=parseDate(r[ix('date')]);
+    if(!prop&&!d)continue;
+    if(!prop||!d){bad++;continue}
+    const room=String(r[ix('room/category')]||'').trim()||'Uncategorised';
+    const g=n=>ix(n)>=0?String(r[ix(n)]==null?'':r[ix(n)]).trim():'';
+    rows.push({key:prop+'|'+room+'|'+d,property:prop,city:g('city'),owner:g('contract owner'),room,date:d,
+      allot:num(r[ix('allotment')]),allotClosed:g('allotment closed'),free:num(r[ix('freesale')]),freeClosed:g('freesale closed'),
+      total:num(r[ix('total')]),sold:num(r[ix('sold')]),avail:num(r[ix('available')])});
+  }
+  if(!rows.length)return {error:'The table has no data rows.'};
+  if(!meta.from||!meta.to){const ds=rows.map(r=>r.date).sort();meta.derived=true;meta.from=meta.from||ds[0];meta.to=meta.to||ds[ds.length-1]}
+  return {name:f.name,size:f.size,rows,meta,bad};
+}
+async function addFiles(list){
+  S.msgs=[];
+  for(const f of list){
+    if(S.files.some(x=>x.name===f.name&&x.size===f.size)){S.msgs.push({k:'warn',t:f.name+' is already loaded.'});continue}
+    try{const r=await readFile(f);
+      if(r.error)S.msgs.push({k:'err',t:f.name+': '+r.error});
+      else{S.files.push(r);if(r.bad)S.msgs.push({k:'warn',t:f.name+': '+r.bad+' rows without a valid date were ignored.'})}
+    }catch(e){S.msgs.push({k:'err',t:f.name+': the file could not be read.'})}
+  }
+  rebuild();render();
+}
+function rebuild(){
+  const m=new Map();let dups=0;
+  for(const f of S.files)for(const r of f.rows){if(m.has(r.key))dups++;m.set(r.key,r)}
+  S.rows=[...m.values()];S.dups=dups;
+  const props=new Set(S.rows.map(r=>r.property));
+  for(const p of [...S.selected])if(!props.has(p))S.selected.delete(p);
+}
+function rangeMsgs(){
+  const out=[];const fs=S.files.filter(f=>f.meta.from&&f.meta.to).sort((a,b)=>a.meta.from.localeCompare(b.meta.from));
+  for(let i=1;i<fs.length;i++){
+    const gap=dayNum(fs[i].meta.from)-dayNum(fs[i-1].meta.to)-1;
+    if(gap>0)out.push({k:'warn',t:'Gap of '+gap+' day'+(gap>1?'s':'')+' between '+fmtShort(fs[i-1].meta.to)+' and '+fmtShort(fs[i].meta.from)+'. Pull that period too if you need it.'});
+    else if(gap<0)out.push({k:'ok',t:'Two files overlap. '+S.dups+' duplicate rows were merged.'});
+  }
+  if(fs.length>1&&!out.length)out.push({k:'ok',t:'The files join without a gap.'});
+  const t=todayIso();
+  for(const f of S.files)if(f.meta.pulled&&f.meta.pulled.d!==t)out.push({k:'warn',t:f.name+' was pulled on '+fmtShort(f.meta.pulled.d)+', not today.'});
+  return out;
+}
+
+/* ---------- rules ---------- */
+const isClosed=v=>norm(v)==='closed';
+function classify(r){
+  if(isClosed(r.allotClosed)||isClosed(r.freeClosed))return 'skip';
+  if(r.avail===0&&(r.total-r.sold)!==0)return 'release';
+  if(r.avail<=S.threshold)return 'topup';
+  return 'none';
+}
+function stats(){
+  const m=new Map();
+  for(const r of S.rows){
+    const a=classify(r);
+    let s=m.get(r.property);
+    if(!s){s={name:r.property,city:r.city,owner:r.owner,topup:0,release:0,skip:0,min:null,max:null};m.set(r.property,s)}
+    if(a==='topup'||a==='release'||a==='skip')s[a]++;
+    if(a==='topup'||a==='release'){if(!s.min||r.date<s.min)s.min=r.date;if(!s.max||r.date>s.max)s.max=r.date}
+  }
+  return [...m.values()].sort((a,b)=>a.name.localeCompare(b.name));
+}
+const cmpRow=(a,b)=>a.room.localeCompare(b.room)||a.date.localeCompare(b.date);
+const roomName=(p,r)=>P.rooms[p+'||'+r]||r;
+
+/* ---------- emails ---------- */
+function buildEmails(){
+  const props=[...S.selected].sort((a,b)=>a.localeCompare(b));
+  const perProp=props.map(p=>{
+    const rows=S.rows.filter(r=>r.property===p);
+    const top=rows.filter(r=>classify(r)==='topup').sort(cmpRow);
+    const rel=rows.filter(r=>classify(r)==='release').sort(cmpRow);
+    return {prop:p,city:(rows[0]||{}).city||'',top,rel};
+  }).filter(x=>x.top.length||x.rel.length);
+  if(!perProp.length)return [];
+  const mk=its=>{
+    const hasT=its.some(i=>i.top.length),hasR=its.some(i=>i.rel.length);
+    const type=hasT&&hasR?'combined':hasT?'topup':'release';
+    return {id:type+'|'+its.map(i=>i.prop).join('+'),type,items:its,key:its.length===1?its[0].prop:'*team*'};
+  };
+  const out=[];
+  if(S.grouping==='each'){
+    perProp.forEach(x=>{
+      if(S.combine)out.push(mk([x]));
+      else{
+        if(x.top.length)out.push(mk([{prop:x.prop,city:x.city,top:x.top,rel:[]}]));
+        if(x.rel.length)out.push(mk([{prop:x.prop,city:x.city,top:[],rel:x.rel}]));
+      }
+    });
+  }else if(S.combine)out.push(mk(perProp));
+  else{
+    const withT=perProp.filter(x=>x.top.length).map(x=>({prop:x.prop,city:x.city,top:x.top,rel:[]}));
+    const withR=perProp.filter(x=>x.rel.length).map(x=>({prop:x.prop,city:x.city,top:[],rel:x.rel}));
+    if(withT.length)out.push(mk(withT));
+    if(withR.length)out.push(mk(withR));
+  }
+  return out;
+}
+const cityOf=e=>{const c=[...new Set(e.items.map(i=>i.city).filter(Boolean))];return c.length===1?c[0]:''};
+function defSubject(e){
+  const one=e.items.length===1,c=cityOf(e),p=one?e.items[0].prop:'';
+  if(e.type==='combined')return one?'Availability & Release Request for '+p:'Availability & Release Request - '+(c?c+' ':'')+'Properties';
+  if(e.type==='topup')return one?'Top-up for '+p:'Availability Request - '+(c?c+' ':'')+'Properties';
+  return one?'Release reduction for '+p:'Release Request - '+(c?c+' ':'')+'Properties';
+}
+const subjectOf=e=>S.subj[e.id]!=null?S.subj[e.id]:defSubject(e);
+const greetOf=e=>P.greet[e.key]!=null?P.greet[e.key]:'Team';
+const includedRows=rows=>rows.filter(r=>!S.discard.has(r.key));
+function tpl(t,vars){
+  let s=String(t||'').replace(/\{property\}/g,vars.property||'').replace(/\{city\}/g,vars.city||'').replace(/ {2,}/g,' ');
+  return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
+}
+const plain=t=>String(t||'').replace(/\*\*/g,'');
+function tableHtml(top,rows){
+  const th=(t,r)=>'<th style="background:#b2dfdb;border:1px solid #000000;padding:2px 6px;font-weight:bold;text-align:'+(r?'right':'left')+';white-space:nowrap">'+t+'</th>';
+  const td=(t,r,w)=>'<td'+(w?' width="'+w+'"':'')+' style="border:1px solid #000000;padding:2px 6px;text-align:'+(r?'right':'left')+';white-space:nowrap">'+t+'</td>';
+  let h='<table cellspacing="0" cellpadding="0" border="1" style="border-collapse:collapse;border:1px solid #000000;margin:0 0 6px 0"><thead><tr>'+
+    th('Room/Category')+th('Date')+th('Allotment',1)+th('Freesale',1)+th('Total',1)+th('Sold',1)+th('Available',1)+(top?th('Top-Up'):'')+th('Yes/No')+'</tr></thead><tbody>';
+  for(const r of rows)h+='<tr>'+td(esc(roomName(r.property,r.room)))+td(fmtDate(r.date))+td(r.allot,1)+td(r.free,1)+td(r.total,1)+td(r.sold,1)+td(r.avail,1)+(top?td('&nbsp;',0,90):'')+td('&nbsp;',0,90)+'</tr>';
+  return h+'</tbody></table>';
+}
+function emailParts(e){
+  const one=e.items.length===1,T=P.tpl,ps='style="margin:0 0 14px 0"';
+  const hasTop=e.items.some(i=>i.top.length),hasRel=e.items.some(i=>i.rel.length);
+  const firstProp=e.items[0].prop,city=cityOf(e);
+  const line=k=>plain(T[k]).replace('{property}',firstProp).replace('{city}',city).replace(/ {2,}/g,' ');
+  let count=0,html='<div style="font-family:Aptos,Calibri,Arial,sans-serif;font-size:11pt;color:#000000">';
+  html+='<p '+ps+'>Hi '+esc(greetOf(e))+',</p><p '+ps+'>'+tpl(T.opening,{})+'</p>';
+  let text='Hi '+greetOf(e)+',\n\n'+plain(T.opening)+'\n\n';
+  function block(arr,top,introKey){
+    html+='<p '+ps+'>'+tpl(T[introKey],{property:firstProp,city})+'</p>';
+    text+=line(introKey)+'\n\n';
+    for(const it of e.items){
+      const rows=includedRows(top?it.top:it.rel);if(!rows.length)continue;count+=rows.length;
+      if(!one){html+='<p style="margin:16px 0 6px 0;font-size:13pt;font-weight:bold">'+esc(it.prop)+'</p>';text+=it.prop+'\n'}
+      html+=tableHtml(top,rows);
+      text+=['Room/Category','Date','Allotment','Freesale','Total','Sold','Available'].concat(top?['Top-Up']:[],['Yes/No']).join('\t')+'\n';
+      for(const r of rows)text+=[roomName(r.property,r.room),fmtDate(r.date),r.allot,r.free,r.total,r.sold,r.avail].concat(top?['']:[],['']).join('\t')+'\n';
+      text+='\n';
+    }
+  }
+  if(hasTop)block(e.items,true,'topup'+(one?'One':'Many'));
+  if(hasRel)block(e.items,false,(hasTop?'releaseAlso':'release')+(one?'One':'Many'));
+  html+='<p style="margin:14px 0 14px 0">'+tpl(T.closing,{})+'</p><p style="margin:0 0 14px 0">'+tpl(T.regards,{})+'</p>';
+  text+=plain(T.closing)+'\n\n'+plain(T.regards)+'\n';
+  if(String(T.signature||'').trim()){html+='<p style="margin:0">'+tpl(T.signature,{})+'</p>';text+='\n'+plain(T.signature)+'\n'}
+  return {html:html+'</div>',text,count};
+}
+
+/* ---------- views ---------- */
+function renderSteps(){
+  const st=[['Load reports',1,true],['Choose properties',2,S.rows.length>0],['Write emails',3,S.selected.size>0]];
+  $('#steps').innerHTML=st.map(([n,i,ok])=>'<li><button data-action="step" data-i="'+i+'" '+(S.step===i?'aria-current="step"':'')+(ok?'':' disabled')+'><b>'+i+'</b>'+n+'</button></li>').join('');
+}
+function v1(){
+  const msgs=S.msgs.concat(S.files.length?rangeMsgs():[]);
+  return '<section><h2>Load the Low Availability reports</h2><p class="lead">Add one or more files, Excel or CSV. The app joins them, merges duplicate dates and checks that the date ranges line up.</p>'+
+  '<div id="drop" class="drop" tabindex="0" role="button" data-action="pick"><strong>Drop files here</strong><span>or click to choose them</span></div>'+
+  (msgs.length?'<div class="msgs">'+msgs.map(m=>'<div class="msg '+m.k+'">'+esc(m.t)+'</div>').join('')+'</div>':'')+
+  (S.files.length?'<div class="files">'+S.files.map((f,i)=>'<div class="file"><div class="n">'+esc(f.name)+'</div><div><button class="btn sm" data-action="rmfile" data-i="'+i+'">Remove</button></div><div class="d">'+f.rows.length+' rows, '+fmtShort(f.meta.from)+' to '+fmtShort(f.meta.to)+(f.meta.pulled?', pulled '+fmtShort(f.meta.pulled.d)+' '+f.meta.pulled.t:'')+'</div></div>').join('')+'</div>':'')+
+  '<div class="actions"><button class="btn pri" data-action="step" data-i="2" '+(S.rows.length?'':'disabled')+'>Find the requests</button></div>'+
+  '<p class="priv">Files are read in your browser. Nothing is uploaded.</p></section>';
+}
+function v2(){
+  const all=stats();const top=all.reduce((a,s)=>a+s.topup,0),rel=all.reduce((a,s)=>a+s.release,0),skip=all.reduce((a,s)=>a+s.skip,0);
+  const withAct=all.filter(s=>s.topup+s.release>0).length;
+  return '<section><h2>Choose the properties</h2><p class="sum">'+top+' top-up rows and '+rel+' release rows across '+withAct+' properties. '+skip+' rows were skipped because the hotel closed them.</p>'+
+  '<div class="filters"><input type="search" id="q" placeholder="Search a property or city" value="'+esc(S.q)+'" aria-label="Search properties">'+
+  '<label class="chk"><input type="checkbox" data-action="showall" '+(S.showAll?'checked':'')+'>Show properties with nothing to request</label>'+
+  '<button class="btn sm" data-action="selall">Select all shown</button><button class="btn sm" data-action="selnone">Clear</button></div>'+
+  '<div class="card" id="tbl">'+tbl2()+'</div>'+audit()+
+  '<div class="bar"><span id="selcount">'+S.selected.size+' selected</span><div><button class="btn" data-action="step" data-i="1">Back</button><button class="btn pri" data-action="step" data-i="3" '+(S.selected.size?'':'disabled')+'>Write emails</button></div></div></section>';
+}
+function shown(){
+  const q=norm(S.q);
+  return stats().filter(s=>(S.showAll||s.topup+s.release>0)&&(!q||norm(s.name).includes(q)||norm(s.city).includes(q)));
+}
+function tbl2(){
+  const z=n=>n?n:'<span class="z">\u2013</span>';
+  const rows=shown();
+  if(!rows.length)return '<p style="padding:18px" class="sub">No property matches.</p>';
+  return '<table class="t"><thead><tr><th></th><th>Property</th><th class="num">Top-up</th><th class="num">Release</th><th class="num">Closed</th><th>Dates</th><th>Contract owner</th></tr></thead><tbody>'+
+  rows.map(s=>{const act=s.topup+s.release>0,sel=S.selected.has(s.name);
+    return '<tr class="'+(sel?'sel':'')+(act?'':' dim')+'"><td><input type="checkbox" data-action="tog" data-p="'+esc(s.name)+'" '+(sel?'checked':'')+(act?'':' disabled')+' aria-label="Select '+esc(s.name)+'"></td>'+
+    '<td><div class="pn">'+esc(s.name)+'</div><div class="sub">'+esc(s.city)+'</div></td>'+
+    '<td class="num">'+(s.topup?'<span class="b t">'+s.topup+'</span>':z(0))+'</td><td class="num">'+(s.release?'<span class="b r">'+s.release+'</span>':z(0))+'</td><td class="num">'+(s.skip?'<span class="b s">'+s.skip+'</span>':z(0))+'</td>'+
+    '<td>'+(s.min?fmtShort(s.min)+' to '+fmtShort(s.max):'')+'</td><td>'+esc(s.owner)+'</td></tr>'}).join('')+'</tbody></table>';
+}
+function audit(){
+  const sk=S.rows.filter(r=>classify(r)==='skip').sort((a,b)=>a.property.localeCompare(b.property)||cmpRow(a,b));
+  return '<details><summary>Skipped rows (closed by the hotel): '+sk.length+'</summary><div class="card" style="margin-top:8px"><table class="t"><thead><tr><th>Property</th><th>Room</th><th>Date</th><th>Allotment closed</th><th>Freesale closed</th></tr></thead><tbody>'+
+  sk.slice(0,400).map(r=>'<tr><td>'+esc(r.property)+'</td><td>'+esc(r.room)+'</td><td>'+fmtDate(r.date)+'</td><td>'+esc(r.allotClosed)+'</td><td>'+esc(r.freeClosed)+'</td></tr>').join('')+
+  '</tbody></table></div>'+(sk.length>400?'<p class="sub">Showing the first 400.</p>':'')+'<div style="margin-top:10px"><button class="btn sm" data-action="csv">Download every row with its decision (CSV)</button></div></details>';
+}
+function v3(){
+  const emails=buildEmails();
+  if(!emails.length)return '<section><h2>Write emails</h2><p class="lead">Nothing to write for the selected properties.</p><button class="btn" data-action="step" data-i="2">Back</button></section>';
+  if(S.active>=emails.length)S.active=0;
+  const e=emails[S.active];
+  const badge=x=>x.type==='combined'?'<span class="k t">Top-up</span><span class="k r">Release</span>':'<span class="k '+(x.type==='topup'?'t':'r')+'">'+(x.type==='topup'?'Top-up':'Release')+'</span>';
+  return '<section><h2>Write emails</h2><div class="filters"><div class="seg" role="group" aria-label="Grouping"><button data-action="group" data-g="each" aria-pressed="'+(S.grouping==='each')+'">One email per property</button><button data-action="group" data-g="all" aria-pressed="'+(S.grouping==='all')+'">One email for all selected</button></div><label class="chk"><input type="checkbox" data-action="combine" '+(S.combine?'checked':'')+'>Combine top-up and release in one email</label><button class="btn" data-action="step" data-i="2">Back</button></div>'+
+  '<div class="tabs" role="tablist">'+emails.map((x,i)=>'<button class="tab" role="tab" data-action="tab" data-i="'+i+'" aria-selected="'+(i===S.active)+'">'+badge(x)+esc(x.items.length===1?x.items[0].prop:x.items.length+' properties')+'<i data-cnt="'+i+'"></i></button>').join('')+'</div>'+
+  '<div class="cols"><div class="ed">'+editor(e)+'</div><div class="pv"><div class="pvbar"><span>Preview</span><button class="btn pri" data-action="copyemail">Copy email</button></div><div class="paper" id="paper"></div><p class="tip">Paste into a new Outlook message, then add the recipients. Outlook adds your signature.</p></div></div></section>';
+}
+function editor(e){
+  let h='<div class="field"><label for="subj">Subject</label><div class="row"><input id="subj" type="text" value="'+esc(subjectOf(e))+'"><button class="btn" data-action="copysubj">Copy</button></div></div>'+
+  '<div class="field"><label for="greet">Greeting</label><div class="greet"><span>Hi</span><input id="greet" type="text" value="'+esc(greetOf(e))+'"><span>,</span></div></div>';
+  const mini=(it,type,rows)=>{
+    if(!rows.length)return '';
+    const allOn=rows.every(r=>!S.discard.has(r.key));
+    const allRooms=[...new Set(it.top.concat(it.rel).map(r=>r.room))];
+    return (it.top.length&&it.rel.length?'<div class="sub" style="margin:10px 0 4px;font-weight:600">'+(type==='topup'?'Top-up dates':'Release dates')+'</div>':'')+
+    '<table class="mini"><thead><tr><th><input type="checkbox" data-action="allrows" data-p="'+esc(it.prop)+'" data-t="'+type+'" '+(allOn?'checked':'')+' aria-label="Include all '+type+' dates"></th><th>Date</th>'+(allRooms.length>1?'<th>Room</th>':'')+'<th>Allot</th><th>Free</th><th>Total</th><th>Sold</th><th>Avail</th></tr></thead><tbody>'+
+    rows.map(r=>'<tr class="'+(S.discard.has(r.key)?'off':'')+'"><td><input type="checkbox" data-action="rowtog" data-k="'+esc(r.key)+'" '+(S.discard.has(r.key)?'':'checked')+' aria-label="Include '+fmtDate(r.date)+'"></td><td>'+fmtDate(r.date)+'</td>'+(allRooms.length>1?'<td>'+esc(roomName(it.prop,r.room))+'</td>':'')+'<td>'+r.allot+'</td><td>'+r.free+'</td><td>'+r.total+'</td><td>'+r.sold+'</td><td>'+r.avail+'</td></tr>').join('')+'</tbody></table>';
+  };
+  for(const it of e.items){
+    const rooms=[...new Set(it.top.concat(it.rel).map(r=>r.room))];
+    h+='<section class="pe"><h3>'+esc(it.prop)+'</h3><div class="rooms">'+rooms.map(r=>'<div><label>Room name in the email (report: '+esc(r)+')</label><input type="text" data-room data-p="'+esc(it.prop)+'" data-r="'+esc(r)+'" value="'+esc(roomName(it.prop,r))+'">'+(r==='Uncategorised'?'<div class="hint">The report gives no category. Type the name the hotel uses.</div>':'')+'</div>').join('')+'</div>'+
+    mini(it,'topup',it.top)+mini(it,'release',it.rel)+'</section>';
+  }
+  return h;
+}
+function updatePreview(){
+  const emails=buildEmails();const e=emails[S.active];if(!e||!$('#paper'))return;
+  const p=emailParts(e);
+  $('#paper').innerHTML=p.count?p.html:'<p class="sub">No dates are selected. Tick at least one date on the left.</p>';
+  emails.forEach((x,i)=>{const el=document.querySelector('[data-cnt="'+i+'"]');if(el)el.textContent=emailParts(x).count+' dates'});
+}
+function render(){
+  renderSteps();
+  $('#app').innerHTML=S.step===1?v1():S.step===2?v2():v3();
+  if(S.step===3)updatePreview();
+}
+
+/* ---------- actions ---------- */
+let tt;function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('on'),2600)}
+async function copyRich(html,text){
+  try{if(navigator.clipboard&&window.ClipboardItem){await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([text],{type:'text/plain'})})]);return true}}catch(e){}
+  try{const el=document.createElement('div');el.contentEditable='true';el.style.cssText='position:fixed;left:-9999px;top:0;background:#fff';el.innerHTML=html;document.body.appendChild(el);
+    const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r);const ok=document.execCommand('copy');s.removeAllRanges();el.remove();return ok}catch(e){return false}
+}
+async function copyText(t){
+  try{await navigator.clipboard.writeText(t);return true}catch(e){
+    const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();const ok=document.execCommand('copy');a.remove();return ok}
+}
+function csvDownload(){
+  const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
+  const head=['Property','City','Room','Date','Allotment','Allotment closed','Freesale','Freesale closed','Total','Sold','Available','Decision'];
+  const lab={skip:'Skipped (closed)',release:'Release reduction',topup:'Top-up',none:'No action'};
+  const lines=[head.map(q).join(',')].concat(S.rows.slice().sort((a,b)=>a.property.localeCompare(b.property)||cmpRow(a,b)).map(r=>[r.property,r.city,r.room,r.date,r.allot,r.allotClosed,r.free,r.freeClosed,r.total,r.sold,r.avail,lab[classify(r)]].map(q).join(',')));
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv'}));a.download='decisions-'+todayIso()+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+function fillTpl(){
+  $('#tplBox').innerHTML=Object.keys(DEF_TPL).map(k=>'<div><label for="t_'+k+'">'+TPL_LABELS[k]+'</label><textarea id="t_'+k+'" data-tpl="'+k+'">'+esc(P.tpl[k])+'</textarea></div>').join('');
+}
+document.addEventListener('click',async ev=>{
+  const b=ev.target.closest('[data-action]');if(!b)return;
+  const a=b.dataset.action;
+  if(a==='pick')$('#fi').click();
+  else if(a==='rmfile'){S.files.splice(+b.dataset.i,1);S.msgs=[];rebuild();render()}
+  else if(a==='step'){const i=+b.dataset.i;if(b.disabled)return;S.step=i;if(i===3)S.active=0;render();window.scrollTo(0,0)}
+  else if(a==='tog'){const p=b.dataset.p;b.checked?S.selected.add(p):S.selected.delete(p);render()}
+  else if(a==='showall'){S.showAll=b.checked;$('#tbl').innerHTML=tbl2()}
+  else if(a==='selall'){shown().filter(s=>s.topup+s.release>0).forEach(s=>S.selected.add(s.name));render()}
+  else if(a==='selnone'){S.selected.clear();render()}
+  else if(a==='csv')csvDownload();
+  else if(a==='group'){S.grouping=b.dataset.g;S.active=0;render()}
+  else if(a==='combine'){S.combine=b.checked;S.active=0;render()}
+  else if(a==='tab'){S.active=+b.dataset.i;render()}
+  else if(a==='rowtog'){const k=b.dataset.k;b.checked?S.discard.delete(k):S.discard.add(k);render()}
+  else if(a==='allrows'){const rows=S.rows.filter(r=>r.property===b.dataset.p&&classify(r)===b.dataset.t);rows.forEach(r=>b.checked?S.discard.delete(r.key):S.discard.add(r.key));render()}
+  else if(a==='copyemail'){const e=buildEmails()[S.active];const p=emailParts(e);if(!p.count){toast('No dates selected');return}
+    toast(await copyRich(p.html,p.text)?'Email copied. Paste it into Outlook.':'The browser blocked copying. Select the preview and copy it by hand.')}
+  else if(a==='copysubj'){const e=buildEmails()[S.active];toast(await copyText(subjectOf(e))?'Subject copied.':'The browser blocked copying.')}
+  else if(a==='rules'){$('#thr').value=S.threshold;$('#dlgRules').showModal()}
+  else if(a==='wording'){fillTpl();$('#dlgWording').showModal()}
+  else if(a==='closedlg')b.closest('dialog').close();
+  else if(a==='resettpl'){P.tpl=Object.assign({},DEF_TPL);save();fillTpl();if(S.step===3)updatePreview()}
+});
+document.addEventListener('input',ev=>{
+  const t=ev.target;
+  if(t.id==='q'){S.q=t.value;$('#tbl').innerHTML=tbl2()}
+  else if(t.id==='subj'){const e=buildEmails()[S.active];S.subj[e.id]=t.value}
+  else if(t.id==='greet'){const e=buildEmails()[S.active];P.greet[e.key]=t.value;save();updatePreview()}
+  else if(t.hasAttribute&&t.hasAttribute('data-room')){P.rooms[t.dataset.p+'||'+t.dataset.r]=t.value.trim()||t.dataset.r;save();updatePreview()}
+  else if(t.dataset&&t.dataset.tpl){P.tpl[t.dataset.tpl]=t.value;save();if(S.step===3)updatePreview()}
+});
+document.addEventListener('change',ev=>{
+  if(ev.target.id==='thr'){let v=Math.max(0,Math.min(9,parseInt(ev.target.value,10)));if(isNaN(v))v=1;S.threshold=P.threshold=v;save();S.discard.clear();render()}
+  if(ev.target.id==='fi'){addFiles([...ev.target.files]);ev.target.value=''}
+});
+document.addEventListener('selectionchange',()=>{const c=$('#selcount');if(c)c.textContent=S.selected.size+' selected'});
+['dragover','drop'].forEach(n=>window.addEventListener(n,e=>e.preventDefault()));
+document.addEventListener('dragover',e=>{const d=e.target.closest&&e.target.closest('#drop');if(d)d.classList.add('over')});
+document.addEventListener('dragleave',e=>{const d=e.target.closest&&e.target.closest('#drop');if(d)d.classList.remove('over')});
+document.addEventListener('drop',e=>{if(e.target.closest&&e.target.closest('#drop')&&e.dataTransfer)addFiles([...e.dataTransfer.files])});
+document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.id==='drop'){e.preventDefault();$('#fi').click()}});
+
+(function(){
+  const key='g2.theme';
+  const apply=v=>{
+    document.body.classList.toggle('dark', v==='dark');
+    const b=document.getElementById('dark-toggle');
+    if(b) b.textContent=v==='dark'?'☀️ Light':'🌙 Dark';
+  };
+  apply(localStorage.getItem(key)||'light');
+  document.addEventListener('click',e=>{
+    if(e.target&&e.target.id==='dark-toggle'){
+      const next=document.body.classList.contains('dark')?'light':'dark';
+      localStorage.setItem(key,next);apply(next);
+    }
+  });
+})();
+render();
+</script>
+</body>
+</html>
