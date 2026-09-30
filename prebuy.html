@@ -209,15 +209,16 @@ async function fetchRates(){
 }
 
 function dealMath(){
-  const avg=avgSuggest();
+  const ready=suggestedList();
+  const nSug=ready.length;
+  const avg=nSug? ready.reduce((x,y)=>x+y,0)/nSug : null;
   const rooms=num(S.contract.rooms)||0;
-  const days=contractNights();
-  const rnDeal=rooms*days;
+  const rnDeal=rooms*nSug;
   const potential=avg!=null && rnDeal? avg*rnDeal : null;
   const lyCOS=num(S.last.cos), lyRN=num(S.last.rn);
   const lyADR= lyCOS!=null && lyRN? lyCOS/lyRN : null;
-  const incremental= potential!=null && lyCOS!=null ? potential-lyCOS : null;
-  return {avg,rooms,days,rnDeal,potential,lyCOS,lyRN,lyADR,incremental,nSug:suggestedList().length};
+  const incremental= potential!=null && lyADR!=null ? (avg-lyADR)*rnDeal : null;
+  return {avg,rooms,days:nSug,rnDeal,potential,lyCOS,lyRN,lyADR,incremental,nSug};
 }
 
 function render(){
@@ -272,31 +273,46 @@ function render(){
     <div class="kpis">
       <div class="kpi"><span>Suggested nights ready</span><b>${m.nSug} / ${S.rows.length||0}</b></div>
       <div class="kpi"><span>Average suggested net</span><b>${m.avg==null?'—':fmtN(m.avg,c)}</b></div>
-      <div class="kpi"><span>Deal potential</span><b>${m.potential==null?'—':fmtMoney(m.potential,c)}</b><div class="hint">${m.rooms} rooms × ${m.days} days</div></div>
-      <div class="kpi"><span>${m.lyCOS==null?'Last year':'Incremental vs last year'}</span><b>${m.lyCOS==null?'Add last-year COS':fmtMoney(m.incremental,c)}</b><div class="hint">${m.lyADR==null?'':('LY ADR '+fmtN(m.lyADR,c)+(S.last.gtee==='yes'?' · guarantee':''))}</div></div>
+      <div class="kpi"><span>Deal potential</span><b>${m.potential==null?'—':fmtMoney(m.potential,c)}</b><div class="hint">${m.nSug? (m.rooms+' rooms × '+m.nSug+' ready nights'):'Needs suggested nights'}</div></div>
+      <div class="kpi"><span>Incremental vs last year</span><b>${m.incremental==null?'—':fmtMoney(m.incremental,c)}</b><div class="hint">${m.lyADR==null?'Add last-year cost of sales and room nights':('LY ADR '+fmtN(m.lyADR,c)+(S.last.gtee==='yes'?' · guarantee':''))}</div></div>
     </div>
 
     <div class="card" style="padding:0;overflow:hidden">
-      <div style="padding:14px 16px 8px"><h3>24 sample nights</h3>
-        <p class="hint">B2C comes from the integration. Type B2B on every row. Comparable is optional. Blank B2C cells are dates with no availability.</p></div>
+      <div style="padding:14px 16px 8px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:end">
+        <div><h3>Sample nights</h3>
+        <p class="hint">Change a date if that night is closed or sold out — B2C is fetched again for the new day. Add or remove nights as needed. Totals use only rows with a suggested net.</p></div>
+        <button class="btn sm" id="adddate">Add date</button></div>
       <div class="scroll">${tableHTML()}</div>
     </div>
   </section>`;
   bind();
 }
 
+async function fetchOne(i){
+  const r=S.rows[i]; if(!r||!r.date||!S.hotel) return;
+  S.busy=true; S.msg='Fetching B2C for '+pretty(r.date)+'…'; S.msgk=''; render();
+  try{
+    const j=await gCall({mode:'prices', token:S.hotel.token, q:S.hotel.name||S.hotelQuery, checkin:r.date, checkout:iso(D(r.date)+DAY), currency:S.currency});
+    const best=pickPrice(j);
+    if(best){ S.rows[i].b2c=best.perNight; S.rows[i].b2cSrc=(best.source||'')+' ('+(j.provider||'Google')+')'; S.rows[i].blank=false; S.msg='B2C updated for '+pretty(r.date)+'.'; S.msgk='ok'; }
+    else { S.rows[i].b2c=''; S.rows[i].b2cSrc=''; S.rows[i].blank=true; S.msg='No availability on '+pretty(r.date)+'. Try another day.'; S.msgk='warn'; }
+  }catch(e){ S.rows[i].b2c=''; S.rows[i].b2cSrc=''; S.rows[i].blank=true; S.msg=e.message; S.msgk='err'; }
+  S.busy=false; render();
+}
+
 function tableHTML(){
-  if(!S.rows.length) return '<p class="hint" style="padding:16px">Find the hotel and fetch B2C to build the 24-night grid.</p>';
+  if(!S.rows.length) return '<p class="hint" style="padding:16px">Find the hotel and fetch B2C, or add a date by hand.</p>';
   return `<table class="t"><thead><tr>
     <th>Date</th><th>Day</th><th class="num">B2C</th><th>B2C source</th>
     <th class="num">B2B</th><th class="num">Comparable</th>
     <th class="num">After prot. B2B</th><th class="num">After prot. B2C</th><th class="num">After prot. Comp</th>
-    <th class="num">Suggested net</th>
+    <th class="num">Suggested net</th><th></th>
   </tr></thead><tbody>${S.rows.map((r,i)=>{
     const sg=suggestRow(r);
+    const day=D(r.date)==null?'':DOW[dowMon(D(r.date))];
     return `<tr class="${r.blank&&r.b2c===''?'blank':''}">
-      <td>${esc(pretty(r.date))}</td>
-      <td>${esc(DOW[dowMon(D(r.date))])}</td>
+      <td><input type="date" data-date="${i}" value="${esc(r.date)}"></td>
+      <td>${esc(day)}</td>
       <td class="num"><input type="number" min="0" step="0.01" data-k="b2c" data-i="${i}" value="${esc(r.b2c)}"></td>
       <td class="hint">${esc(r.b2cSrc)}</td>
       <td class="num"><input type="number" min="0" step="0.01" data-k="b2b" data-i="${i}" value="${esc(r.b2b)}"></td>
@@ -305,6 +321,7 @@ function tableHTML(){
       <td class="num">${fmt(protOf('b2c',num(r.b2c)))}</td>
       <td class="num">${fmt(protOf('comp',num(r.comp)))}</td>
       <td class="num"><b>${sg==null?'':fmt(sg)}</b></td>
+      <td><button class="btn sm" data-del="${i}">Remove</button></td>
     </tr>`;
   }).join('')}</tbody></table>`;
 }
@@ -325,8 +342,27 @@ function readForm(){
 function bind(){
   document.getElementById('find').onclick=()=>{readForm();searchHotel();};
   document.getElementById('pull').onclick=()=>{readForm();fetchRates();};
+  const add=document.getElementById('adddate');
+  if(add) add.onclick=()=>{
+    const today=iso(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate())+DAY);
+    S.rows.push({date:today,b2c:'',b2cSrc:'',b2b:'',comp:'',blank:true});
+    S.rows.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    render();
+  };
   document.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{
     S.hotel=S.hits[+b.dataset.use]; S.hits=null; S.msg='Hotel set to '+S.hotel.name+'. Fetch B2C next.'; S.msgk='ok'; render();
+  });
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
+    S.rows.splice(+b.dataset.del,1); render();
+  });
+  document.querySelectorAll('input[data-date]').forEach(inp=>{
+    inp.addEventListener('change',()=>{
+      const i=+inp.dataset.date;
+      S.rows[i].date=inp.value;
+      S.rows[i].b2c=''; S.rows[i].b2cSrc=''; S.rows[i].blank=true;
+      if(S.hotel && inp.value) fetchOne(i);
+      else render();
+    });
   });
   ['hq','cur','basis','cs','ce','ts','te','rooms','pb2b','pb2c','pcomp','lycos','lyrn','lyg'].forEach(id=>{
     const el=document.getElementById(id); if(!el) return;
