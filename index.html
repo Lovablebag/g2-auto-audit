@@ -316,10 +316,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .hs-empty{padding:36px 20px;text-align:center;color:var(--muted);font-size:13px}
 .btn-gen:disabled{opacity:.5;cursor:default}
 
-.app-nav{display:flex;align-items:center;gap:6px;margin-left:18px;flex-wrap:wrap}
-.app-nav-link{color:rgba(255,255,255,.75);text-decoration:none;font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid transparent}
+
+.app-nav{display:flex;align-items:center;gap:4px;margin-left:14px;flex-wrap:wrap;flex:1}
+.app-nav-link{color:rgba(255,255,255,.75);text-decoration:none;font-size:12px;font-weight:600;padding:6px 11px;border-radius:20px;border:1px solid transparent;white-space:nowrap;background:none;cursor:pointer;font-family:inherit}
 .app-nav-link:hover{background:rgba(255,255,255,.12);color:#fff}
 .app-nav-link.is-active{background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.2)}
+#phase-entry .entry-grid{display:none}
+@media(max-width:1100px){.app-nav-link{font-size:11px;padding:5px 9px}}
 </style>
 </head>
 <body>
@@ -328,8 +331,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
   <div class="logo-mark">G2</div>
   <div><div class="header-title">G2 Travel</div><div class="header-sub">Contract & Availability Tools</div></div>
   <nav class="app-nav" aria-label="Tools">
-    <a class="app-nav-link is-active" href="./">Contract Audit</a>
-    <a class="app-nav-link" href="./topup.html">Top-up Desk</a>
+    <a class="app-nav-link" href="#files" data-nav="files">Auto Audit (Files)</a>
+    <a class="app-nav-link" href="#excel" data-nav="excel">Auto Audit (Excel)</a>
+    <a class="app-nav-link" href="#price" data-nav="price">Price Check</a>
+    <a class="app-nav-link" href="#search" data-nav="search">Hotel Search</a>
+    <a class="app-nav-link" href="./topup.html" data-nav="topup">Top-up Desk</a>
   </nav>
   <div class="header-badge">v4.4</div>
   <button class="dark-toggle" id="dark-toggle" title="Toggle dark mode">🌙 Dark</button>
@@ -339,8 +345,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 
 <!-- ENTRY -->
 <div id="phase-entry" class="phase active">
-  <div class="page-title">Hotel Contract Audit</div>
-  <div class="page-sub">Choose how you want to start your audit</div>
+  <div class="page-title">Hotel Search</div>
+  <div class="page-sub">Search by city or whole country — hotels, hostels, motels, resorts, residences, B&amp;Bs, aparthotels, lodges — and export to Excel</div>
   <div class="entry-grid">
     <div class="entry-card" id="card-build">
       <div class="entry-icon">📂</div>
@@ -809,13 +815,46 @@ function hsDownloadExcel() {
 // ═══════════════════════════════════════════════════════════════════
 //  NAVIGATION - all wired via addEventListener, no inline onclick
 // ═══════════════════════════════════════════════════════════════════
+
+function setAppNav(active) {
+  document.querySelectorAll('.app-nav-link').forEach(function(a) {
+    a.classList.toggle('is-active', a.getAttribute('data-nav') === active);
+  });
+}
+function navKeyFromPhase(id) {
+  if (id === 'phase-excel') return 'excel';
+  if (id === 'phase-pricecheck') return 'price';
+  if (id === 'phase-entry') return 'search';
+  if (id === 'phase-build1' || id === 'phase-build2' || id === 'phase-dashboard') return 'files';
+  return 'search';
+}
+function goAppNav(key) {
+  if (key === 'topup') { window.location.href = './topup.html'; return; }
+  if (key === 'files') showPhase('phase-build1');
+  else if (key === 'excel') showPhase('phase-excel');
+  else if (key === 'price') { showPhase('phase-pricecheck'); if (typeof renderPCTablePC2 === 'function') renderPCTablePC2(); }
+  else showPhase('phase-entry');
+  if (history.replaceState) history.replaceState(null, '', '#' + (key || 'search'));
+}
+
 function showPhase(id) {
   document.querySelectorAll('.phase').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   window.scrollTo(0, 0);
+  if (typeof setAppNav === 'function') setAppNav(navKeyFromPhase(id));
 }
 
 window.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.app-nav-link[data-nav]').forEach(function(a) {
+    a.addEventListener('click', function(ev) {
+      if (a.getAttribute('data-nav') === 'topup') return;
+      ev.preventDefault();
+      goAppNav(a.getAttribute('data-nav'));
+    });
+  });
+  var hash = (location.hash || '').replace('#', '');
+  if (hash === 'files' || hash === 'excel' || hash === 'price' || hash === 'search') goAppNav(hash);
+  else setAppNav('search');
   // Entry cards
   document.getElementById('card-build').addEventListener('click', function() { showPhase('phase-build1'); });
   document.getElementById('card-excel').addEventListener('click', function() { showPhase('phase-excel'); });
