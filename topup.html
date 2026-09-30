@@ -84,8 +84,9 @@ summary{cursor:pointer;font-weight:600;padding:6px 0}
 .tab .k{font-size:.78rem;padding:0 7px;border-radius:999px;font-weight:600}
 .tab .k.t{background:var(--tint);color:var(--teal-d)}.tab .k.r{background:var(--ind-w);color:var(--ind)}
 .tab i{font-style:normal;color:var(--mute);font-weight:500;font-size:.85rem}
-.cols{display:grid;grid-template-columns:minmax(340px,440px) 1fr;gap:22px;align-items:start}
-@media(max-width:940px){.cols{grid-template-columns:1fr}.top{gap:12px}}
+.cols{display:grid;grid-template-columns:minmax(280px,38%) minmax(0,1fr);gap:24px;align-items:start}
+.ed,.pv{min-width:0;max-width:100%}
+@media(max-width:1100px){.cols{grid-template-columns:1fr}.pv{position:static;top:auto}.top{gap:12px}}
 .ed{display:grid;gap:16px}
 .field label,.rooms label{display:block;font-weight:600;font-size:.88rem;margin-bottom:4px}
 .field input,.rooms input[type=text],.tpl textarea{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;background:var(--card)}
@@ -100,10 +101,11 @@ table.mini th{text-align:right;font-weight:600;color:var(--mute);padding:4px 6px
 table.mini td{text-align:right;padding:4px 6px;border-bottom:1px solid #edf3f2;white-space:nowrap}
 table.mini th:nth-child(2),table.mini td:nth-child(2),table.mini th:first-child,table.mini td:first-child{text-align:left}
 table.mini tr.off td{color:#a3b3b1;text-decoration:line-through}
-.pv{position:sticky;top:12px}
-.pvbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.pv{position:sticky;top:124px;z-index:1;align-self:start}
+.pvbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px}
 .pvbar span{font-weight:600}
-.paper{background:#fff;border:1px solid var(--line);border-radius:10px;padding:26px 28px;overflow:auto;max-height:calc(100vh - 170px)}
+.paper{background:#fff;border:1px solid var(--line);border-radius:10px;padding:22px 18px;overflow:auto;max-width:100%;max-height:calc(100vh - 240px)}
+.paper table{width:max-content;max-width:none}
 .tip{color:var(--mute);font-size:.87rem;margin-top:10px}
 dialog{border:1px solid var(--line);border-radius:12px;padding:22px 24px;max-width:640px;width:calc(100% - 32px);color:var(--ink)}
 dialog::backdrop{background:rgba(18,48,46,.35)}
