@@ -347,7 +347,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 <!-- ENTRY -->
 <div id="phase-entry" class="phase active">
   <div class="page-title">Hotel Search</div>
-  <div class="page-sub">Search by city or whole country — hotels, hostels, motels, resorts, residences, B&amp;Bs, aparthotels, lodges — and export to Excel</div>
   <div class="entry-grid">
     <div class="entry-card" id="card-build">
       <div class="entry-icon">📂</div>
@@ -367,7 +366,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
   </div>
 
   <div class="section">
-    <div class="section-header"><div class="section-badge">🏨</div><div class="section-title">Hotel Search</div><span class="tag tag-auto">LiteAPI</span><div class="section-desc">Search by city or whole country - hotels, hostels, motels, resorts, residences, B&amp;Bs, aparthotels, lodges - and export to Excel</div></div>
+    <div class="section-header"><div class="section-badge">🏨</div><div class="section-title">Hotel Search</div><span class="tag tag-auto">LiteAPI</span></div>
     <div class="section-body">
       <div class="hs-toolbar">
         <div class="hs-field">
@@ -382,9 +381,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
           <label for="hs-limit">Max results</label>
           <input id="hs-limit" type="number" value="50" min="1" max="200" style="width:100px">
         </div>
-        <div class="hs-field">
+        <div class="hs-field" id="hs-key-wrap">
           <label for="hs-apikey">LiteAPI key</label>
-          <input id="hs-apikey" type="password" placeholder="sand_ or live_ key" style="min-width:260px" autocomplete="off">
+          <input id="hs-apikey" type="password" placeholder="saved after first search" style="min-width:260px" autocomplete="off">
+          <button type="button" class="btn-reset" id="hs-key-clear" style="display:none;margin-top:6px">Change key</button>
         </div>
         <button class="btn-gen" id="hs-search-btn">Search hotels</button>
         <button class="btn-reset" id="hs-export-btn" disabled>⬇️ Download Excel</button>
@@ -881,7 +881,24 @@ window.addEventListener('DOMContentLoaded', function() {
   document.getElementById('card-excel').addEventListener('click', function() { showPhase('phase-excel'); });
   document.getElementById('card-pricecheck').addEventListener('click', function() { showPhase('phase-pricecheck'); renderPCTablePC2(); });
   // Hotel Search widget (inline on entry page)
-  (function(){try{const k=localStorage.getItem('g2.liteapi.key'); const el=document.getElementById('hs-apikey'); if(el&&k) el.value=k;}catch(e){}})();
+  (function(){
+    function applyHsKey(){
+      try{
+        const k=localStorage.getItem('g2.liteapi.key');
+        const el=document.getElementById('hs-apikey');
+        const wrap=document.getElementById('hs-key-wrap');
+        const clr=document.getElementById('hs-key-clear');
+        if(el&&k){
+          el.value=k;
+          if(wrap) wrap.style.display='none';
+          if(clr){ clr.style.display='inline-block'; clr.onclick=function(){ if(wrap) wrap.style.display=''; el.value=''; el.focus(); }; }
+        }
+      }catch(e){}
+    }
+    applyHsKey();
+    const keyEl=document.getElementById('hs-apikey');
+    if(keyEl) keyEl.addEventListener('change', function(){ const v=keyEl.value.trim(); if(v){ try{localStorage.setItem('g2.liteapi.key', v);}catch(e){} } });
+  })();
   document.getElementById('hs-search-btn').addEventListener('click', function() { hsSearchHotels(); });
   document.getElementById('hs-export-btn').addEventListener('click', function() { hsDownloadExcel(); });
   ['hs-country','hs-city','hs-limit'].forEach(function(id){
