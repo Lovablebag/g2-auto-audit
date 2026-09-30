@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pre-buy Price Check · G2 Travel</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+:root{--paper:#f0f2f5;--card:#fff;--ink:#1a1a2e;--mute:#6b7a99;--line:#C0C8D8;--teal:#1A7DC4;--teal-d:#0F5A91;--wash:#E8F3FB;--amber:#B7600A;--amber-w:#FEF5EA;--bad:#C0392B;--bad-w:#FDF0EF;--ok:#1e7a4a;--ok-w:#e8f6ee}
+*{box-sizing:border-box}
+html{font-size:15px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.45;font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,p{margin:0}
+.header{background:#1A7DC4;padding:.75rem 2rem;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;border-bottom:3px solid #0F5A91;flex-wrap:wrap}
+.logo-mark{font-size:11px;font-weight:700;color:#fff;letter-spacing:.12em;text-transform:uppercase;background:rgba(255,255,255,.18);padding:4px 11px;border-radius:5px}
+.header-title{font-size:15px;font-weight:600;color:#fff}
+.header-sub{font-size:11px;color:rgba(255,255,255,.6)}
+.header-badge{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.75);font-size:11px;padding:3px 9px;border-radius:20px;margin-left:auto;font-family:monospace}
+.dark-toggle{background:none;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer}
+.dark-toggle:hover{background:rgba(255,255,255,.12);color:#fff}
+.app-nav{display:flex;align-items:center;gap:4px;margin-left:14px;flex-wrap:wrap;flex:1}
+.app-nav-link{color:rgba(255,255,255,.75);text-decoration:none;font-size:12px;font-weight:600;padding:6px 11px;border-radius:20px;border:1px solid transparent;white-space:nowrap}
+.app-nav-link:hover{background:rgba(255,255,255,.12);color:#fff}
+.app-nav-link.is-active{background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.2)}
+@media(max-width:1100px){.app-nav-link{font-size:11px;padding:5px 9px}}
+body.dark{--paper:#0f1117;--card:#1a1d27;--ink:#e8ecf5;--mute:#7a85a3;--line:#2e3347;--wash:#0d1e2e}
+main{max-width:1280px;margin:0 auto;padding:28px 28px 80px}
+h2{font-size:1.55rem;font-weight:650;letter-spacing:-.015em;margin-bottom:6px}
+.lead{color:var(--mute);max-width:72ch;margin-bottom:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:16px}
+.card h3{font-size:1.02rem;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.field label{display:block;font-weight:600;font-size:.82rem;color:var(--mute);margin-bottom:4px}
+.field input,.field select{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;background:var(--card)}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:7px;padding:7px 14px;cursor:pointer;font-weight:500}
+.btn:hover:not(:disabled){border-color:var(--teal);color:var(--teal-d)}
+.btn.pri{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600}
+.btn.pri:hover:not(:disabled){background:var(--teal-d);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{padding:4px 10px;font-size:.87rem}
+.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+.hint{color:var(--mute);font-size:.87rem}
+.msg{padding:9px 12px;border-radius:7px;font-size:.93rem;margin-top:10px}
+.msg.warn{background:var(--amber-w);color:var(--amber)}
+.msg.err{background:var(--bad-w);color:var(--bad)}
+.msg.ok{background:var(--ok-w);color:var(--ok)}
+.hits{display:grid;gap:6px;margin-top:12px}
+.hit{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:var(--card)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.kpi b{display:block;font-size:1.35rem;letter-spacing:-.02em}
+.kpi span{color:var(--mute);font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+table.t{border-collapse:collapse;width:100%;font-size:.9rem}
+table.t th{text-align:left;font-weight:600;font-size:.8rem;color:var(--mute);padding:8px 8px;border-bottom:1px solid var(--line);background:#fafcfc;white-space:nowrap}
+table.t td{padding:6px 8px;border-bottom:1px solid #e8f0ee;vertical-align:middle}
+table.t .num{text-align:right}
+table.t input[type=number]{width:92px;border:1px solid var(--line);border-radius:6px;padding:4px 6px;text-align:right;background:var(--card)}
+.blank td input[type=number]{border-color:#d69a1e;background:var(--amber-w)}
+.scroll{overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.picked{font-weight:600}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="logo-mark">G2</div>
+  <div><div class="header-title">G2 Travel</div><div class="header-sub">Contract &amp; Availability Tools</div></div>
+  <nav class="app-nav" aria-label="Tools">
+    <a class="app-nav-link" href="./#files">Auto Audit (Files)</a>
+    <a class="app-nav-link" href="./#excel">Auto Audit (Excel)</a>
+    <a class="app-nav-link" href="./#price">Price Check</a>
+    <a class="app-nav-link" href="./#search">Hotel Search</a>
+    <a class="app-nav-link" href="./topup.html">Top-up Desk</a>
+    <a class="app-nav-link is-active" href="./prebuy.html">Pre-buy Price Check</a>
+  </nav>
+  <div class="header-badge">Pre-buy</div>
+  <button class="dark-toggle" id="dark-toggle" title="Toggle dark mode">🌙 Dark</button>
+</header>
+<main id="app"></main>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DAY = 864e5;
+const D = s => { if(!s) return null; const p=String(s).split('-').map(Number); if(p.length<3||p.some(isNaN)) return null; return Date.UTC(p[0],p[1]-1,p[2]); };
+const iso = t => new Date(t).toISOString().slice(0,10);
+const dowMon = t => (new Date(t).getUTCDay()+6)%7;
+const num = v => { if(v===''||v==null) return null; const n=typeof v==='number'?v:parseFloat(String(v).replace(',','.')); return isFinite(n)?n:null; };
+const fmt = (n,c) => n==null?'':new Intl.NumberFormat(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
+const fmtMoney = (n,c) => n==null?'—':new Intl.NumberFormat(undefined,{style:'currency',currency:c||'EUR',maximumFractionDigits:0}).format(n);
+const fmtN = (n,c) => n==null?'—':new Intl.NumberFormat(undefined,{style:'currency',currency:c||'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const pretty = s => { const t=D(s); if(t==null) return s||''; return DOW[dowMon(t)]+' '+new Date(t).getUTCDate()+' '+MON[new Date(t).getUTCMonth()]+' '+new Date(t).getUTCFullYear(); };
+
+const CUR = ['EUR','GBP','USD','CHF','AED','TRY','PLN','CZK','SEK','NOK','DKK','HUF','RON','BGN'];
+const BASIS = [
+  {id:'cheapest', label:'Cheapest option'},
+  {id:'ro_nrf', label:'RO NRF'},
+  {id:'ro_flex', label:'RO flexible'},
+  {id:'bb_nrf', label:'BB NRF'},
+  {id:'bb_flex', label:'BB flexible'}
+];
+
+const S = {
+  hotelQuery:'', hotel:null, hits:null,
+  currency:'EUR', basis:'cheapest',
+  prot:{b2b:15,b2c:20,comp:15},
+  contract:{start:'',end:'',trialStart:'',trialEnd:'',rooms:10},
+  last:{cos:'',rn:'',gtee:'no'},
+  rows:[],
+  msg:'', msgk:'',
+  busy:false
+};
+
+function monthKeys(){
+  const s=D(S.contract.start), e=D(S.contract.end);
+  if(s==null||e==null||e<s) return [];
+  const out=[]; let y=new Date(s).getUTCFullYear(), m=new Date(s).getUTCMonth();
+  while(Date.UTC(y,m,1)<=e && out.length<120){ out.push(y+'-'+String(m+1).padStart(2,'0')); m++; if(m>11){m=0;y++;} }
+  return out;
+}
+function monthStart(k){ const [y,m]=k.split('-').map(Number); return Date.UTC(y,m-1,1); }
+function monthEnd(k){ const [y,m]=k.split('-').map(Number); return Date.UTC(y,m,0); }
+function fetchDates(){
+  const keys=monthKeys().slice(0,12), cs=D(S.contract.start), ce=D(S.contract.end);
+  const today=Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate());
+  const out=[];
+  if(cs==null||ce==null) return out;
+  for(const k of keys){
+    const from=Math.max(monthStart(k),cs,today+DAY), to=Math.min(monthEnd(k),ce-DAY);
+    for(const want of [1,5]){
+      for(let t=from;t<=to;t+=DAY){ if(dowMon(t)===want){ out.push(iso(t)); break; } }
+    }
+  }
+  return out;
+}
+function contractNights(){
+  const a=D(S.contract.start), b=D(S.contract.end);
+  if(a==null||b==null||b<a) return 0;
+  return Math.round((b-a)/DAY)+1;
+}
+function pickPrice(j){
+  const bb = S.basis.indexOf('bb')===0;
+  const list = bb && j.breakfast && j.breakfast.length ? j.breakfast : (j.prices||[]);
+  return list.reduce((a,p)=> p.perNight!=null && (!a || p.perNight<a.perNight) ? p : a, null);
+}
+function protOf(kind, raw){
+  if(raw==null) return null;
+  const p = Number(S.prot[kind]||0)/100;
+  return raw * (1-p);
+}
+function suggestRow(r){
+  const b2b=num(r.b2b), b2c=num(r.b2c), comp=num(r.comp);
+  if(b2b==null || b2c==null) return null;
+  const pb=protOf('b2b',b2b), pc=protOf('b2c',b2c), pj=protOf('comp',comp);
+  if(comp==null) return pb*(2/3)+pc*(1/3);
+  return pb*0.6 + pc*0.3 + pj*0.1;
+}
+function suggestedList(){ return S.rows.map(suggestRow).filter(v=>v!=null); }
+function avgSuggest(){ const a=suggestedList(); return a.length? a.reduce((x,y)=>x+y,0)/a.length : null; }
+
+function gCall(params){
+  return fetch('/api/hotel-prices?'+new URLSearchParams(params)).then(async r=>{
+    let j={}; try{j=await r.json();}catch(e){}
+    if(!r.ok || j.error) throw new Error(j.error||('Server error '+r.status));
+    return j;
+  });
+}
+
+async function searchHotel(){
+  const q=S.hotelQuery.trim();
+  if(!q){ S.msg='Type a hotel name and city.'; S.msgk='warn'; render(); return; }
+  const dates=fetchDates();
+  if(!dates.length){ S.msg='Set a contract start and end that includes future dates.'; S.msgk='warn'; render(); return; }
+  S.busy=true; S.msg='Searching Google Hotels…'; S.msgk=''; render();
+  try{
+    const j=await gCall({mode:'search', q, checkin:dates[0], checkout:iso(D(dates[0])+DAY), currency:S.currency});
+    S.hits=j.results||[];
+    S.msg=S.hits.length? S.hits.length+' hotels found. Pick one.':'No hotel matched that name.';
+    S.msgk=S.hits.length?'ok':'warn';
+  }catch(e){ S.msg=e.message; S.msgk='err'; S.hits=[]; }
+  S.busy=false; render();
+}
+
+async function fetchRates(){
+  if(!S.hotel) return;
+  const dates=fetchDates();
+  if(!dates.length){ S.msg='Set contract dates first.'; S.msgk='warn'; render(); return; }
+  S.busy=true; S.rows=[]; render();
+  const found=[], missing=[];
+  let done=0, failed=null;
+  const one=async d=>{
+    try{
+      const j=await gCall({mode:'prices', token:S.hotel.token, q:S.hotel.name||S.hotelQuery, checkin:d, checkout:iso(D(d)+DAY), currency:S.currency});
+      const best=pickPrice(j);
+      if(best) found.push({date:d, b2c:best.perNight, b2cSrc:(best.source||'')+' ('+(j.provider||'Google')+')', b2b:'', comp:'', blank:false});
+      else missing.push(d);
+    }catch(e){ failed=e.message; missing.push(d); }
+    done++; S.msg='Fetching B2C… '+done+' of '+dates.length; S.msgk=''; const el=$('#status'); if(el) el.textContent=S.msg;
+  };
+  for(let i=0;i<dates.length;i+=4) await Promise.all(dates.slice(i,i+4).map(one));
+  const blanks=missing.map(d=>({date:d,b2c:'',b2cSrc:'',b2b:'',comp:'',blank:true}));
+  S.rows=found.concat(blanks).sort((a,b)=>a.date.localeCompare(b.date));
+  S.busy=false;
+  S.msg='B2C filled on '+found.length+' of '+dates.length+' dates'+(missing.length?'. Blank dates need a rate typed in.':'')+(failed && !found.length? ' ('+failed+')':'');
+  S.msgk=found.length?'ok':(failed?'err':'warn');
+  render();
+}
+
+function dealMath(){
+  const avg=avgSuggest();
+  const rooms=num(S.contract.rooms)||0;
+  const days=contractNights();
+  const rnDeal=rooms*days;
+  const potential=avg!=null && rnDeal? avg*rnDeal : null;
+  const lyCOS=num(S.last.cos), lyRN=num(S.last.rn);
+  const lyADR= lyCOS!=null && lyRN? lyCOS/lyRN : null;
+  const incremental= potential!=null && lyCOS!=null ? potential-lyCOS : null;
+  return {avg,rooms,days,rnDeal,potential,lyCOS,lyRN,lyADR,incremental,nSug:suggestedList().length};
+}
+
+function render(){
+  const dates=fetchDates();
+  const m=dealMath();
+  const c=S.currency;
+  $('#app').innerHTML=`
+  <section>
+    <h2>Pre-buy Price Check</h2>
+    <p class="lead">Find the hotel, pull B2C on 24 sample nights (Tuesday and Saturday in each of the first 12 contract months), type B2B, and get a suggested net rate per night. Standard look-up is the cheapest public option. Google Hotels does not split NRF vs flexible; BB uses breakfast-included quotes when they exist.</p>
+
+    <div class="card">
+      <h3>Hotel &amp; contract</h3>
+      <div class="grid">
+        <div class="field" style="grid-column:span 2"><label>Hotel name</label><input id="hq" type="text" value="${esc(S.hotelQuery)}" placeholder="Hotel name and city"></div>
+        <div class="field"><label>Currency</label><select id="cur">${CUR.map(x=>`<option ${x===S.currency?'selected':''}>${x}</option>`).join('')}</select></div>
+        <div class="field"><label>Rate product</label><select id="basis">${BASIS.map(x=>`<option value="${x.id}" ${x.id===S.basis?'selected':''}>${x.label}</option>`).join('')}</select></div>
+        <div class="field"><label>Contract start</label><input id="cs" type="date" value="${esc(S.contract.start)}"></div>
+        <div class="field"><label>Contract end</label><input id="ce" type="date" value="${esc(S.contract.end)}"></div>
+        <div class="field"><label>Trial start</label><input id="ts" type="date" value="${esc(S.contract.trialStart)}"></div>
+        <div class="field"><label>Trial end</label><input id="te" type="date" value="${esc(S.contract.trialEnd)}"></div>
+        <div class="field"><label>Rooms per night</label><input id="rooms" type="number" min="1" step="1" value="${esc(S.contract.rooms)}"></div>
+      </div>
+      <p class="hint" style="margin-top:10px">${dates.length} sample nights in the first 12 months.${S.hotel? ' Selected: <span class="picked">'+esc(S.hotel.name)+'</span>.':''}</p>
+      <div class="row" style="margin-top:12px">
+        <button class="btn pri" id="find" ${S.busy?'disabled':''}>Find hotel</button>
+        <button class="btn" id="pull" ${S.busy||!S.hotel||!dates.length?'disabled':''}>Fetch 24 B2C rates</button>
+      </div>
+      <div id="status" class="msg ${S.msgk}" style="${S.msg?'':'display:none'}">${esc(S.msg)}</div>
+      ${S.hits&&S.hits.length? `<div class="hits">${S.hits.map((h,i)=>`<div class="hit"><div><b>${esc(h.name)}</b><div class="hint">${esc(h.address||h.provider||'')}${h.perNight!=null?' · from '+fmt(h.perNight)+' '+S.currency:''}</div></div><button class="btn sm" data-use="${i}">Use this hotel</button></div>`).join('')}</div>`:''}
+    </div>
+
+    <div class="card">
+      <h3>Protection margin by source</h3>
+      <div class="grid">
+        <div class="field"><label>Protection vs B2B (%)</label><input id="pb2b" type="number" min="0" max="90" step="0.1" value="${esc(S.prot.b2b)}"></div>
+        <div class="field"><label>Protection vs B2C (%)</label><input id="pb2c" type="number" min="0" max="90" step="0.1" value="${esc(S.prot.b2c)}"></div>
+        <div class="field"><label>Protection vs Comparable hotel (%)</label><input id="pcomp" type="number" min="0" max="90" step="0.1" value="${esc(S.prot.comp)}"></div>
+      </div>
+      <p class="hint" style="margin-top:10px">Suggested net = protected B2B 60% + protected B2C 30% + protected comparable 10%. If comparable is empty, weights become B2B 67% / B2C 33%. B2B and B2C are required for a suggestion.</p>
+    </div>
+
+    <div class="card">
+      <h3>Last year with this hotel (optional)</h3>
+      <div class="grid">
+        <div class="field"><label>Cost of sales last year</label><input id="lycos" type="number" min="0" step="1" value="${esc(S.last.cos)}"></div>
+        <div class="field"><label>Room nights last year</label><input id="lyrn" type="number" min="0" step="1" value="${esc(S.last.rn)}"></div>
+        <div class="field"><label>Guarantee last year</label><select id="lyg"><option value="no" ${S.last.gtee==='no'?'selected':''}>No</option><option value="yes" ${S.last.gtee==='yes'?'selected':''}>Yes</option></select></div>
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><span>Suggested nights ready</span><b>${m.nSug} / ${S.rows.length||0}</b></div>
+      <div class="kpi"><span>Average suggested net</span><b>${m.avg==null?'—':fmtN(m.avg,c)}</b></div>
+      <div class="kpi"><span>Deal potential</span><b>${m.potential==null?'—':fmtMoney(m.potential,c)}</b><div class="hint">${m.rooms} rooms × ${m.days} days</div></div>
+      <div class="kpi"><span>${m.lyCOS==null?'Last year':'Incremental vs last year'}</span><b>${m.lyCOS==null?'Add last-year COS':fmtMoney(m.incremental,c)}</b><div class="hint">${m.lyADR==null?'':('LY ADR '+fmtN(m.lyADR,c)+(S.last.gtee==='yes'?' · guarantee':''))}</div></div>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:14px 16px 8px"><h3>24 sample nights</h3>
+        <p class="hint">B2C comes from the integration. Type B2B on every row. Comparable is optional. Blank B2C cells are dates with no availability.</p></div>
+      <div class="scroll">${tableHTML()}</div>
+    </div>
+  </section>`;
+  bind();
+}
+
+function tableHTML(){
+  if(!S.rows.length) return '<p class="hint" style="padding:16px">Find the hotel and fetch B2C to build the 24-night grid.</p>';
+  return `<table class="t"><thead><tr>
+    <th>Date</th><th>Day</th><th class="num">B2C</th><th>B2C source</th>
+    <th class="num">B2B</th><th class="num">Comparable</th>
+    <th class="num">After prot. B2B</th><th class="num">After prot. B2C</th><th class="num">After prot. Comp</th>
+    <th class="num">Suggested net</th>
+  </tr></thead><tbody>${S.rows.map((r,i)=>{
+    const sg=suggestRow(r);
+    return `<tr class="${r.blank&&r.b2c===''?'blank':''}">
+      <td>${esc(pretty(r.date))}</td>
+      <td>${esc(DOW[dowMon(D(r.date))])}</td>
+      <td class="num"><input type="number" min="0" step="0.01" data-k="b2c" data-i="${i}" value="${esc(r.b2c)}"></td>
+      <td class="hint">${esc(r.b2cSrc)}</td>
+      <td class="num"><input type="number" min="0" step="0.01" data-k="b2b" data-i="${i}" value="${esc(r.b2b)}"></td>
+      <td class="num"><input type="number" min="0" step="0.01" data-k="comp" data-i="${i}" value="${esc(r.comp)}"></td>
+      <td class="num">${fmt(protOf('b2b',num(r.b2b)))}</td>
+      <td class="num">${fmt(protOf('b2c',num(r.b2c)))}</td>
+      <td class="num">${fmt(protOf('comp',num(r.comp)))}</td>
+      <td class="num"><b>${sg==null?'':fmt(sg)}</b></td>
+    </tr>`;
+  }).join('')}</tbody></table>`;
+}
+
+function readForm(){
+  const g=id=>document.getElementById(id);
+  if(!g('hq')) return;
+  S.hotelQuery=g('hq').value;
+  S.currency=g('cur').value;
+  S.basis=g('basis').value;
+  S.contract.start=g('cs').value; S.contract.end=g('ce').value;
+  S.contract.trialStart=g('ts').value; S.contract.trialEnd=g('te').value;
+  S.contract.rooms=g('rooms').value;
+  S.prot.b2b=g('pb2b').value; S.prot.b2c=g('pb2c').value; S.prot.comp=g('pcomp').value;
+  S.last.cos=g('lycos').value; S.last.rn=g('lyrn').value; S.last.gtee=g('lyg').value;
+}
+
+function bind(){
+  document.getElementById('find').onclick=()=>{readForm();searchHotel();};
+  document.getElementById('pull').onclick=()=>{readForm();fetchRates();};
+  document.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{
+    S.hotel=S.hits[+b.dataset.use]; S.hits=null; S.msg='Hotel set to '+S.hotel.name+'. Fetch B2C next.'; S.msgk='ok'; render();
+  });
+  ['hq','cur','basis','cs','ce','ts','te','rooms','pb2b','pb2c','pcomp','lycos','lyrn','lyg'].forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    el.addEventListener('change',()=>{readForm(); if(['cs','ce','pb2b','pb2c','pcomp','lycos','lyrn','lyg','rooms','cur'].includes(id)) render();});
+  });
+  document.querySelectorAll('input[data-k]').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      const i=+inp.dataset.i; S.rows[i][inp.dataset.k]=inp.value;
+    });
+    inp.addEventListener('change',()=>{render();});
+  });
+}
+
+(function(){
+  const key='g2.theme';
+  const apply=v=>{ document.body.classList.toggle('dark', v==='dark'); const b=document.getElementById('dark-toggle'); if(b) b.textContent=v==='dark'?'☀️ Light':'🌙 Dark'; };
+  apply(localStorage.getItem(key)||'light');
+  document.addEventListener('click',e=>{
+    if(e.target && e.target.id==='dark-toggle'){ const next=document.body.classList.contains('dark')?'light':'dark'; localStorage.setItem(key,next); apply(next); }
+  });
+})();
+render();
+</script>
+</body>
+</html>

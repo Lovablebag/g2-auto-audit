@@ -336,6 +336,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
     <a class="app-nav-link" href="#price" data-nav="price">Price Check</a>
     <a class="app-nav-link" href="#search" data-nav="search">Hotel Search</a>
     <a class="app-nav-link" href="./topup.html" data-nav="topup">Top-up Desk</a>
+    <a class="app-nav-link" href="./prebuy.html" data-nav="prebuy">Pre-buy Price Check</a>
   </nav>
   <div class="header-badge">v4.4</div>
   <button class="dark-toggle" id="dark-toggle" title="Toggle dark mode">🌙 Dark</button>
@@ -847,7 +848,7 @@ function showPhase(id) {
 window.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('.app-nav-link[data-nav]').forEach(function(a) {
     a.addEventListener('click', function(ev) {
-      if (a.getAttribute('data-nav') === 'topup') return;
+      if (a.getAttribute('data-nav') === 'topup' || a.getAttribute('data-nav') === 'prebuy') return;
       ev.preventDefault();
       goAppNav(a.getAttribute('data-nav'));
     });
