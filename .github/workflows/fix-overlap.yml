@@ -1,0 +1,35 @@
+name: Fix topup overlap
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch layout CSS
+        run: |
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path('topup.html')
+          t = p.read_text(encoding='utf-8')
+          old1 = '.cols{display:grid;grid-template-columns:minmax(340px,440px) 1fr;gap:22px;align-items:start}\n@media(max-width:940px){.cols{grid-template-columns:1fr}.top{gap:12px}}'
+          new1 = '.cols{display:grid;grid-template-columns:minmax(280px,38%) minmax(0,1fr);gap:24px;align-items:start}\n.ed,.pv{min-width:0;max-width:100%}\n@media(max-width:1100px){.cols{grid-template-columns:1fr}.pv{position:static;top:auto}.top{gap:12px}}'
+          old2 = '.pv{position:sticky;top:12px}\n.pvbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}\n.pvbar span{font-weight:600}\n.paper{background:#fff;border:1px solid var(--line);border-radius:10px;padding:26px 28px;overflow:auto;max-height:calc(100vh - 170px)}'
+          new2 = '.pv{position:sticky;top:124px;z-index:1;align-self:start}\n.pvbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px}\n.pvbar span{font-weight:600}\n.paper{background:#fff;border:1px solid var(--line);border-radius:10px;padding:22px 18px;overflow:auto;max-width:100%;max-height:calc(100vh - 240px)}\n.paper table{width:max-content;max-width:none}'
+          if old1 not in t:
+              raise SystemExit('cols rule missing')
+          if old2 not in t:
+              raise SystemExit('pv rule missing')
+          t = t.replace(old1, new1, 1).replace(old2, new2, 1)
+          p.write_text(t, encoding='utf-8')
+          print('patched ok', p.stat().st_size)
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add topup.html
+          git diff --cached --quiet || git commit -m "Fix Top-up email preview overlapping the editor"
+          git push
