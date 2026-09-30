@@ -8,12 +8,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch LiteAPI key handling
-        run: python3 patch_liteapi.py
+      - name: Clean Hotel Search copy and persist key
+        run: python3 patch_hs_ui.py
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git diff --cached --quiet || git commit -m "Hotel Search: accept a current LiteAPI key after 401"
+          git diff --cached --quiet || git commit -m "Hotel Search: drop duplicate copy and remember LiteAPI key"
           git push
