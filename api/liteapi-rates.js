@@ -99,7 +99,7 @@ async function searchRates(res, key, body) {
       refundable: tag === 'RFN',
       refundableTag: tag || '',
       rateType: room.rateType || '',
-      supplier: room.supplier || '',
+      extras: extras(rate.perks, rate.promotions),
       total,
       perNight: total == null ? null : Math.round((total / nights) * 100) / 100,
       currency,
@@ -114,6 +114,15 @@ async function searchRates(res, key, body) {
     currency: payload.currency,
     rates: rates.slice(0, 40)
   });
+}
+
+function extras(perks, promotions) {
+  const parts = [].concat(perks || [], promotions || []).map(x => {
+    if (x == null || x === '') return '';
+    if (typeof x === 'string') return x;
+    return x.name || x.description || x.title || x.text || x.code || '';
+  }).filter(Boolean);
+  return parts.join(' · ');
 }
 
 function num(v) { return v == null || v === '' || Number.isNaN(Number(v)) ? null : Number(v); }
