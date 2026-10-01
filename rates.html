@@ -76,7 +76,7 @@ const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&','<':'<','>
 const today = new Date();
 const iso = d => d.toISOString().slice(0,10);
 const plus = n => iso(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()+n)));
-const S = {q:'', country:'NL', city:'', checkin:plus(21), checkout:plus(22), currency:'EUR', nat:'IT', adults:2, board:'', hotel:null, hits:[], rates:[], nights:1, msg:'', msgk:'', busy:false};
+const S = {q:'', country:'NL', city:'', checkin:plus(21), checkout:plus(22), currency:'EUR', nat:'IT', adults:2, board:'', hotel:null, hits:[], more:false, rates:[], nights:1, msg:'', msgk:'', busy:false};
 
 function money(n, c){ if(n==null || n==='') return '—'; return Number(n).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+c; }
 
@@ -99,14 +99,19 @@ function read(){
   S.board = $('#board').value;
 }
 
-async function findHotels(){
+async function findHotels(more){
   read();
   if(S.country.length!==2){ S.msg='Enter a 2-letter country code.'; S.msgk='err'; return render(); }
-  S.busy=true; S.msg='Searching hotels…'; S.msgk=''; render();
+  if(!S.city && !S.q){ S.msg='Enter a city or part of a hotel name.'; S.msgk='err'; return render(); }
+  const offset = more ? S.hits.length : 0;
+  S.busy=true; S.msg = more ? 'Loading more hotels…' : 'Searching hotels…'; S.msgk=''; render();
   try{
-    const j = await api({mode:'hotels', countryCode:S.country, cityName:S.city, hotelName:S.q});
-    S.hits = j.hotels||[];
-    S.msg = S.hits.length ? S.hits.length+' hotels. Pick one, then load rates.' : 'No hotels found. Try a city name.';
+    const j = await api({mode:'hotels', countryCode:S.country, cityName:S.city, hotelName:S.q, offset});
+    const rows = j.hotels||[];
+    S.hits = more ? S.hits.concat(rows) : rows;
+    S.more = !!j.more;
+    const where = j.widened ? ' in the country, not only that city' : '';
+    S.msg = S.hits.length ? (S.hits.length+' hotels'+where+'. Pick one.'+(S.more?' More are available.':'')) : 'No hotels found. Try a shorter name, or clear the city.';
     S.msgk = S.hits.length ? 'ok' : 'warn';
   }catch(e){ S.msg=e.message; S.msgk='err'; }
   S.busy=false; render();
@@ -141,7 +146,7 @@ function render(){
       <div class="grid">
         <div class="field"><label>Country</label><input id="cc" value="${esc(S.country)}" maxlength="2"></div>
         <div class="field"><label>City</label><input id="city" value="${esc(S.city)}" placeholder="Amsterdam"></div>
-        <div class="field"><label>Hotel name</label><input id="q" value="${esc(S.q)}" placeholder="optional filter"></div>
+        <div class="field"><label>Hotel name</label><input id="q" value="${esc(S.q)}" placeholder="part of the name"></div>
         <div class="field"><label>Check-in</label><input id="in" type="date" value="${esc(S.checkin)}"></div>
         <div class="field"><label>Check-out</label><input id="out" type="date" value="${esc(S.checkout)}"></div>
         <div class="field"><label>Currency</label><select id="cur">${['EUR','GBP','USD','CHF'].map(c=>`<option ${c===S.currency?'selected':''}>${c}</option>`).join('')}</select></div>
@@ -163,6 +168,7 @@ function render(){
       </div>
       ${S.msg?`<div class="msg ${S.msgk}">${esc(S.msg)}</div>`:''}
       ${S.hits.length?`<div class="hits">${S.hits.map((h,i)=>`<div class="hit"><div><b>${esc(h.name)}</b><div class="hint">${esc([h.address,h.city,h.country].filter(Boolean).join(', '))}</div></div><button class="btn sm" data-use="${i}">Use</button></div>`).join('')}</div>`:''}
+      ${S.more?`<div class="row" style="margin-top:10px"><button class="btn sm" id="more">Load more hotels</button></div>`:''}
     </div>
     <div class="card" style="padding:0;overflow:hidden">
       <div style="padding:14px 16px 8px"><h3>Rates</h3><p class="hint">${S.nights} night${S.nights===1?'':'s'} · cheapest first · taxes shown only when they are extra</p></div>
@@ -178,7 +184,8 @@ function render(){
       </tr>`).join(''):`<tr><td colspan="6" class="hint">No rates yet.</td></tr>`}</tbody></table></div>
     </div>
   </section>`;
-  $('#find').onclick=findHotels;
+  $('#find').onclick=()=>findHotels(false);
+  const moreBtn=document.getElementById('more'); if(moreBtn) moreBtn.onclick=()=>findHotels(true);
   $('#rates').onclick=loadRates;
   $('#board').onchange=()=>{ S.board=$('#board').value; render(); };
   document.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{ S.hotel=S.hits[+b.dataset.use]; S.hits=[]; S.msg='Hotel set. Load rates when the dates are right.'; S.msgk='ok'; render(); });
