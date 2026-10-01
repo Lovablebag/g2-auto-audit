@@ -8,23 +8,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Remove Live Rates notices
+      - name: Widen Price Check nights column
         run: |
           python3 - << 'PY'
           from pathlib import Path
-          p = Path('rates.html')
+          p = Path('index.html')
           t = p.read_text(encoding='utf-8')
-          t = t.replace('<p class="lead">Production rates for one hotel and stay. This screen only looks up price, board and cancellation. It cannot book or prebook.</p>\n    ', '')
-          t = t.replace("S.rates.length+' rates. Lookup only \u2014 nothing is booked.'", "S.rates.length+' rates.'")
-          if 'nothing is booked' in t or 'Production rates for one hotel' in t:
-              raise SystemExit('copy still present')
+          css = '.pc-table-wrap{overflow-x:auto;margin-top:4px}'
+          add = css + '\n.pc-table th:nth-child(2),.pc-table td:nth-child(2){min-width:72px;width:72px}\n.pc-table td:nth-child(2) input{min-width:56px}'
+          if css not in t:
+              raise SystemExit('css anchor missing')
+          if 'td:nth-child(2){min-width:72px' not in t:
+              t = t.replace(css, add, 1)
+          old = '<td class="fixed"><input type="number" step="1" min="1" value="'+r.nts+'" oninput='
+          new = '<td class="fixed" style="min-width:72px"><input type="number" step="1" min="1" value="'+r.nts+'" style="min-width:56px" oninput='
+          n = t.count(old)
+          if n < 1:
+              raise SystemExit('nights input missing')
+          t = t.replace(old, new)
           p.write_text(t, encoding='utf-8')
-          print('patched', len(t))
+          print('patched inputs', n)
           PY
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rates.html
-          git diff --cached --quiet || git commit -m "Remove Live Rates lookup notices"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Widen Price Check nights column"
           git push
