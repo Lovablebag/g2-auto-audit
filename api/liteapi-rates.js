@@ -26,25 +26,45 @@ module.exports = async function handler(req, res) {
 async function searchHotels(res, key, body) {
   const country = String(body.countryCode || '').trim().toUpperCase();
   const city = String(body.cityName || '').trim();
-  const name = String(body.hotelName || '').trim().toLowerCase();
+  const name = String(body.hotelName || '').trim();
+  const offset = Math.max(0, Number(body.offset) || 0);
   if (country.length !== 2) return res.status(400).json({ error: 'A 2-letter country code is required.' });
-  const url = new URL('https://api.liteapi.travel/v3.0/data/hotels');
-  url.searchParams.set('countryCode', country);
-  url.searchParams.set('limit', '40');
-  if (city) url.searchParams.set('cityName', city);
-  const json = await lite(key, url.toString());
-  let rows = Array.isArray(json.data) ? json.data : [];
-  if (name) rows = rows.filter(h => String(h.name || '').toLowerCase().includes(name));
+  if (!city && !name) return res.status(400).json({ error: 'Enter a city or part of a hotel name.' });
+  const limit = 100;
+  let rows = await fetchHotels(key, { country, city, name, offset, limit });
+  let widened = false;
+  if (!rows.length && name && city && offset === 0) {
+    rows = await fetchHotels(key, { country, city: '', name, offset: 0, limit });
+    widened = true;
+  }
   return res.status(200).json({
-    hotels: rows.slice(0, 20).map(h => ({
-      id: h.id,
-      name: h.name,
-      city: h.city,
-      country: h.country,
-      address: h.address,
-      stars: h.stars || h.starRating || null
-    }))
+    hotels: rows.map(mapHotel),
+    more: rows.length === limit,
+    offset,
+    widened
   });
+}
+
+async function fetchHotels(key, q) {
+  const url = new URL('https://api.liteapi.travel/v3.0/data/hotels');
+  url.searchParams.set('countryCode', q.country);
+  url.searchParams.set('limit', String(q.limit));
+  if (q.offset) url.searchParams.set('offset', String(q.offset));
+  if (q.city) url.searchParams.set('cityName', q.city);
+  if (q.name) url.searchParams.set('hotelName', q.name);
+  const json = await lite(key, url.toString());
+  return Array.isArray(json.data) ? json.data : [];
+}
+
+function mapHotel(h) {
+  return {
+    id: h.id,
+    name: h.name,
+    city: h.city,
+    country: h.country,
+    address: h.address,
+    stars: h.stars || h.starRating || null
+  };
 }
 
 async function searchRates(res, key, body) {
