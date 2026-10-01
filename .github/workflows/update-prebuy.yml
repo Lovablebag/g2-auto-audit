@@ -8,12 +8,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Clean Hotel Search copy and persist key
-        run: python3 patch_hs_ui.py
+      - name: Add Live Rates page and nav link
+        run: |
+          curl -fsSL -o rates.html https://litter.catbox.moe/qthasl.html
+          python3 - << 'PY'
+          from pathlib import Path
+          t = Path('rates.html').read_text(encoding='utf-8')
+          assert 'Load rates' in t and 'prebook' not in t.lower()
+          link = '<a class="app-nav-link" href="./rates.html">Live Rates</a>'
+          for name in ('index.html','prebuy.html','topup.html'):
+              p = Path(name)
+              s = p.read_text(encoding='utf-8')
+              if 'href="./rates.html"' in s:
+                  print(name, 'already linked')
+                  continue
+              old = '<a class="app-nav-link" href="./prebuy.html"'
+              if old not in s:
+                  print(name, 'nav anchor missing')
+                  continue
+              s = s.replace(old, link + '\n    ' + old, 1)
+              p.write_text(s, encoding='utf-8')
+              print(name, 'linked')
+          PY
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
-          git diff --cached --quiet || git commit -m "Hotel Search: drop duplicate copy and remember LiteAPI key"
+          git add rates.html index.html prebuy.html topup.html
+          git diff --cached --quiet || git commit -m "Add Live Rates lookup with no booking action"
           git push
