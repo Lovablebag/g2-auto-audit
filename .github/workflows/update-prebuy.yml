@@ -18,16 +18,10 @@ jobs:
           add = css + '\n.pc-table th:nth-child(2),.pc-table td:nth-child(2){min-width:72px;width:72px}\n.pc-table td:nth-child(2) input{min-width:56px}'
           if css not in t:
               raise SystemExit('css anchor missing')
-          if 'td:nth-child(2){min-width:72px' not in t:
+          if 'min-width:72px' not in t:
               t = t.replace(css, add, 1)
-          old = '<td class="fixed"><input type="number" step="1" min="1" value="'+r.nts+'" oninput='
-          new = '<td class="fixed" style="min-width:72px"><input type="number" step="1" min="1" value="'+r.nts+'" style="min-width:56px" oninput='
-          n = t.count(old)
-          if n < 1:
-              raise SystemExit('nights input missing')
-          t = t.replace(old, new)
           p.write_text(t, encoding='utf-8')
-          print('patched inputs', n)
+          print('ok', 'min-width:72px' in t)
           PY
       - name: Commit
         run: |
