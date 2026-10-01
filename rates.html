@@ -173,16 +173,15 @@ function render(){
     <div class="card" style="padding:0;overflow:hidden">
       <div style="padding:14px 16px 8px"><h3>Rates</h3><p class="hint">${S.nights} night${S.nights===1?'':'s'} · cheapest first · taxes shown only when they are extra</p></div>
       <div class="scroll"><table><thead><tr>
-        <th>Room</th><th>Board</th><th>Rate type</th><th>Perks and promotions</th><th>Cancellation</th><th class="num">Stay total</th><th>Extra taxes</th>
+        <th>Room</th><th>Board</th><th>Rate type</th><th>Cancellation</th><th class="num">Stay total</th><th>Extra taxes</th>
       </tr></thead><tbody>${rows.length?rows.map(r=>`<tr>
         <td>${esc(r.room)}</td>
         <td>${esc(r.board||'—')} ${r.boardName?`<span class="hint">${esc(r.boardName)}</span>`:''}</td>
         <td>${esc(r.rateType||'—')}</td>
-        <td class="hint">${esc(r.extras||'—')}</td>
         <td>${r.refundable?'<span class="tag ok">Flexible</span>':'<span class="tag bad">Non-refundable</span>'}</td>
         <td class="num"><b>${money(r.total, r.currency)}</b></td>
         <td class="hint">${r.taxes&&r.taxes.length?r.taxes.map(t=>esc((t.description||'Tax')+' '+money(t.amount,t.currency||r.currency))).join(' · '):'Included or not listed'}</td>
-      </tr>`).join(''):`<tr><td colspan="7" class="hint">No rates yet.</td></tr>`}</tbody></table></div>
+      </tr>`).join(''):`<tr><td colspan="6" class="hint">No rates yet.</td></tr>`}</tbody></table></div>
     </div>
   </section>`;
   $('#find').onclick=()=>findHotels(false);
