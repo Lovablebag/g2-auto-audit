@@ -8,12 +8,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch Live Rates hotel search
-        run: python3 patch_rates_search.py
+      - name: Patch Live Rates columns
+        run: python3 patch_rates_cols.py
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rates.html
-          git diff --cached --quiet || git commit -m "Live Rates: search by hotel name and load more"
+          git add rates.html api/liteapi-rates.js
+          git diff --cached --quiet || git commit -m "Show rate type and supplier, drop per night"
           git push
