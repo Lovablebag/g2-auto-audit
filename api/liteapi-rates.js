@@ -98,6 +98,8 @@ async function searchRates(res, key, body) {
       boardName: rate.boardName || '',
       refundable: tag === 'RFN',
       refundableTag: tag || '',
+      rateType: room.rateType || '',
+      supplier: room.supplier || '',
       total,
       perNight: total == null ? null : Math.round((total / nights) * 100) / 100,
       currency,
