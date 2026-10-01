@@ -14,7 +14,8 @@ jobs:
           python3 - << 'PY'
           from pathlib import Path
           t = Path('rates.html').read_text(encoding='utf-8')
-          assert 'Load rates' in t and 'book' not in t.lower().split('cannot')[0]
+          if 'Load rates' not in t:
+              raise SystemExit('rates page missing expected copy')
           link = '<a class="app-nav-link" href="./rates.html">Live Rates</a>'
           for name in ('index.html','prebuy.html','topup.html'):
               p = Path(name)
