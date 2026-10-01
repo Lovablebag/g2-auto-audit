@@ -8,33 +8,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Add Live Rates page and nav link
+      - name: Remove Live Rates notices
         run: |
-          curl -fsSL -o rates.html https://litter.catbox.moe/qthasl.html
           python3 - << 'PY'
           from pathlib import Path
-          t = Path('rates.html').read_text(encoding='utf-8')
-          if 'Load rates' not in t:
-              raise SystemExit('rates page missing expected copy')
-          link = '<a class="app-nav-link" href="./rates.html">Live Rates</a>'
-          for name in ('index.html','prebuy.html','topup.html'):
-              p = Path(name)
-              s = p.read_text(encoding='utf-8')
-              if 'href="./rates.html"' in s:
-                  print(name, 'already linked')
-                  continue
-              old = '<a class="app-nav-link" href="./prebuy.html"'
-              if old not in s:
-                  print(name, 'nav anchor missing')
-                  continue
-              s = s.replace(old, link + '\n    ' + old, 1)
-              p.write_text(s, encoding='utf-8')
-              print(name, 'linked')
+          p = Path('rates.html')
+          t = p.read_text(encoding='utf-8')
+          t = t.replace('<p class="lead">Production rates for one hotel and stay. This screen only looks up price, board and cancellation. It cannot book or prebook.</p>\n    ', '')
+          t = t.replace("S.rates.length+' rates. Lookup only \u2014 nothing is booked.'", "S.rates.length+' rates.'")
+          if 'nothing is booked' in t or 'Production rates for one hotel' in t:
+              raise SystemExit('copy still present')
+          p.write_text(t, encoding='utf-8')
+          print('patched', len(t))
           PY
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rates.html index.html prebuy.html topup.html
-          git diff --cached --quiet || git commit -m "Add Live Rates lookup with no booking action"
+          git add rates.html
+          git diff --cached --quiet || git commit -m "Remove Live Rates lookup notices"
           git push
