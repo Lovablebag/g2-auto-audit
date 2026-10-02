@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Property UUID · G2 Travel</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+:root{--paper:#f0f2f5;--card:#fff;--ink:#1a1a2e;--mute:#6b7a99;--line:#C0C8D8;--teal:#1A7DC4;--teal-d:#0F5A91;--wash:#E8F3FB;--amber:#B7600A;--amber-w:#FEF5EA;--bad:#C0392B;--bad-w:#FDF0EF;--ok:#1e7a4a;--ok-w:#e8f6ee}
+*{box-sizing:border-box}
+html{font-size:15px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,p{margin:0}
+.header{background:#1A7DC4;padding:.75rem 2rem;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;border-bottom:3px solid #0F5A91;flex-wrap:wrap}
+.logo-mark{font-size:11px;font-weight:700;color:#fff;letter-spacing:.12em;text-transform:uppercase;background:rgba(255,255,255,.18);padding:4px 11px;border-radius:5px}
+.header-title{font-size:15px;font-weight:600;color:#fff}
+.header-sub{font-size:11px;color:rgba(255,255,255,.6)}
+.header-badge{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.75);font-size:11px;padding:3px 9px;border-radius:20px;margin-left:auto;font-family:monospace}
+.dark-toggle{background:none;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer}
+.app-nav{display:flex;align-items:center;gap:4px;margin-left:14px;flex-wrap:wrap;flex:1}
+.app-nav-link{color:rgba(255,255,255,.75);text-decoration:none;font-size:12px;font-weight:600;padding:6px 11px;border-radius:20px;border:1px solid transparent;white-space:nowrap}
+.app-nav-link:hover{background:rgba(255,255,255,.12);color:#fff}
+.app-nav-link.is-active{background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.2)}
+@media(max-width:1100px){.app-nav-link{font-size:11px;padding:5px 9px}}
+body.dark{--paper:#0f1117;--card:#1a1d27;--ink:#e8ecf5;--mute:#7a85a3;--line:#2e3347;--wash:#0d1e2e}
+main{max-width:1180px;margin:0 auto;padding:28px 28px 80px}
+h2{font-size:1.55rem;font-weight:650;letter-spacing:-.015em;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:1.4fr .7fr auto;gap:12px;align-items:end}
+.field label{display:block;font-weight:600;font-size:.82rem;color:var(--mute);margin-bottom:4px}
+.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;background:var(--card)}
+textarea{min-height:140px;resize:vertical}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:7px;padding:7px 14px;cursor:pointer;font-weight:500}
+.btn.pri{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600}
+.btn.sm{padding:4px 10px;font-size:.82rem}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.hint{color:var(--mute);font-size:.87rem}
+.scroll{overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{color:var(--mute);font-size:.75rem;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+.uuid{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;white-space:nowrap}
+.tag{display:inline-block;border-radius:20px;padding:2px 8px;font-size:.75rem;font-weight:700}
+.tag.ok{background:var(--ok-w);color:var(--ok)}
+.tag.warn{background:var(--amber-w);color:var(--amber)}
+.tag.bad{background:var(--bad-w);color:var(--bad)}
+.copy{white-space:nowrap}
+body.dark .field input,body.dark .field select,body.dark .field textarea{background:#12151e}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="logo-mark">G2</div>
+  <div><div class="header-title">G2 Travel</div><div class="header-sub">Contract & Availability Tools</div></div>
+  <nav class="app-nav" aria-label="Tools">
+    <a class="app-nav-link" href="./#files">Auto Audit (Files)</a>
+    <a class="app-nav-link" href="./#excel">Auto Audit (Excel)</a>
+    <a class="app-nav-link" href="./#price">Price Check</a>
+    <a class="app-nav-link" href="./#search">Hotel Search</a>
+    <a class="app-nav-link" href="./topup.html">Top-up Desk</a>
+    <a class="app-nav-link" href="./prebuy.html">Pre-buy Price Check</a>
+    <a class="app-nav-link" href="./rates.html">Live Rates</a>
+    <a class="app-nav-link is-active" href="./uuid.html">Property UUID</a>
+  </nav>
+  <div class="header-badge">UUID</div>
+  <button class="dark-toggle" id="dark-toggle" title="Toggle dark mode">🌙 Dark</button>
+</header>
+<main>
+  <h2>Property UUID</h2>
+  <section class="card">
+    <div class="grid">
+      <div class="field"><label>Hotel name</label><input id="q" placeholder="Type part of the name" autocomplete="off"></div>
+      <div class="field"><label>Country</label><select id="cc"><option value="">All</option></select></div>
+      <button class="btn pri" id="find">Search</button>
+    </div>
+    <p class="hint" id="one-status" style="margin-top:10px">948 properties loaded.</p>
+  </section>
+  <section class="card" style="padding:0;overflow:hidden">
+    <div style="padding:14px 16px 8px" class="row">
+      <h3>Matches</h3>
+      <button class="btn sm" id="copy-one">Copy UUIDs</button>
+    </div>
+    <div class="scroll"><table><thead><tr><th>Property</th><th>City</th><th>Chain</th><th>Country</th><th>Property UUID</th><th></th></tr></thead><tbody id="one"></tbody></table></div>
+  </section>
+  <section class="card">
+    <div class="field"><label>Mass lookup</label><textarea id="bulk" placeholder="One hotel name per line. A city after a tab or comma helps when names repeat."></textarea></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn pri" id="match">Match list</button>
+      <button class="btn" id="copy-bulk">Copy UUIDs</button>
+      <button class="btn" id="copy-tsv">Copy table</button>
+      <span class="hint" id="bulk-status"></span>
+    </div>
+  </section>
+  <section class="card" style="padding:0;overflow:hidden">
+    <div class="scroll"><table><thead><tr><th>You typed</th><th>Match</th><th>City</th><th>Country</th><th>Property UUID</th><th></th></tr></thead><tbody id="many"></tbody></table></div>
+  </section>
+</main>
+<script>
+'use strict';
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&','<':'<','>':'>','"':'"',"'":'&#39;'}[c]));
+const norm = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+let DATA = [];
+let oneRows = [];
+let bulkRows = [];
+
+function countryOf(r){ return r.country || ''; }
+function cityOf(r){ return [r.city, r.master].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · '); }
+
+function score(q, r){
+  const n = norm(r.name);
+  if(!q) return 0;
+  if(n===q) return 100;
+  if(n.startsWith(q)) return 80;
+  if(n.includes(q)) return 60;
+  const words = q.split(' ').filter(w=>w.length>2);
+  if(!words.length) return 0;
+  const hit = words.filter(w=>n.includes(w)).length;
+  return hit ? Math.round(40*hit/words.length) : 0;
+}
+
+function search(q, country){
+  const nq = norm(q);
+  return DATA
+    .filter(r => !country || r.country===country)
+    .map(r => ({r, s: score(nq, r)}))
+    .filter(x => x.s>=40)
+    .sort((a,b)=>b.s-a.s || a.r.name.localeCompare(b.r.name))
+    .slice(0, 40);
+}
+
+function best(line){
+  const raw = line.trim();
+  if(!raw) return null;
+  const parts = raw.split(/\t|,/).map(s=>s.trim()).filter(Boolean);
+  const name = parts[0];
+  const hint = norm(parts.slice(1).join(' '));
+  const nq = norm(name);
+  let hits = DATA.map(r=>({r, s: score(nq, r)})).filter(x=>x.s>=40);
+  if(hint){
+    const narrowed = hits.filter(x => norm(x.r.city+' '+x.r.master+' '+x.r.country).includes(hint) || hint.includes(norm(x.r.city)));
+    if(narrowed.length) hits = narrowed;
+  }
+  hits.sort((a,b)=>b.s-a.s);
+  if(!hits.length) return {typed: raw, status:'none'};
+  const top = hits[0];
+  const tied = hits.filter(x=>x.s===top.s).length;
+  return {typed: raw, status: top.s>=80 && tied===1 ? 'ok' : 'maybe', r: top.r, alts: tied};
+}
+
+function uuidCell(id){
+  return `<td class="uuid">${esc(id)}</td><td class="copy"><button class="btn sm" data-copy="${esc(id)}">Copy</button></td>`;
+}
+
+function drawOne(){
+  const q = document.getElementById('q').value.trim();
+  const country = document.getElementById('cc').value;
+  oneRows = q ? search(q, country).map(x=>x.r) : [];
+  document.getElementById('one').innerHTML = oneRows.length ? oneRows.map(r=>`<tr>
+    <td><b>${esc(r.name)}</b></td><td>${esc(cityOf(r))}</td><td>${esc(r.chain||'—')}</td><td>${esc(r.country)}</td>
+    ${uuidCell(r.uuid)}</tr>`).join('') : `<tr><td colspan="6" class="hint">${q?'No property with that name.':'Type a name to search.'}</td></tr>`;
+  document.getElementById('one-status').textContent = q ? oneRows.length+' match'+(oneRows.length===1?'':'es')+' · '+DATA.length+' properties' : DATA.length+' properties loaded.';
+}
+
+function drawBulk(){
+  const lines = document.getElementById('bulk').value.split(/\n/).map(s=>s.trim()).filter(Boolean);
+  bulkRows = lines.map(best);
+  const ok = bulkRows.filter(x=>x.status==='ok').length;
+  const maybe = bulkRows.filter(x=>x.status==='maybe').length;
+  const none = bulkRows.filter(x=>x.status==='none').length;
+  document.getElementById('bulk-status').textContent = lines.length ? ok+' exact · '+maybe+' check · '+none+' not found' : '';
+  document.getElementById('many').innerHTML = bulkRows.length ? bulkRows.map(x=>{
+    if(x.status==='none') return `<tr><td>${esc(x.typed)}</td><td colspan="3"><span class="tag bad">Not found</span></td><td></td><td></td></tr>`;
+    const tag = x.status==='ok' ? '<span class="tag ok">Match</span>' : '<span class="tag warn">Check</span>';
+    const extra = x.alts>1 ? ' <span class="hint">'+x.alts+' close</span>' : '';
+    return `<tr><td>${esc(x.typed)}</td><td>${tag} ${esc(x.r.name)}${extra}</td><td>${esc(cityOf(x.r))}</td><td>${esc(x.r.country)}</td>${uuidCell(x.r.uuid)}</tr>`;
+  }).join('') : `<tr><td colspan="6" class="hint">Paste names, then match.</td></tr>`;
+}
+
+async function copy(text){
+  try{ await navigator.clipboard.writeText(text); }catch(e){ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+}
+
+document.addEventListener('click', e=>{
+  const b=e.target.closest('[data-copy]');
+  if(!b) return;
+  copy(b.dataset.copy);
+  b.textContent='Copied';
+  setTimeout(()=>b.textContent='Copy', 900);
+});
+document.getElementById('find').onclick=drawOne;
+document.getElementById('q').addEventListener('input', drawOne);
+document.getElementById('cc').onchange=drawOne;
+document.getElementById('match').onclick=drawBulk;
+document.getElementById('copy-one').onclick=()=>copy(oneRows.map(r=>r.uuid).join('\n'));
+document.getElementById('copy-bulk').onclick=()=>copy(bulkRows.map(x=>x.r?x.r.uuid:'').join('\n'));
+document.getElementById('copy-tsv').onclick=()=>copy(['Typed\tProperty\tCity\tCountry\tUUID'].concat(bulkRows.map(x=>[x.typed, x.r?x.r.name:'', x.r?cityOf(x.r):'', x.r?x.r.country:'', x.r?x.r.uuid:''].join('\t'))).join('\n'));
+
+fetch('./uuid-data.json').then(r=>r.json()).then(rows=>{
+  DATA = rows;
+  const countries=[...new Set(rows.map(r=>r.country).filter(Boolean))].sort();
+  document.getElementById('cc').innerHTML='<option value="">All</option>'+countries.map(c=>`<option>${esc(c)}</option>`).join('');
+  document.getElementById('one-status').textContent=rows.length+' properties loaded.';
+  drawOne();
+}).catch(()=>{ document.getElementById('one-status').textContent='Could not load the property list.'; });
+
+(function(){
+  const key='g2.theme';
+  const apply=v=>{ document.body.classList.toggle('dark', v==='dark'); const b=document.getElementById('dark-toggle'); if(b) b.textContent=v==='dark'?'☀️ Light':'🌙 Dark'; };
+  apply(localStorage.getItem(key)||'light');
+  document.addEventListener('click',e=>{ if(e.target&&e.target.id==='dark-toggle'){ const next=document.body.classList.contains('dark')?'light':'dark'; localStorage.setItem(key,next); apply(next); } });
+})();
+</script>
+</body>
+</html>
