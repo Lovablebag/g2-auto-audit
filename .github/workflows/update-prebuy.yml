@@ -10,8 +10,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Add Property UUID tool
         run: |
-          curl -fsSL -o uuid-data.json https://tmpfiles.org/dl/wrAJeF5W6BUL/uuid-data.json
-          curl -fsSL -o uuid-page.json https://tmpfiles.org/dl/w4A3eM5R6BtA/uuid-page.json
+          curl -fsSL -o uuid-data.json "https://tmpfiles.org/dl/1790949618.6d54d4d1ae939a83/wrAJeF5W6BUL/uuid-data.json"
+          curl -fsSL -o uuid-page.json "https://tmpfiles.org/dl/1790949623.f096bd388f203e4a/w4A3eM5R6BtA/uuid-page.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
