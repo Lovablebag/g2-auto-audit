@@ -84,10 +84,10 @@ summary{cursor:pointer;font-weight:600;padding:6px 0}
 .tab .k{font-size:.78rem;padding:0 7px;border-radius:999px;font-weight:600}
 .tab .k.t{background:var(--tint);color:var(--teal-d)}.tab .k.r{background:var(--ind-w);color:var(--ind)}
 .tab i{font-style:normal;color:var(--mute);font-weight:500;font-size:.85rem}
-.cols{display:flex;align-items:flex-start;gap:28px}
-.ed{flex:0 1 420px;width:420px;max-width:42%;min-width:0}
-.pv{flex:1 1 0;min-width:0;position:static;z-index:auto}
-@media(max-width:1100px){.cols{flex-direction:column}.ed{flex:1 1 auto;width:100%;max-width:none}.pv{width:100%}.top{gap:12px}}
+.cols{display:grid;grid-template-columns:minmax(340px,440px) minmax(0,1fr);gap:28px;align-items:start;width:100%}
+.ed{min-width:0;width:auto;max-width:none;overflow:hidden}
+.pv{min-width:0;position:static;z-index:1;overflow:hidden}
+@media(max-width:1100px){.cols{grid-template-columns:minmax(0,1fr)}.ed,.pv{width:100%;max-width:none}.top{gap:12px}}
 .ed{display:grid;gap:16px}
 .field label,.rooms label{display:block;font-weight:600;font-size:.88rem;margin-bottom:4px}
 .field input,.rooms input[type=text],.tpl textarea{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;background:var(--card)}
@@ -102,11 +102,11 @@ table.mini th{text-align:right;font-weight:600;color:var(--mute);padding:4px 6px
 table.mini td{text-align:right;padding:4px 6px;border-bottom:1px solid #edf3f2;white-space:nowrap}
 table.mini th:nth-child(2),table.mini td:nth-child(2),table.mini th:first-child,table.mini td:first-child{text-align:left}
 table.mini tr.off td{color:#a3b3b1;text-decoration:line-through}
-.pv{position:static}
+.pv{position:static;overflow:hidden;min-width:0}
 .pvbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px}
 .pvbar span{font-weight:600}
-.paper{background:#fff;border:1px solid var(--line);border-radius:10px;padding:22px 18px;overflow:auto;max-width:100%;max-height:calc(100vh - 240px)}
-.paper table{width:100%;display:block;overflow-x:auto}
+.paper{background:#fff;border:1px solid var(--line);border-radius:10px;padding:22px 18px;overflow:auto;max-width:100%;min-width:0;max-height:calc(100vh - 240px)}
+.paper table{width:max-content;min-width:100%;display:table;border-collapse:collapse}
 .tip{color:var(--mute);font-size:.87rem;margin-top:10px}
 dialog{border:1px solid var(--line);border-radius:12px;padding:22px 24px;max-width:640px;width:calc(100% - 32px);color:var(--ink)}
 dialog::backdrop{background:rgba(18,48,46,.35)}
