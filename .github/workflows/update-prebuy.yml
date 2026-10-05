@@ -8,43 +8,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Add Property UUID tool
-        run: |
-          curl -fsSL -o uuid-data.json "https://tmpfiles.org/dl/1790949618.6d54d4d1ae939a83/wrAJeF5W6BUL/uuid-data.json"
-          curl -fsSL -o uuid-page.json "https://tmpfiles.org/dl/1790949623.f096bd388f203e4a/w4A3eM5R6BtA/uuid-page.json"
-          python3 - << 'PY'
-          import json
-          from pathlib import Path
-          page = json.loads(Path('uuid-page.json').read_text(encoding='utf-8'))['html']
-          if 'Property UUID' not in page:
-              raise SystemExit('page missing')
-          Path('uuid.html').write_text(page, encoding='utf-8')
-          data = json.loads(Path('uuid-data.json').read_text(encoding='utf-8'))
-          if len(data) < 900:
-              raise SystemExit('data short')
-          link = '<a class="app-nav-link" href="./uuid.html">Property UUID</a>'
-          for name in ('index.html','prebuy.html','topup.html','rates.html'):
-              p = Path(name)
-              s = p.read_text(encoding='utf-8')
-              if 'href="./uuid.html"' in s:
-                  print(name, 'already linked')
-                  continue
-              old = '<a class="app-nav-link is-active" href="./rates.html">Live Rates</a>'
-              alt = '<a class="app-nav-link" href="./rates.html">Live Rates</a>'
-              if old in s:
-                  s = s.replace(old, alt + '\n    ' + link, 1)
-              elif alt in s:
-                  s = s.replace(alt, alt + '\n    ' + link, 1)
-              else:
-                  print(name, 'nav anchor missing')
-                  continue
-              p.write_text(s, encoding='utf-8')
-              print(name, 'linked')
-          PY
+      - name: Stop Top-up preview overlap
+        run: python3 patch_topup_overlap.py
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add uuid.html uuid-data.json index.html prebuy.html topup.html rates.html
-          git diff --cached --quiet || git commit -m "Add Property UUID lookup"
+          git add topup.html
+          git diff --cached --quiet || git commit -m "Keep Top-up preview beside the editor"
           git push
