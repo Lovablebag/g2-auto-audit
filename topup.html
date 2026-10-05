@@ -212,13 +212,15 @@ const DEF_TPL={
   regards:'Kind regards,',
   signature:''
 };
+const FR_TPL={topupOne:'Pourriez-vous nous accorder un **top-up** pour **{property}** pour les dates ci-dessous ?',topupMany:'Pourriez-vous nous accorder de la **disponibilité supplémentaire** pour vos établissements à {city} pour les dates ci-dessous ?',releaseOne:'Pourriez-vous **ramener le release a 0 jour** pour **{property}** pour les dates ci-dessous, afin que le restant de disponibilité soit remis en vente ?',releaseMany:'Pourriez-vous **ramener le release a 0 jour** pour vos établissements à {city} pour les dates ci-dessous, afin que le restant de disponibilité soit remis en vente ?',releaseAlsoOne:'Pourriez-vous également **ramener le release a 0 jour** pour les dates ci-dessous, afin que le restant de disponibilité soit remis en vente ?',releaseAlsoMany:'Pourriez-vous également **ramener le release a 0 jour** pour vos établissements à {city} pour les dates ci-dessous, afin que le restant de disponibilité soit remis en vente ?',opening:"J'espère que vous allez bien.",closing:"Merci beaucoup d'avance pour votre vérification et votre aide !",regards:'Cordialement,',signature:''};
+const activeTpl=()=>S.lang==='fr'?FR_TPL:P.tpl;
 const TPL_LABELS={topupOne:'Top-up, one property',topupMany:'Top-up, several properties',releaseOne:'Release, one property (no top-up in the same email)',releaseMany:'Release, several properties (no top-up in the same email)',releaseAlsoOne:'Release, added after a top-up in the same email',releaseAlsoMany:'Release, added after a top-up, several properties',opening:'Opening line',closing:'Closing line',regards:'Sign-off',signature:'Signature (optional)'};
 const LS='topupdesk.v1';
 let P={tpl:Object.assign({},DEF_TPL),greet:{},rooms:{},threshold:1};
-try{const s=JSON.parse(localStorage.getItem(LS)||'null');if(s){P.tpl=Object.assign({},DEF_TPL,s.tpl||{});P.greet=s.greet||{};P.rooms=s.rooms||{};P.threshold=s.threshold==null?1:s.threshold}}catch(e){}
+try{const s=JSON.parse(localStorage.getItem(LS)||'null');if(s){P.tpl=Object.assign({},DEF_TPL,s.tpl||{});P.greet=s.greet||{};P.rooms=s.rooms||{};P.threshold=s.threshold==null?1:s.threshold;P.lang=s.lang==='fr'?'fr':'en'}}catch(e){}
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
 
-const S={step:1,files:[],rows:[],dups:0,msgs:[],threshold:P.threshold,selected:new Set(),discard:new Set(),grouping:'each',combine:true,active:0,q:'',showAll:false,subj:{}};
+const S={step:1,files:[],rows:[],dups:0,msgs:[],threshold:P.threshold,selected:new Set(),discard:new Set(),grouping:'each',combine:true,lang:P.lang||'en',active:0,q:'',showAll:false,subj:{}};
 
 /* ---------- parsing ---------- */
 function parseDate(v){
@@ -367,13 +369,13 @@ function buildEmails(){
 }
 const cityOf=e=>{const c=[...new Set(e.items.map(i=>i.city).filter(Boolean))];return c.length===1?c[0]:''};
 function defSubject(e){
-  const one=e.items.length===1,c=cityOf(e),p=one?e.items[0].prop:'';
-  if(e.type==='combined')return one?'Availability & Release Request for '+p:'Availability & Release Request - '+(c?c+' ':'')+'Properties';
-  if(e.type==='topup')return one?'Top-up for '+p:'Availability Request - '+(c?c+' ':'')+'Properties';
-  return one?'Release reduction for '+p:'Release Request - '+(c?c+' ':'')+'Properties';
+  const one=e.items.length===1,c=cityOf(e),p=one?e.items[0].prop:'',fr=S.lang==='fr';
+  if(e.type==='combined')return one?(fr?'Disponibilités et release pour ':'Availability & Release Request for ')+p:(fr?'Demande de disponibilites et de release - ':'Availability & Release Request - ')+(c?c+' ':'')+(fr?'établissements':'Properties');
+  if(e.type==='topup')return one?(fr?'Top-up pour ':'Top-up for ')+p:(fr?'Demande de disponibilites - ':'Availability Request - ')+(c?c+' ':'')+(fr?'établissements':'Properties');
+  return one?(fr?'Réduction du release pour ':'Release reduction for ')+p:(fr?'Demande de release - ':'Release Request - ')+(c?c+' ':'')+(fr?'établissements':'Properties');
 }
 const subjectOf=e=>S.subj[e.id]!=null?S.subj[e.id]:defSubject(e);
-const greetOf=e=>P.greet[e.key]!=null?P.greet[e.key]:'Team';
+const greetOf=e=>P.greet[e.key]!=null?P.greet[e.key]:(S.lang==='fr'?'à tous':'Team');
 const includedRows=rows=>rows.filter(r=>!S.discard.has(r.key));
 function tpl(t,vars){
   let s=String(t||'').replace(/\{property\}/g,vars.property||'').replace(/\{city\}/g,vars.city||'').replace(/ {2,}/g,' ');
@@ -384,18 +386,18 @@ function tableHtml(top,rows){
   const th=(t,r)=>'<th style="background:#b2dfdb;border:1px solid #000000;padding:2px 6px;font-weight:bold;text-align:'+(r?'right':'left')+';white-space:nowrap">'+t+'</th>';
   const td=(t,r,w)=>'<td'+(w?' width="'+w+'"':'')+' style="border:1px solid #000000;padding:2px 6px;text-align:'+(r?'right':'left')+';white-space:nowrap">'+t+'</td>';
   let h='<table cellspacing="0" cellpadding="0" border="1" style="border-collapse:collapse;border:1px solid #000000;margin:0 0 6px 0"><thead><tr>'+
-    th('Room/Category')+th('Date')+th('Allotment',1)+th('Freesale',1)+th('Total',1)+th('Sold',1)+th('Available',1)+(top?th('Top-Up'):'')+th('Yes/No')+'</tr></thead><tbody>';
+    th(S.lang==='fr'?'Chambre':'Room/Category')+th('Date')+th(S.lang==='fr'?'Allotement':'Allotment',1)+th('Freesale',1)+th('Total',1)+th(S.lang==='fr'?'Vendu':'Sold',1)+th(S.lang==='fr'?'Disponible':'Available',1)+(top?th(S.lang==='fr'?'Top-up':'Top-Up'):'')+th(S.lang==='fr'?'Oui/Non':'Yes/No')+'</tr></thead><tbody>';
   for(const r of rows)h+='<tr>'+td(esc(roomName(r.property,r.room)))+td(fmtDate(r.date))+td(r.allot,1)+td(r.free,1)+td(r.total,1)+td(r.sold,1)+td(r.avail,1)+(top?td('&nbsp;',0,90):'')+td('&nbsp;',0,90)+'</tr>';
   return h+'</tbody></table>';
 }
 function emailParts(e){
-  const one=e.items.length===1,T=P.tpl,ps='style="margin:0 0 14px 0"';
+  const one=e.items.length===1,T=activeTpl(),ps='style="margin:0 0 14px 0"';
   const hasTop=e.items.some(i=>i.top.length),hasRel=e.items.some(i=>i.rel.length);
   const firstProp=e.items[0].prop,city=cityOf(e);
   const line=k=>plain(T[k]).replace('{property}',firstProp).replace('{city}',city).replace(/ {2,}/g,' ');
   let count=0,html='<div style="font-family:Aptos,Calibri,Arial,sans-serif;font-size:11pt;color:#000000">';
   html+='<p '+ps+'>Hi '+esc(greetOf(e))+',</p><p '+ps+'>'+tpl(T.opening,{})+'</p>';
-  let text='Hi '+greetOf(e)+',\n\n'+plain(T.opening)+'\n\n';
+  let text=(S.lang==='fr'?'Bonjour ':'Hi ')+greetOf(e)+',\n\n'+plain(T.opening)+'\n\n';
   function block(arr,top,introKey){
     html+='<p '+ps+'>'+tpl(T[introKey],{property:firstProp,city})+'</p>';
     text+=line(introKey)+'\n\n';
@@ -403,7 +405,7 @@ function emailParts(e){
       const rows=includedRows(top?it.top:it.rel);if(!rows.length)continue;count+=rows.length;
       if(!one){html+='<p style="margin:16px 0 6px 0;font-size:13pt;font-weight:bold">'+esc(it.prop)+'</p>';text+=it.prop+'\n'}
       html+=tableHtml(top,rows);
-      text+=['Room/Category','Date','Allotment','Freesale','Total','Sold','Available'].concat(top?['Top-Up']:[],['Yes/No']).join('\t')+'\n';
+      text+=(S.lang==='fr'?['Chambre','Date','Allotement','Freesale','Total','Vendu','Disponible']:['Room/Category','Date','Allotment','Freesale','Total','Sold','Available']).concat(top?[S.lang==='fr'?'Top-up':'Top-Up']:[],[S.lang==='fr'?'Oui/Non':'Yes/No']).join('\t')+'\n';
       for(const r of rows)text+=[roomName(r.property,r.room),fmtDate(r.date),r.allot,r.free,r.total,r.sold,r.avail].concat(top?['']:[],['']).join('\t')+'\n';
       text+='\n';
     }
@@ -467,13 +469,13 @@ function v3(){
   if(S.active>=emails.length)S.active=0;
   const e=emails[S.active];
   const badge=x=>x.type==='combined'?'<span class="k t">Top-up</span><span class="k r">Release</span>':'<span class="k '+(x.type==='topup'?'t':'r')+'">'+(x.type==='topup'?'Top-up':'Release')+'</span>';
-  return '<section><h2>Write emails</h2><div class="filters"><div class="seg" role="group" aria-label="Grouping"><button data-action="group" data-g="each" aria-pressed="'+(S.grouping==='each')+'">One email per property</button><button data-action="group" data-g="all" aria-pressed="'+(S.grouping==='all')+'">One email for all selected</button></div><label class="chk"><input type="checkbox" data-action="combine" '+(S.combine?'checked':'')+'>Combine top-up and release in one email</label><button class="btn" data-action="step" data-i="2">Back</button></div>'+
+  return '<section><h2>Write emails</h2><div class="filters"><div class="seg" role="group" aria-label="Grouping"><button data-action="group" data-g="each" aria-pressed="'+(S.grouping==='each')+'">One email per property</button><button data-action="group" data-g="all" aria-pressed="'+(S.grouping==='all')+'">One email for all selected</button></div><div class="seg" role="group" aria-label="Language"><button data-action="lang" data-l="en" aria-pressed="'+(S.lang!=='fr')+'">English</button><button data-action="lang" data-l="fr" aria-pressed="'+(S.lang==='fr')+'">Francais</button></div><label class="chk"><input type="checkbox" data-action="combine" '+(S.combine?'checked':'')+'>Combine top-up and release in one email</label><button class="btn" data-action="step" data-i="2">Back</button></div>'+
   '<div class="tabs" role="tablist">'+emails.map((x,i)=>'<button class="tab" role="tab" data-action="tab" data-i="'+i+'" aria-selected="'+(i===S.active)+'">'+badge(x)+esc(x.items.length===1?x.items[0].prop:x.items.length+' properties')+'<i data-cnt="'+i+'"></i></button>').join('')+'</div>'+
   '<div class="cols"><div class="ed">'+editor(e)+'</div><div class="pv"><div class="pvbar"><span>Preview</span><button class="btn pri" data-action="copyemail">Copy email</button></div><div class="paper" id="paper"></div><p class="tip">Paste into a new Outlook message, then add the recipients. Outlook adds your signature.</p></div></div></section>';
 }
 function editor(e){
   let h='<div class="field"><label for="subj">Subject</label><div class="row"><input id="subj" type="text" value="'+esc(subjectOf(e))+'"><button class="btn" data-action="copysubj">Copy</button></div></div>'+
-  '<div class="field"><label for="greet">Greeting</label><div class="greet"><span>Hi</span><input id="greet" type="text" value="'+esc(greetOf(e))+'"><span>,</span></div></div>';
+  '<div class="field"><label for="greet">Greeting</label><div class="greet"><span>'+(S.lang==='fr'?'Bonjour':'Hi')+'</span><input id="greet" type="text" value="'+esc(greetOf(e))+'"><span>,</span></div></div>';
   const mini=(it,type,rows)=>{
     if(!rows.length)return '';
     const allOn=rows.every(r=>!S.discard.has(r.key));
@@ -535,6 +537,7 @@ document.addEventListener('click',async ev=>{
   else if(a==='csv')csvDownload();
   else if(a==='group'){S.grouping=b.dataset.g;S.active=0;render()}
   else if(a==='combine'){S.combine=b.checked;S.active=0;render()}
+  else if(a==='lang'){S.lang=b.dataset.l;S.subj={};P.lang=S.lang;save();render()}
   else if(a==='tab'){S.active=+b.dataset.i;render()}
   else if(a==='rowtog'){const k=b.dataset.k;b.checked?S.discard.delete(k):S.discard.add(k);render()}
   else if(a==='allrows'){const rows=S.rows.filter(r=>r.property===b.dataset.p&&classify(r)===b.dataset.t);rows.forEach(r=>b.checked?S.discard.delete(r.key):S.discard.add(r.key));render()}
