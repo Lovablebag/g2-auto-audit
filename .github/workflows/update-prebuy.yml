@@ -8,12 +8,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Add French email option
-        run: python3 patch_topup_fr.py
+      - name: Update Pre-buy sampling and B2B
+        run: |
+          curl -fsSL -o prebuy-page.json "https://tmpfiles.org/dl/1792131315.7e799b79bf3b384c/wIAGZ0FkrXo4/prebuy-page.json"
+          python3 - << 'PY'
+          import json
+          from pathlib import Path
+          page = json.loads(Path('prebuy-page.json').read_text(encoding='utf-8'))['html']
+          if 'buildSample' not in page or 'Fetch B2B' not in page:
+              raise SystemExit('page missing new logic')
+          Path('prebuy.html').write_text(page, encoding='utf-8')
+          print('wrote', len(page))
+          PY
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add topup.html
-          git diff --cached --quiet || git commit -m "Add French option for top-up emails"
+          git add prebuy.html
+          git diff --cached --quiet || git commit -m "Pre-buy: random stays, Live Rates B2B, B2B floor"
           git push
