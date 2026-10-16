@@ -104,7 +104,7 @@ const BASIS = [
 
 const S = {
   hotelQuery:'', hotel:null, hits:null,
-  currency:'EUR', basis:'cheapest',
+  currency:'EUR', basis:'cheapest', country:'IT', nat:'IT', b2bHotel:null, b2bHits:null, compQuery:'', compHotel:null, compHits:null, sample:null, sampleKey:'',
   prot:{b2b:15,b2c:20,comp:15},
   contract:{start:'',end:'',trialStart:'',trialEnd:'',rooms:10},
   last:{cos:'',rn:'',gtee:'no'},
@@ -122,18 +122,36 @@ function monthKeys(){
 }
 function monthStart(k){ const [y,m]=k.split('-').map(Number); return Date.UTC(y,m-1,1); }
 function monthEnd(k){ const [y,m]=k.split('-').map(Number); return Date.UTC(y,m,0); }
-function fetchDates(){
+function buildSample(){
   const keys=monthKeys().slice(0,12), cs=D(S.contract.start), ce=D(S.contract.end);
   const today=Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate());
-  const out=[];
-  if(cs==null||ce==null) return out;
+  if(cs==null||ce==null) return [];
+  const windows=[];
   for(const k of keys){
-    const from=Math.max(monthStart(k),cs,today+DAY), to=Math.min(monthEnd(k),ce-DAY);
-    for(const want of [1,5]){
-      for(let t=from;t<=to;t+=DAY){ if(dowMon(t)===want){ out.push(iso(t)); break; } }
-    }
+    const from=Math.max(monthStart(k),cs,today+DAY), to=Math.min(monthEnd(k),ce);
+    if(from<=to) windows.push({from,to});
   }
+  if(!windows.length) return [];
+  const lengths=[1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,3,3];
+  for(let i=lengths.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const x=lengths[i]; lengths[i]=lengths[j]; lengths[j]=x; }
+  const out=[];
+  for(let i=0;i<lengths.length;i++){
+    const w=windows[i%windows.length];
+    let n=lengths[i];
+    let last=w.to-n*DAY;
+    if(last<w.from){ n=1; last=w.to-DAY; }
+    if(last<w.from) last=w.from;
+    const span=Math.floor((last-w.from)/DAY)+1;
+    const tms=w.from+Math.floor(Math.random()*Math.max(1,span))*DAY;
+    out.push({date:iso(Math.min(tms,w.to)), nights:n});
+  }
+  out.sort((a,b)=>a.date.localeCompare(b.date)||a.nights-b.nights);
   return out;
+}
+function fetchDates(force){
+  const key=(S.contract.start||'')+'|'+(S.contract.end||'');
+  if(force||S.sampleKey!==key||!S.sample||!S.sample.length){ S.sample=buildSample(); S.sampleKey=key; }
+  return S.sample;
 }
 function contractNights(){
   const a=D(S.contract.start), b=D(S.contract.end);
@@ -154,8 +172,15 @@ function suggestRow(r){
   const b2b=num(r.b2b), b2c=num(r.b2c), comp=num(r.comp);
   if(b2b==null || b2c==null) return null;
   const pb=protOf('b2b',b2b), pc=protOf('b2c',b2c), pj=protOf('comp',comp);
-  if(comp==null) return pb*(2/3)+pc*(1/3);
-  return pb*0.6 + pc*0.3 + pj*0.1;
+  const weighted=comp==null ? pb*(2/3)+pc*(1/3) : pb*0.6+pc*0.3+pj*0.1;
+  return Math.max(weighted, pb);
+}
+function floored(r){
+  const b2b=num(r.b2b), b2c=num(r.b2c), comp=num(r.comp);
+  if(b2b==null || b2c==null) return false;
+  const pb=protOf('b2b',b2b), pc=protOf('b2c',b2c), pj=protOf('comp',comp);
+  const weighted=comp==null ? pb*(2/3)+pc*(1/3) : pb*0.6+pc*0.3+pj*0.1;
+  return weighted<pb;
 }
 function suggestedList(){ return S.rows.map(suggestRow).filter(v=>v!=null); }
 function avgSuggest(){ const a=suggestedList(); return a.length? a.reduce((x,y)=>x+y,0)/a.length : null; }
@@ -168,6 +193,73 @@ function gCall(params){
   });
 }
 
+
+function boardWant(){
+  if(S.basis==='ro_nrf') return {bb:false, flex:false};
+  if(S.basis==='ro_flex') return {bb:false, flex:true};
+  if(S.basis==='bb_nrf') return {bb:true, flex:false};
+  if(S.basis==='bb_flex') return {bb:true, flex:true};
+  return null;
+}
+function isBB(r){ return /BB|BREAKFAST|B&B/i.test((r.board||'')+' '+(r.boardName||'')); }
+function pickLive(rates){
+  const list=(rates||[]).filter(r=>r.perNight!=null);
+  if(!list.length) return null;
+  const w=boardWant();
+  let pool=list;
+  if(w){
+    const bb=list.filter(r=>w.bb?isBB(r):!isBB(r));
+    const flex=bb.filter(r=>!!r.refundable===w.flex);
+    pool=flex.length?flex:(bb.length?bb:list);
+  }
+  pool.sort((a,b)=>a.perNight-b.perNight);
+  return pool[0];
+}
+async function liteCall(body){
+  const res=await fetch('/api/liteapi-rates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(j.error||('Live Rates '+res.status));
+  return j;
+}
+async function findLive(kind){
+  if((S.country||'').length!==2){ S.msg='Enter a 2-letter country code to use Live Rates.'; S.msgk='warn'; render(); return; }
+  const name=kind==='comp'?(S.compQuery||'').trim():((S.hotel&&S.hotel.name)||S.hotelQuery||'').trim();
+  if(!name){ S.msg=kind==='comp'?'Type a comparable hotel name.':'Pick or type the hotel first.'; S.msgk='warn'; render(); return; }
+  S.busy=true; S.msg='Searching Live Rates…'; S.msgk=''; render();
+  try{
+    const j=await liteCall({mode:'hotels', countryCode:S.country, cityName:'', hotelName:name});
+    const hits=j.hotels||[];
+    if(kind==='comp') S.compHits=hits; else S.b2bHits=hits;
+    S.msg=hits.length? hits.length+' Live Rates hotels. Pick one.':'No Live Rates hotel matched. Try a shorter name.';
+    S.msgk=hits.length?'ok':'warn';
+  }catch(e){ S.msg=e.message; S.msgk='err'; }
+  S.busy=false; render();
+}
+async function fetchLive(kind){
+  const hotel=kind==='comp'?S.compHotel:S.b2bHotel;
+  const key=kind==='comp'?'comp':'b2b';
+  if(!hotel){ S.msg='Pick the Live Rates hotel first.'; S.msgk='warn'; render(); return; }
+  if(!S.rows.length){ S.msg='Fetch the sample nights first.'; S.msgk='warn'; render(); return; }
+  S.busy=true; S.msg='Fetching '+(kind==='comp'?'comparable':'B2B')+'…'; S.msgk=''; render();
+  let done=0, filled=0;
+  const one=async r=>{
+    const n=r.nights||1;
+    try{
+      const j=await liteCall({mode:'rates', hotelId:hotel.id, checkin:r.date, checkout:iso(D(r.date)+n*DAY), currency:S.currency, guestNationality:S.nat||S.country||'IT', adults:2});
+      const best=pickLive(j.rates);
+      if(best){ r[key]=best.perNight; r[key+'Src']=[best.room,best.boardName||best.board,best.refundable?'flex':'NRF'].filter(Boolean).join(' · '); filled++; }
+      else r[key+'Src']='No availability';
+    }catch(e){ r[key+'Src']=e.message; }
+    done++;
+    const el=$('#status'); if(el) el.textContent='Fetching '+(kind==='comp'?'comparable':'B2B')+'… '+done+' of '+S.rows.length;
+  };
+  for(let i=0;i<S.rows.length;i+=3) await Promise.all(S.rows.slice(i,i+3).map(one));
+  S.busy=false;
+  S.msg=(kind==='comp'?'Comparable':'B2B')+' filled on '+filled+' of '+S.rows.length+' stays. Empty rows can be typed by hand.';
+  S.msgk=filled?'ok':'warn';
+  render();
+}
+
 async function searchHotel(){
   const q=S.hotelQuery.trim();
   if(!q){ S.msg='Type a hotel name and city.'; S.msgk='warn'; render(); return; }
@@ -175,7 +267,7 @@ async function searchHotel(){
   if(!dates.length){ S.msg='Set a contract start and end that includes future dates.'; S.msgk='warn'; render(); return; }
   S.busy=true; S.msg='Searching Google Hotels…'; S.msgk=''; render();
   try{
-    const j=await gCall({mode:'search', q, checkin:dates[0], checkout:iso(D(dates[0])+DAY), currency:S.currency});
+    const j=await gCall({mode:'search', q, checkin:dates[0].date, checkout:iso(D(dates[0].date)+DAY), currency:S.currency});
     S.hits=j.results||[];
     S.msg=S.hits.length? S.hits.length+' hotels found. Pick one.':'No hotel matched that name.';
     S.msgk=S.hits.length?'ok':'warn';
@@ -192,15 +284,15 @@ async function fetchRates(){
   let done=0, failed=null;
   const one=async d=>{
     try{
-      const j=await gCall({mode:'prices', token:S.hotel.token, q:S.hotel.name||S.hotelQuery, checkin:d, checkout:iso(D(d)+DAY), currency:S.currency});
+      const j=await gCall({mode:'prices', token:S.hotel.token, q:S.hotel.name||S.hotelQuery, checkin:d.date, checkout:iso(D(d.date)+(d.nights||1)*DAY), currency:S.currency});
       const best=pickPrice(j);
-      if(best) found.push({date:d, b2c:best.perNight, b2cSrc:(best.source||'')+' ('+(j.provider||'Google')+')', b2b:'', comp:'', blank:false});
+      if(best) found.push({date:d.date, nights:d.nights||1, b2c:best.perNight, b2cSrc:(best.source||'')+' ('+(j.provider||'Google')+')', b2b:'', b2bSrc:'', comp:'', compSrc:'', blank:false});
       else missing.push(d);
     }catch(e){ failed=e.message; missing.push(d); }
     done++; S.msg='Fetching B2C… '+done+' of '+dates.length; S.msgk=''; const el=$('#status'); if(el) el.textContent=S.msg;
   };
   for(let i=0;i<dates.length;i+=4) await Promise.all(dates.slice(i,i+4).map(one));
-  const blanks=missing.map(d=>({date:d,b2c:'',b2cSrc:'',b2b:'',comp:'',blank:true}));
+  const blanks=missing.map(d=>({date:d.date,nights:d.nights||1,b2c:'',b2cSrc:'',b2b:'',b2bSrc:'',comp:'',compSrc:'',blank:true}));
   S.rows=found.concat(blanks).sort((a,b)=>a.date.localeCompare(b.date));
   S.busy=false;
   S.msg='B2C filled on '+found.length+' of '+dates.length+' dates'+(missing.length?'. Blank dates need a rate typed in.':'')+(failed && !found.length? ' ('+failed+')':'');
@@ -213,12 +305,13 @@ function dealMath(){
   const nSug=ready.length;
   const avg=nSug? ready.reduce((x,y)=>x+y,0)/nSug : null;
   const rooms=num(S.contract.rooms)||0;
-  const rnDeal=rooms*nSug;
+  const nights=contractNights();
+  const rnDeal=rooms*nights;
   const potential=avg!=null && rnDeal? avg*rnDeal : null;
   const lyCOS=num(S.last.cos), lyRN=num(S.last.rn);
   const lyADR= lyCOS!=null && lyRN? lyCOS/lyRN : null;
   const incremental= potential!=null && lyADR!=null ? (avg-lyADR)*rnDeal : null;
-  return {avg,rooms,days:nSug,rnDeal,potential,lyCOS,lyRN,lyADR,incremental,nSug};
+  return {avg,rooms,nights,rnDeal,potential,lyCOS,lyRN,lyADR,incremental,nSug};
 }
 
 function render(){
@@ -228,13 +321,15 @@ function render(){
   $('#app').innerHTML=`
   <section>
     <h2>Pre-buy Price Check</h2>
-    <p class="lead">Find the hotel, pull B2C on 24 sample nights (Tuesday and Saturday in each of the first 12 contract months), type B2B, and get a suggested net rate per night. Standard look-up is the cheapest public option. Google Hotels does not split NRF vs flexible; BB uses breakfast-included quotes when they exist.</p>
+    <p class="lead">Find the hotel and pull 24 sample stays across the first 12 contract months: 12 of 1 night, 10 of 2 nights, 2 of 3 nights, on random days. B2C comes from Google. B2B, and an optional comparable hotel, come from Live Rates. Suggested net never goes under the protected B2B rate.</p>
 
     <div class="card">
       <h3>Hotel &amp; contract</h3>
       <div class="grid">
         <div class="field" style="grid-column:span 2"><label>Hotel name</label><input id="hq" type="text" value="${esc(S.hotelQuery)}" placeholder="Hotel name and city"></div>
         <div class="field"><label>Currency</label><select id="cur">${CUR.map(x=>`<option ${x===S.currency?'selected':''}>${x}</option>`).join('')}</select></div>
+        <div class="field"><label>Country</label><input id="cc" maxlength="2" value="${esc(S.country)}" placeholder="IT"></div>
+        <div class="field"><label>Nationality</label><input id="nat" maxlength="2" value="${esc(S.nat)}" placeholder="IT"></div>
         <div class="field"><label>Rate product</label><select id="basis">${BASIS.map(x=>`<option value="${x.id}" ${x.id===S.basis?'selected':''}>${x.label}</option>`).join('')}</select></div>
         <div class="field"><label>Contract start</label><input id="cs" type="date" value="${esc(S.contract.start)}"></div>
         <div class="field"><label>Contract end</label><input id="ce" type="date" value="${esc(S.contract.end)}"></div>
@@ -242,13 +337,22 @@ function render(){
         <div class="field"><label>Trial end</label><input id="te" type="date" value="${esc(S.contract.trialEnd)}"></div>
         <div class="field"><label>Rooms per night</label><input id="rooms" type="number" min="1" step="1" value="${esc(S.contract.rooms)}"></div>
       </div>
-      <p class="hint" style="margin-top:10px">${dates.length} sample nights in the first 12 months.${S.hotel? ' Selected: <span class="picked">'+esc(S.hotel.name)+'</span>.':''}</p>
+      <p class="hint" style="margin-top:10px">24 sample stays in the first 12 months: 12 × 1 night, 10 × 2 nights, 2 × 3 nights.${S.hotel? ' Selected: <span class="picked">'+esc(S.hotel.name)+'</span>.':''}${S.b2bHotel? ' B2B: <span class="picked">'+esc(S.b2bHotel.name)+'</span>.':''}${S.compHotel? ' Comparable: <span class="picked">'+esc(S.compHotel.name)+'</span>.':''}</p>
       <div class="row" style="margin-top:12px">
         <button class="btn pri" id="find" ${S.busy?'disabled':''}>Find hotel</button>
-        <button class="btn" id="pull" ${S.busy||!S.hotel||!dates.length?'disabled':''}>Fetch 24 B2C rates</button>
+        <button class="btn" id="pull" ${S.busy||!S.hotel?'disabled':''}>Fetch B2C</button>
+        <button class="btn" id="findb2b" ${S.busy?'disabled':''}>Find B2B hotel</button>
+        <button class="btn" id="pullb2b" ${S.busy||!S.b2bHotel||!S.rows.length?'disabled':''}>Fetch B2B</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div class="field" style="flex:1"><label>Comparable hotel (optional)</label><input id="compq" value="${esc(S.compQuery)}" placeholder="Name for a Live Rates look-up"></div>
+        <button class="btn" id="findcomp" ${S.busy?'disabled':''}>Find comparable</button>
+        <button class="btn" id="pullcomp" ${S.busy||!S.compHotel||!S.rows.length?'disabled':''}>Fetch comparable</button>
       </div>
       <div id="status" class="msg ${S.msgk}" style="${S.msg?'':'display:none'}">${esc(S.msg)}</div>
       ${S.hits&&S.hits.length? `<div class="hits">${S.hits.map((h,i)=>`<div class="hit"><div><b>${esc(h.name)}</b><div class="hint">${esc(h.address||h.provider||'')}${h.perNight!=null?' · from '+fmt(h.perNight)+' '+S.currency:''}</div></div><button class="btn sm" data-use="${i}">Use this hotel</button></div>`).join('')}</div>`:''}
+      ${S.b2bHits&&S.b2bHits.length? `<div class="hits">${S.b2bHits.map((h,i)=>`<div class="hit"><div><b>${esc(h.name)}</b><div class="hint">${esc([h.city,h.country].filter(Boolean).join(' · '))}</div></div><button class="btn sm" data-b2b="${i}">Use for B2B</button></div>`).join('')}</div>`:''}
+      ${S.compHits&&S.compHits.length? `<div class="hits">${S.compHits.map((h,i)=>`<div class="hit"><div><b>${esc(h.name)}</b><div class="hint">${esc([h.city,h.country].filter(Boolean).join(' · '))}</div></div><button class="btn sm" data-comp="${i}">Use as comparable</button></div>`).join('')}</div>`:''}
     </div>
 
     <div class="card">
@@ -258,7 +362,7 @@ function render(){
         <div class="field"><label>Protection vs B2C (%)</label><input id="pb2c" type="number" min="0" max="90" step="0.1" value="${esc(S.prot.b2c)}"></div>
         <div class="field"><label>Protection vs Comparable hotel (%)</label><input id="pcomp" type="number" min="0" max="90" step="0.1" value="${esc(S.prot.comp)}"></div>
       </div>
-      <p class="hint" style="margin-top:10px">Suggested net = protected B2B 60% + protected B2C 30% + protected comparable 10%. If comparable is empty, weights become B2B 67% / B2C 33%. B2B and B2C are required for a suggestion.</p>
+      <p class="hint" style="margin-top:10px">Suggested net = protected B2B 60% + protected B2C 30% + protected comparable 10%. If comparable is empty, weights become B2B 67% / B2C 33%. B2B and B2C are required. The result is never below protected B2B: that rate is the floor.</p>
     </div>
 
     <div class="card">
@@ -273,14 +377,14 @@ function render(){
     <div class="kpis">
       <div class="kpi"><span>Suggested nights ready</span><b>${m.nSug} / ${S.rows.length||0}</b></div>
       <div class="kpi"><span>Average suggested net</span><b>${m.avg==null?'—':fmtN(m.avg,c)}</b></div>
-      <div class="kpi"><span>Deal potential</span><b>${m.potential==null?'—':fmtMoney(m.potential,c)}</b><div class="hint">${m.nSug? (m.rooms+' rooms × '+m.nSug+' ready nights'):'Needs suggested nights'}</div></div>
+      <div class="kpi"><span>Deal potential</span><b>${m.potential==null?'—':fmtMoney(m.potential,c)}</b><div class="hint">${m.avg==null?'Needs suggested nights':(m.rooms+' rooms × '+m.nights+' contract nights × avg of '+m.nSug+' sample nights')}</div></div>
       <div class="kpi"><span>Incremental vs last year</span><b>${m.incremental==null?'—':fmtMoney(m.incremental,c)}</b><div class="hint">${m.lyADR==null?'Add last-year cost of sales and room nights':('LY ADR '+fmtN(m.lyADR,c)+(S.last.gtee==='yes'?' · guarantee':''))}</div></div>
     </div>
 
     <div class="card" style="padding:0;overflow:hidden">
       <div style="padding:14px 16px 8px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:end">
         <div><h3>Sample nights</h3>
-        <p class="hint">Change a date if that night is closed or sold out — B2C is fetched again for the new day. Add or remove nights as needed. Totals use only rows with a suggested net.</p></div>
+        <p class="hint">Change a date or the stay length if a night is closed. B2C is fetched again. Deal potential uses the average of ready sample nights, times rooms per night, times the full contract length.</p></div>
         <button class="btn sm" id="adddate">Add date</button></div>
       <div class="scroll">${tableHTML()}</div>
     </div>
@@ -292,7 +396,7 @@ async function fetchOne(i){
   const r=S.rows[i]; if(!r||!r.date||!S.hotel) return;
   S.busy=true; S.msg='Fetching B2C for '+pretty(r.date)+'…'; S.msgk=''; render();
   try{
-    const j=await gCall({mode:'prices', token:S.hotel.token, q:S.hotel.name||S.hotelQuery, checkin:r.date, checkout:iso(D(r.date)+DAY), currency:S.currency});
+    const j=await gCall({mode:'prices', token:S.hotel.token, q:S.hotel.name||S.hotelQuery, checkin:r.date, checkout:iso(D(r.date)+(r.nights||1)*DAY), currency:S.currency});
     const best=pickPrice(j);
     if(best){ S.rows[i].b2c=best.perNight; S.rows[i].b2cSrc=(best.source||'')+' ('+(j.provider||'Google')+')'; S.rows[i].blank=false; S.msg='B2C updated for '+pretty(r.date)+'.'; S.msgk='ok'; }
     else { S.rows[i].b2c=''; S.rows[i].b2cSrc=''; S.rows[i].blank=true; S.msg='No availability on '+pretty(r.date)+'. Try another day.'; S.msgk='warn'; }
@@ -303,7 +407,7 @@ async function fetchOne(i){
 function tableHTML(){
   if(!S.rows.length) return '<p class="hint" style="padding:16px">Find the hotel and fetch B2C, or add a date by hand.</p>';
   return `<table class="t"><thead><tr>
-    <th>Date</th><th>Day</th><th class="num">B2C</th><th>B2C source</th>
+    <th>Date</th><th>Nights</th><th>Day</th><th class="num">B2C</th><th>B2C source</th>
     <th class="num">B2B</th><th class="num">Comparable</th>
     <th class="num">After prot. B2B</th><th class="num">After prot. B2C</th><th class="num">After prot. Comp</th>
     <th class="num">Suggested net</th><th></th>
@@ -312,6 +416,7 @@ function tableHTML(){
     const day=D(r.date)==null?'':DOW[dowMon(D(r.date))];
     return `<tr class="${r.blank&&r.b2c===''?'blank':''}">
       <td><input type="date" data-date="${i}" value="${esc(r.date)}"></td>
+      <td class="num"><input type="number" min="1" max="7" step="1" data-nights="${i}" value="${esc(r.nights||1)}"></td>
       <td>${esc(day)}</td>
       <td class="num"><input type="number" min="0" step="0.01" data-k="b2c" data-i="${i}" value="${esc(r.b2c)}"></td>
       <td class="hint">${esc(r.b2cSrc)}</td>
@@ -320,7 +425,7 @@ function tableHTML(){
       <td class="num">${fmt(protOf('b2b',num(r.b2b)))}</td>
       <td class="num">${fmt(protOf('b2c',num(r.b2c)))}</td>
       <td class="num">${fmt(protOf('comp',num(r.comp)))}</td>
-      <td class="num"><b>${sg==null?'':fmt(sg)}</b></td>
+      <td class="num"><b>${sg==null?'':fmt(sg)}</b>${floored(r)?' <span class="hint">floor</span>':''}</td>
       <td><button class="btn sm" data-del="${i}">Remove</button></td>
     </tr>`;
   }).join('')}</tbody></table>`;
@@ -330,7 +435,7 @@ function readForm(){
   const g=id=>document.getElementById(id);
   if(!g('hq')) return;
   S.hotelQuery=g('hq').value;
-  S.currency=g('cur').value;
+  S.currency=g('cur').value; S.country=(g('cc').value||'').trim().toUpperCase(); S.nat=(g('nat').value||'').trim().toUpperCase(); if(g('compq')) S.compQuery=g('compq').value;
   S.basis=g('basis').value;
   S.contract.start=g('cs').value; S.contract.end=g('ce').value;
   S.contract.trialStart=g('ts').value; S.contract.trialEnd=g('te').value;
@@ -341,14 +446,20 @@ function readForm(){
 
 function bind(){
   document.getElementById('find').onclick=()=>{readForm();searchHotel();};
-  document.getElementById('pull').onclick=()=>{readForm();fetchRates();};
+  document.getElementById('pull').onclick=()=>{readForm();fetchDates(true);fetchRates();};
+  const fb=document.getElementById('findb2b'); if(fb) fb.onclick=()=>{readForm();findLive('b2b');};
+  const pb=document.getElementById('pullb2b'); if(pb) pb.onclick=()=>{readForm();fetchLive('b2b');};
+  const fc=document.getElementById('findcomp'); if(fc) fc.onclick=()=>{readForm();findLive('comp');};
+  const pc=document.getElementById('pullcomp'); if(pc) pc.onclick=()=>{readForm();fetchLive('comp');};
   const add=document.getElementById('adddate');
   if(add) add.onclick=()=>{
     const today=iso(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate())+DAY);
-    S.rows.push({date:today,b2c:'',b2cSrc:'',b2b:'',comp:'',blank:true});
+    S.rows.push({date:today,nights:1,b2c:'',b2cSrc:'',b2b:'',b2bSrc:'',comp:'',compSrc:'',blank:true});
     S.rows.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
     render();
   };
+  document.querySelectorAll('[data-b2b]').forEach(b=>b.onclick=()=>{ S.b2bHotel=S.b2bHits[+b.dataset.b2b]; S.b2bHits=null; S.msg='B2B hotel set to '+S.b2bHotel.name+'.'; S.msgk='ok'; render(); });
+  document.querySelectorAll('[data-comp]').forEach(b=>b.onclick=()=>{ S.compHotel=S.compHits[+b.dataset.comp]; S.compHits=null; S.compQuery=S.compHotel.name; S.msg='Comparable set to '+S.compHotel.name+'.'; S.msgk='ok'; render(); });
   document.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{
     S.hotel=S.hits[+b.dataset.use]; S.hits=null; S.msg='Hotel set to '+S.hotel.name+'. Fetch B2C next.'; S.msgk='ok'; render();
   });
@@ -359,12 +470,20 @@ function bind(){
     inp.addEventListener('change',()=>{
       const i=+inp.dataset.date;
       S.rows[i].date=inp.value;
-      S.rows[i].b2c=''; S.rows[i].b2cSrc=''; S.rows[i].blank=true;
+      S.rows[i].b2c=''; S.rows[i].b2cSrc=''; S.rows[i].b2b=''; S.rows[i].blank=true;
       if(S.hotel && inp.value) fetchOne(i);
       else render();
     });
   });
-  ['hq','cur','basis','cs','ce','ts','te','rooms','pb2b','pb2c','pcomp','lycos','lyrn','lyg'].forEach(id=>{
+  document.querySelectorAll('input[data-nights]').forEach(inp=>{
+    inp.addEventListener('change',()=>{
+      const i=+inp.dataset.nights;
+      S.rows[i].nights=Math.max(1, Number(inp.value)||1);
+      S.rows[i].b2c=''; S.rows[i].b2cSrc=''; S.rows[i].b2b='';
+      if(S.hotel) fetchOne(i); else render();
+    });
+  });
+  ['hq','cur','cc','nat','compq','basis','cs','ce','ts','te','rooms','pb2b','pb2c','pcomp','lycos','lyrn','lyg'].forEach(id=>{
     const el=document.getElementById(id); if(!el) return;
     el.addEventListener('change',()=>{readForm(); if(['cs','ce','pb2b','pb2c','pcomp','lycos','lyrn','lyg','rooms','cur'].includes(id)) render();});
   });
