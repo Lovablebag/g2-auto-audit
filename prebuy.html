@@ -106,7 +106,7 @@ const S = {
   hotelQuery:'', hotel:null, hits:null,
   currency:'EUR', basis:'cheapest', country:'', city:'', nat:'IT', b2bHotel:null, b2bHits:null, compQuery:'', compHotel:null, compHits:null, sample:null, sampleKey:'',
   prot:{b2b:15,b2c:20,comp:15},
-  contract:{start:'',end:'',trialStart:'',trialEnd:'',rooms:10},
+  contract:{start:'',end:'',trialStart:'',trialEnd:'',rooms:10, guarantee:''},
   last:{cos:'',rn:'',gtee:'no'},
   rows:[],
   msg:'', msgk:'',
@@ -274,32 +274,130 @@ async function findLive(kind){
 }
 function downloadSheet(){
   const m=dealMath();
-  const cell=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
-  const rows=[];
-  rows.push(['Hotel', (S.hotel&&S.hotel.name)||S.hotelQuery]);
-  rows.push(['B2B hotel', S.b2bHotel?S.b2bHotel.name:'']);
-  rows.push(['Comparable', S.compHotel?S.compHotel.name:'']);
-  rows.push(['Currency', S.currency]);
-  rows.push(['Contract start', S.contract.start]);
-  rows.push(['Contract end', S.contract.end]);
-  rows.push(['Rooms per night', S.contract.rooms]);
-  rows.push(['Suggested nights ready', m.nSug]);
-  rows.push(['Average suggested net', m.avg==null?'':Math.round(m.avg*100)/100]);
-  rows.push(['Contract nights', m.nights]);
-  rows.push(['Deal potential', m.potential==null?'':Math.round(m.potential*100)/100]);
-  rows.push(['Incremental vs last year', m.incremental==null?'':Math.round(m.incremental*100)/100]);
-  rows.push([]);
-  rows.push(['Date','Nights','B2C','B2C source','B2B','Comparable','After prot. B2B','After prot. B2C','After prot. Comp','Suggested net','Floor']);
-  for(const r of S.rows){
+  const hotel=(S.hotel&&S.hotel.name)||S.hotelQuery||'';
+  const comp=S.compHotel?S.compHotel.name:(S.compQuery||'');
+  const cur=S.currency||'EUR';
+  const gRooms=num(S.contract.guarantee);
+  const rooms=num(S.contract.rooms)||0;
+  const nights=m.nights||0;
+  const avg=m.avg;
+  const potential=m.potential;
+  const guaranteed=avg!=null && gRooms!=null && nights? avg*gRooms*nights : null;
+  const range=(a,b)=>{
+    const f=v=>{ const d=D(v); return d==null? (v||'') : new Date(d).toLocaleDateString('en-GB',{day:'2-digit', month:'short', year:'numeric', timeZone:'UTC'}); };
+    return f(a)+' – '+f(b);
+  };
+  const rows=S.rows.map(r=>{
     const sg=suggestRow(r);
-    rows.push([r.date, r.nights||1, r.b2c, r.b2cSrc||'', r.b2b, r.comp, protOf('b2b',num(r.b2b)), protOf('b2c',num(r.b2c)), protOf('comp',num(r.comp)), sg==null?'':Math.round(sg*100)/100, floored(r)?'yes':'']);
-  }
-  const csv='\ufeff'+rows.map(r=>r.map(cell).join(',')).join('\n');
+    return [r.date, r.nights||1, num(r.b2c), num(r.b2b), num(r.comp), protOf('b2b',num(r.b2b)), protOf('b2c',num(r.b2c)), protOf('comp',num(r.comp)), sg, floored(r)?'✓ Floor':''];
+  });
+  const book={
+    title:'Pre-buy Price Check',
+    sub:hotel+'    ·   '+range(S.contract.start, S.contract.end),
+    avg, guaranteed, potential, nSug:m.nSug||S.rows.length,
+    gLabel:(gRooms||0)+' rooms × '+nights+' nights',
+    pLabel:rooms+' rooms × '+nights+' nights',
+    hotel, comp, cur,
+    start:S.contract.start, end:S.contract.end, nights, rooms, gRooms:gRooms==null?'':gRooms,
+    pb:Number(S.prot.b2b||0)/100, pc:Number(S.prot.b2c||0)/100, pj:Number(S.prot.comp||0)/100,
+    lyCOS:num(S.last.cos), lyRN:num(S.last.rn), incremental:m.incremental,
+    rows
+  };
+  const blob=buildPrebuyXlsx(book);
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
-  a.download='prebuy-price-check.csv';
+  a.href=URL.createObjectURL(blob);
+  a.download='prebuy-price-check.xlsx';
   a.click();
 }
+function buildPrebuyXlsx(b){
+  const esc=s=>String(s==null?'':s).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>');
+  const col=n=>{ let s=''; n+=1; while(n){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26); } return s; };
+  const ref=(r,c)=>col(c)+r;
+  const cells=[];
+  const merge=[];
+  const add=(r,c,v,s)=>{
+    if(typeof v==='number' && isFinite(v)) cells.push('<c r="'+ref(r,c)+'" s="'+s+'"><v>'+v+'</v></c>');
+    else cells.push('<c r="'+ref(r,c)+'" s="'+s+'" t="inlineStr"><is><t xml:space="preserve">'+esc(v)+'</t></is></c>');
+  };
+  const span=(r,c1,c2)=>merge.push(ref(r,c1)+':'+ref(r,c2));
+  add(1,0,b.title,1); span(1,0,9);
+  add(2,0,b.sub,2); span(2,0,9);
+  [['AVG SUGGESTED NET',b.avg,'per room night',4],['DEAL GUARANTEED',b.guaranteed,b.gLabel,5],['DEAL POTENTIAL',b.potential,b.pLabel,6],['RATES CHECKED',b.nSug,'dates below',7]].forEach((k,i)=>{
+    const starts=[0,2,5,8], ends=[1,4,7,9];
+    add(4,starts[i],k[0],3); span(4,starts[i],ends[i]);
+    add(5,starts[i],k[1]==null?'—':k[1],k[3]); span(5,starts[i],ends[i]);
+    add(6,starts[i],k[2],8); span(6,starts[i],ends[i]);
+  });
+  add(8,0,'CONTRACT',9); span(8,0,4);
+  add(8,6,'PRICE PROTECTION',9); span(8,6,9);
+  [['Hotel',b.hotel],['Comparable hotel',b.comp||'—'],['Currency',b.cur],['Contract start',b.start||''],['Contract end',b.end||''],['Contract nights',b.nights],['Rooms per night',b.rooms],['Guaranteed rooms / night',b.gRooms===''?'—':b.gRooms]].forEach((row,i)=>{
+    add(9+i,0,row[0],10); span(9+i,0,1); add(9+i,2,row[1],11); span(9+i,2,4);
+  });
+  [['vs B2B',b.pb],['vs B2C',b.pc],['vs Comparable hotel',b.pj]].forEach((row,i)=>{ add(9+i,6,row[0],10); span(9+i,6,8); add(9+i,9,row[1],12); });
+  add(13,6,'LAST YEAR',9); span(13,6,9);
+  [['Cost of sales',b.lyCOS],['Room nights',b.lyRN],['Incremental vs last year',b.incremental]].forEach((row,i)=>{
+    add(14+i,6,row[0],10); span(14+i,6,8); add(14+i,9,row[1]==null?'—':row[1], i===1?11:13);
+  });
+  add(18,0,'How the suggested net is built:  60% protected B2B  +  30% protected B2C  +  10% protected comparable.  The result is never below protected B2B — that rate is the floor (rows marked ✓ Floor).',14); span(18,0,9);
+  add(20,0,'DATE-BY-DATE PRICING',9); span(20,0,9);
+  ['Date','Nights','B2C','B2B','Comparable','After prot. B2B','After prot. B2C','After prot. Comp.','Suggested net','Floor (vs B2B)'].forEach((h,i)=>add(21,i,h,15));
+  b.rows.forEach((row,ri)=>{
+    const base=ri%2?17:16;
+    add(22+ri,0,row[0]||'',base);
+    add(22+ri,1,row[1]||'',base);
+    for(let c=2;c<=8;c++) add(22+ri,c,row[c]==null?'':row[c], row[c]==null?base:(c===8?18:19));
+    add(22+ri,9,row[9]||'',20);
+  });
+  const byRow={};
+  cells.forEach(xml=>{ const m=xml.match(/ r="[A-Z]+(\d+)"/); if(!m) return; (byRow[m[1]]=byRow[m[1]]||[]).push(xml); });
+  const heights={1:36,2:22,4:20,5:34,6:18,8:22,18:34,20:22,21:32};
+  const rowXml=Object.keys(byRow).sort((a,b)=>a-b).map(r=>'<row r="'+r+'" ht="'+(heights[r]||(r>=22?19:18))+'" customHeight="1">'+byRow[r].join('')+'</row>').join('');
+  const sheetXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+    '<sheetViews><sheetView workbookViewId="0"><pane ySplit="21" topLeftCell="A22" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'+
+    '<cols><col min="1" max="1" width="26" customWidth="1"/><col min="2" max="2" width="14" customWidth="1"/><col min="3" max="5" width="16" customWidth="1"/><col min="6" max="9" width="18" customWidth="1"/><col min="10" max="10" width="18" customWidth="1"/></cols>'+
+    '<sheetData>'+rowXml+'</sheetData>'+
+    '<mergeCells count="'+merge.length+'">'+merge.map(m=>'<mergeCell ref="'+m+'"/>').join('')+'</mergeCells>'+
+    '<pageSetup orientation="landscape" fitToWidth="1"/>'+
+    '</worksheet>';
+  const files={
+    '[Content_Types].xml':'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>',
+    '_rels/.rels':'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+    'xl/workbook.xml':'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Price check" sheetId="1" r:id="rId1"/></sheets></workbook>',
+    'xl/_rels/workbook.xml.rels':'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
+    'xl/styles.xml':stylesheet(),
+    'xl/worksheets/sheet1.xml':sheetXml
+  };
+  return zipStore(files);
+}
+function stylesheet(){
+  const fonts=['<font><sz val="11"/><name val="Calibri"/></font>','<font><b/><sz val="20"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>','<font><sz val="11"/><color rgb="FFDCE6F0"/><name val="Calibri"/></font>','<font><b/><sz val="9"/><color rgb="FF6B7785"/><name val="Calibri"/></font>','<font><b/><sz val="20"/><color rgb="FF2A9D8F"/><name val="Calibri"/></font>','<font><b/><sz val="20"/><color rgb="FF2A9D8F"/><name val="Calibri"/></font>','<font><b/><sz val="20"/><color rgb="FF2A9D8F"/><name val="Calibri"/></font>','<font><b/><sz val="20"/><color rgb="FF2A9D8F"/><name val="Calibri"/></font>','<font><sz val="9"/><color rgb="FF6B7785"/><name val="Calibri"/></font>','<font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>','<font><sz val="10"/><color rgb="FF6B7785"/><name val="Calibri"/></font>','<font><b/><sz val="10"/><color rgb="FF222222"/><name val="Calibri"/></font>','<font><b/><sz val="10"/><color rgb="FF222222"/><name val="Calibri"/></font>','<font><b/><sz val="10"/><color rgb="FF222222"/><name val="Calibri"/></font>','<font><sz val="10"/><color rgb="FF334155"/><name val="Calibri"/></font>','<font><b/><sz val="10"/><color rgb="FF1F3A5F"/><name val="Calibri"/></font>','<font><sz val="10"/><color rgb="FF222222"/><name val="Calibri"/></font>','<font><sz val="10"/><color rgb="FF222222"/><name val="Calibri"/></font>','<font><b/><sz val="10"/><color rgb="FF222222"/><name val="Calibri"/></font>','<font><sz val="10"/><color rgb="FF222222"/><name val="Calibri"/></font>','<font><b/><sz val="10"/><color rgb="FFB26A00"/><name val="Calibri"/></font>'];
+  const fills=['<fill><patternFill patternType="none"/></fill>','<fill><patternFill patternType="gray125"/></fill>','<fill><patternFill patternType="solid"><fgColor rgb="FF1F3A5F"/></patternFill></fill>','<fill><patternFill patternType="solid"><fgColor rgb="FFEEF3F8"/></patternFill></fill>','<fill><patternFill patternType="solid"><fgColor rgb="FF2A9D8F"/></patternFill></fill>','<fill><patternFill patternType="solid"><fgColor rgb="FFDCE6F0"/></patternFill></fill>','<fill><patternFill patternType="solid"><fgColor rgb="FFFFFFFF"/></patternFill></fill>'];
+  const nf='<numFmts count="3"><numFmt numFmtId="164" formatCode="€ #,##0.00"/><numFmt numFmtId="165" formatCode="€ #,##0"/><numFmt numFmtId="166" formatCode="0%"/></numFmts>';
+  const xf=(font,fill,num,align,border)=>'<xf fontId="'+font+'" fillId="'+fill+'" borderId="'+(border?1:0)+'" numFmtId="'+(num||0)+'" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"'+(num?' applyNumberFormat="1"':'')+'><alignment horizontal="'+(align||'left')+'" vertical="center" wrapText="1"/></xf>';
+  const xfs=[xf(0,0,0,'left',0),xf(1,2,0,'left',0),xf(2,2,0,'left',0),xf(3,3,0,'center',1),xf(4,3,164,'center',1),xf(5,3,165,'center',1),xf(6,3,165,'center',1),xf(7,3,1,'center',1),xf(8,3,0,'center',1),xf(9,4,0,'left',0),xf(10,0,0,'left',0),xf(11,0,0,'left',0),xf(12,0,166,'center',0),xf(13,0,164,'right',0),xf(14,0,0,'left',0),xf(15,5,0,'center',0),xf(16,6,0,'center',0),xf(16,3,0,'center',0),xf(18,6,164,'right',0),xf(19,6,164,'right',0),xf(20,6,0,'center',0)];
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+nf+'<fonts count="'+fonts.length+'">'+fonts.join('')+'</fonts><fills count="'+fills.length+'">'+fills.join('')+'</fills><borders count="2"><border/><border><left style="thin"><color rgb="FFD5DEE8"/></left><right style="thin"><color rgb="FFD5DEE8"/></right><top style="thin"><color rgb="FFD5DEE8"/></top><bottom style="thin"><color rgb="FFD5DEE8"/></bottom></border></borders><cellXfs count="'+xfs.length+'">'+xfs.join('')+'</cellXfs></styleSheet>';
+}
+function zipStore(files){
+  const enc=new TextEncoder();
+  const parts=[], central=[];
+  let offset=0;
+  const crcTable=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xedb88320^(c>>>1):c>>>1; t[n]=c; } return t; })();
+  const crc32=bytes=>{ let c=0xffffffff; for(const b of bytes) c=crcTable[(c^b)&0xff]^(c>>>8); return (c^0xffffffff)>>>0; };
+  const u16=n=>[n&255,(n>>8)&255];
+  const u32=n=>[n&255,(n>>8)&255,(n>>16)&255,(n>>24)&255];
+  for(const [name,text] of Object.entries(files)){
+    const data=enc.encode(text), nameBytes=enc.encode(name), crc=crc32(data);
+    const local=new Uint8Array([0x50,0x4b,0x03,0x04,20,0,0,0,0,0,0,0,0,0, ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(nameBytes.length), 0,0, ...nameBytes, ...data]);
+    parts.push(local);
+    central.push(new Uint8Array([0x50,0x4b,0x01,0x02,20,0,20,0,0,0,0,0,0,0,0,0, ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(nameBytes.length), 0,0,0,0,0,0,0,0,0,0,0,0, ...u32(offset), ...nameBytes]));
+    offset+=local.length;
+  }
+  const centralBytes=central.reduce((n,a)=>n+a.length,0);
+  const end=new Uint8Array([0x50,0x4b,0x05,0x06,0,0,0,0, ...u16(central.length), ...u16(central.length), ...u32(centralBytes), ...u32(offset), 0,0]);
+  return new Blob([...parts, ...central, end], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+
 async function fetchLive(kind){
   const hotel=kind==='comp'?S.compHotel:S.b2bHotel;
   const key=kind==='comp'?'comp':'b2b';
@@ -402,6 +500,7 @@ function render(){
         <div class="field"><label>Trial start</label><input id="ts" type="date" value="${esc(S.contract.trialStart)}"></div>
         <div class="field"><label>Trial end</label><input id="te" type="date" value="${esc(S.contract.trialEnd)}"></div>
         <div class="field"><label>Rooms per night</label><input id="rooms" type="number" min="1" step="1" value="${esc(S.contract.rooms)}"></div>
+        <div class="field"><label>Guaranteed rooms / night</label><input id="grooms" type="number" min="0" step="1" value="${esc(S.contract.guarantee||'')}" placeholder="Optional"></div>
       </div>
       <p class="hint" style="margin-top:10px">24 sample stays in the first 12 months: 12 × 1 night, 10 × 2 nights, 2 × 3 nights.${S.hotel? ' Selected: <span class="picked">'+esc(S.hotel.name)+'</span>.':''}${S.b2bHotel? ' B2B: <span class="picked">'+esc(S.b2bHotel.name)+'</span>.':''}${S.compHotel? ' Comparable: <span class="picked">'+esc(S.compHotel.name)+'</span>.':''}</p>
       <div class="row" style="margin-top:12px">
@@ -451,7 +550,7 @@ function render(){
       <div style="padding:14px 16px 8px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:end">
         <div><h3>Sample nights</h3>
         <p class="hint">Change a date or the stay length if a night is closed. B2C is fetched again. Deal potential uses the average of ready sample nights, times rooms per night, times the full contract length.</p></div>
-        <button class="btn sm" id="download">Download</button><button class="btn sm" id="adddate">Add date</button></div>
+        <button class="btn sm" id="download">Download Excel</button><button class="btn sm" id="adddate">Add date</button></div>
       <div class="scroll">${tableHTML()}</div>
     </div>
   </section>`;
@@ -505,7 +604,7 @@ function readForm(){
   S.basis=g('basis').value;
   S.contract.start=g('cs').value; S.contract.end=g('ce').value;
   S.contract.trialStart=g('ts').value; S.contract.trialEnd=g('te').value;
-  S.contract.rooms=g('rooms').value;
+  S.contract.rooms=g('rooms').value; if(g('grooms')) S.contract.guarantee=g('grooms').value;
   S.prot.b2b=g('pb2b').value; S.prot.b2c=g('pb2c').value; S.prot.comp=g('pcomp').value;
   S.last.cos=g('lycos').value; S.last.rn=g('lyrn').value; S.last.gtee=g('lyg').value;
 }
@@ -550,7 +649,7 @@ function bind(){
       if(S.hotel) fetchOne(i); else render();
     });
   });
-  ['hq','cur','cc','city','nat','compq','basis','cs','ce','ts','te','rooms','pb2b','pb2c','pcomp','lycos','lyrn','lyg'].forEach(id=>{
+  ['hq','cur','cc','city','nat','compq','basis','cs','ce','ts','te','rooms','grooms','pb2b','pb2c','pcomp','lycos','lyrn','lyg'].forEach(id=>{
     const el=document.getElementById(id); if(!el) return;
     el.addEventListener('change',()=>{readForm(); if(['cs','ce','pb2b','pb2c','pcomp','lycos','lyrn','lyg','rooms','cur'].includes(id)) render();});
   });
