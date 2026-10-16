@@ -104,7 +104,7 @@ const BASIS = [
 
 const S = {
   hotelQuery:'', hotel:null, hits:null,
-  currency:'EUR', basis:'cheapest', country:'IT', nat:'IT', b2bHotel:null, b2bHits:null, compQuery:'', compHotel:null, compHits:null, sample:null, sampleKey:'',
+  currency:'EUR', basis:'cheapest', country:'', city:'', nat:'IT', b2bHotel:null, b2bHits:null, compQuery:'', compHotel:null, compHits:null, sample:null, sampleKey:'',
   prot:{b2b:15,b2c:20,comp:15},
   contract:{start:'',end:'',trialStart:'',trialEnd:'',rooms:10},
   last:{cos:'',rn:'',gtee:'no'},
@@ -221,19 +221,84 @@ async function liteCall(body){
   if(!res.ok) throw new Error(j.error||('Live Rates '+res.status));
   return j;
 }
+function guessPlace(h){
+  const blob=((h&&h.address)||'')+' '+((h&&h.name)||'');
+  const low=blob.toLowerCase();
+  const countries=[['netherlands','NL'],['nederland','NL'],['hoofddorp','NL'],['amsterdam','NL'],['france','FR'],['paris','FR'],['italy','IT'],['italia','IT'],['spain','ES'],['españa','ES'],['germany','DE'],['deutschland','DE'],['belgium','BE'],['belgique','BE'],['portugal','PT'],['switzerland','CH'],['austria','AT'],['luxembourg','LU'],['united kingdom','GB'],['england','GB'],['london','GB']];
+  let country='';
+  for(const [k,v] of countries){ if(low.includes(k)){ country=v; break; } }
+  const city=(h&&h.address||'').split(',').map(s=>s.trim()).filter(Boolean).slice(-2,-1)[0]||'';
+  return {country, city: city.replace(/\d/g,'').trim()};
+}
+function nameTries(name){
+  const clean=String(name||'').replace(/[’']/g,'').trim();
+  const words=clean.split(/\s+/).filter(Boolean);
+  const skip=/^(hotel|hotels|the|airport|city|centre|center|by)$/i;
+  const kept=words.filter(w=>!skip.test(w) && w.length>2);
+  const tries=[clean];
+  if(kept.length>=2) tries.push(kept.slice(0,2).join(' '));
+  if(kept.length) tries.push(kept[0]);
+  if(kept.length>1) tries.push(kept[kept.length-1]);
+  if(words.length>2) tries.push(words.slice(0,2).join(' '));
+  return [...new Set(tries.filter(Boolean))];
+}
 async function findLive(kind){
-  if((S.country||'').length!==2){ S.msg='Enter a 2-letter country code to use Live Rates.'; S.msgk='warn'; render(); return; }
+  if((S.country||'').length!==2){ S.msg='Enter a 2-letter country code. Live Rates needs it, for example NL.'; S.msgk='warn'; render(); return; }
   const name=kind==='comp'?(S.compQuery||'').trim():((S.hotel&&S.hotel.name)||S.hotelQuery||'').trim();
   if(!name){ S.msg=kind==='comp'?'Type a comparable hotel name.':'Pick or type the hotel first.'; S.msgk='warn'; render(); return; }
-  S.busy=true; S.msg='Searching Live Rates…'; S.msgk=''; render();
+  S.busy=true; S.msg='Searching Live Rates in '+S.country+'…'; S.msgk=''; render();
   try{
-    const j=await liteCall({mode:'hotels', countryCode:S.country, cityName:'', hotelName:name});
-    const hits=j.hotels||[];
+    let hits=[], used='';
+    for(const q of nameTries(name)){
+      const j=await liteCall({mode:'hotels', countryCode:S.country, cityName:S.city||'', hotelName:q});
+      hits=j.hotels||[];
+      used=q;
+      if(hits.length) break;
+      if(S.city){
+        const k=await liteCall({mode:'hotels', countryCode:S.country, cityName:'', hotelName:q});
+        hits=k.hotels||[];
+        if(hits.length){ used=q+' (country)'; break; }
+      }
+    }
+    if(!hits.length && S.city){
+      const j=await liteCall({mode:'hotels', countryCode:S.country, cityName:S.city, hotelName:''});
+      const tokens=name.toLowerCase().split(/\s+/).filter(w=>w.length>3);
+      hits=(j.hotels||[]).filter(h=>tokens.some(w=>(h.name||'').toLowerCase().includes(w)));
+      used=S.city;
+    }
     if(kind==='comp') S.compHits=hits; else S.b2bHits=hits;
-    S.msg=hits.length? hits.length+' Live Rates hotels. Pick one.':'No Live Rates hotel matched. Try a shorter name.';
+    S.msg=hits.length? hits.length+' Live Rates hotels'+(used?' for “'+used+'”':'')+'. Pick one.':'No Live Rates hotel in '+S.country+(S.city?' / '+S.city:'')+'. Check the country code, or type a shorter name such as Antares.';
     S.msgk=hits.length?'ok':'warn';
   }catch(e){ S.msg=e.message; S.msgk='err'; }
   S.busy=false; render();
+}
+function downloadSheet(){
+  const m=dealMath();
+  const cell=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const rows=[];
+  rows.push(['Hotel', (S.hotel&&S.hotel.name)||S.hotelQuery]);
+  rows.push(['B2B hotel', S.b2bHotel?S.b2bHotel.name:'']);
+  rows.push(['Comparable', S.compHotel?S.compHotel.name:'']);
+  rows.push(['Currency', S.currency]);
+  rows.push(['Contract start', S.contract.start]);
+  rows.push(['Contract end', S.contract.end]);
+  rows.push(['Rooms per night', S.contract.rooms]);
+  rows.push(['Suggested nights ready', m.nSug]);
+  rows.push(['Average suggested net', m.avg==null?'':Math.round(m.avg*100)/100]);
+  rows.push(['Contract nights', m.nights]);
+  rows.push(['Deal potential', m.potential==null?'':Math.round(m.potential*100)/100]);
+  rows.push(['Incremental vs last year', m.incremental==null?'':Math.round(m.incremental*100)/100]);
+  rows.push([]);
+  rows.push(['Date','Nights','B2C','B2C source','B2B','Comparable','After prot. B2B','After prot. B2C','After prot. Comp','Suggested net','Floor']);
+  for(const r of S.rows){
+    const sg=suggestRow(r);
+    rows.push([r.date, r.nights||1, r.b2c, r.b2cSrc||'', r.b2b, r.comp, protOf('b2b',num(r.b2b)), protOf('b2c',num(r.b2c)), protOf('comp',num(r.comp)), sg==null?'':Math.round(sg*100)/100, floored(r)?'yes':'']);
+  }
+  const csv='\ufeff'+rows.map(r=>r.map(cell).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download='prebuy-price-check.csv';
+  a.click();
 }
 async function fetchLive(kind){
   const hotel=kind==='comp'?S.compHotel:S.b2bHotel;
@@ -328,7 +393,8 @@ function render(){
       <div class="grid">
         <div class="field" style="grid-column:span 2"><label>Hotel name</label><input id="hq" type="text" value="${esc(S.hotelQuery)}" placeholder="Hotel name and city"></div>
         <div class="field"><label>Currency</label><select id="cur">${CUR.map(x=>`<option ${x===S.currency?'selected':''}>${x}</option>`).join('')}</select></div>
-        <div class="field"><label>Country</label><input id="cc" maxlength="2" value="${esc(S.country)}" placeholder="IT"></div>
+        <div class="field"><label>Country</label><input id="cc" maxlength="2" value="${esc(S.country)}" placeholder="NL"></div>
+        <div class="field"><label>City for B2B</label><input id="city" value="${esc(S.city||'')}" placeholder="Hoofddorp"></div>
         <div class="field"><label>Nationality</label><input id="nat" maxlength="2" value="${esc(S.nat)}" placeholder="IT"></div>
         <div class="field"><label>Rate product</label><select id="basis">${BASIS.map(x=>`<option value="${x.id}" ${x.id===S.basis?'selected':''}>${x.label}</option>`).join('')}</select></div>
         <div class="field"><label>Contract start</label><input id="cs" type="date" value="${esc(S.contract.start)}"></div>
@@ -385,7 +451,7 @@ function render(){
       <div style="padding:14px 16px 8px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:end">
         <div><h3>Sample nights</h3>
         <p class="hint">Change a date or the stay length if a night is closed. B2C is fetched again. Deal potential uses the average of ready sample nights, times rooms per night, times the full contract length.</p></div>
-        <button class="btn sm" id="adddate">Add date</button></div>
+        <button class="btn sm" id="download">Download</button><button class="btn sm" id="adddate">Add date</button></div>
       <div class="scroll">${tableHTML()}</div>
     </div>
   </section>`;
@@ -435,7 +501,7 @@ function readForm(){
   const g=id=>document.getElementById(id);
   if(!g('hq')) return;
   S.hotelQuery=g('hq').value;
-  S.currency=g('cur').value; S.country=(g('cc').value||'').trim().toUpperCase(); S.nat=(g('nat').value||'').trim().toUpperCase(); if(g('compq')) S.compQuery=g('compq').value;
+  S.currency=g('cur').value; S.country=(g('cc').value||'').trim().toUpperCase(); S.city=g('city')?g('city').value.trim():''; S.nat=(g('nat').value||'').trim().toUpperCase(); if(g('compq')) S.compQuery=g('compq').value;
   S.basis=g('basis').value;
   S.contract.start=g('cs').value; S.contract.end=g('ce').value;
   S.contract.trialStart=g('ts').value; S.contract.trialEnd=g('te').value;
@@ -451,6 +517,7 @@ function bind(){
   const pb=document.getElementById('pullb2b'); if(pb) pb.onclick=()=>{readForm();fetchLive('b2b');};
   const fc=document.getElementById('findcomp'); if(fc) fc.onclick=()=>{readForm();findLive('comp');};
   const pc=document.getElementById('pullcomp'); if(pc) pc.onclick=()=>{readForm();fetchLive('comp');};
+  const dl=document.getElementById('download'); if(dl) dl.onclick=()=>downloadSheet();
   const add=document.getElementById('adddate');
   if(add) add.onclick=()=>{
     const today=iso(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate())+DAY);
@@ -461,7 +528,7 @@ function bind(){
   document.querySelectorAll('[data-b2b]').forEach(b=>b.onclick=()=>{ S.b2bHotel=S.b2bHits[+b.dataset.b2b]; S.b2bHits=null; S.msg='B2B hotel set to '+S.b2bHotel.name+'.'; S.msgk='ok'; render(); });
   document.querySelectorAll('[data-comp]').forEach(b=>b.onclick=()=>{ S.compHotel=S.compHits[+b.dataset.comp]; S.compHits=null; S.compQuery=S.compHotel.name; S.msg='Comparable set to '+S.compHotel.name+'.'; S.msgk='ok'; render(); });
   document.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{
-    S.hotel=S.hits[+b.dataset.use]; S.hits=null; S.msg='Hotel set to '+S.hotel.name+'. Fetch B2C next.'; S.msgk='ok'; render();
+    S.hotel=S.hits[+b.dataset.use]; S.hits=null; const g=guessPlace(S.hotel); if(g.country) S.country=g.country; if(g.city && !S.city) S.city=g.city; S.msg='Hotel set to '+S.hotel.name+(S.country?' · '+S.country:'')+'. Fetch B2C next.'; S.msgk='ok'; render();
   });
   document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
     S.rows.splice(+b.dataset.del,1); render();
@@ -483,7 +550,7 @@ function bind(){
       if(S.hotel) fetchOne(i); else render();
     });
   });
-  ['hq','cur','cc','nat','compq','basis','cs','ce','ts','te','rooms','pb2b','pb2c','pcomp','lycos','lyrn','lyg'].forEach(id=>{
+  ['hq','cur','cc','city','nat','compq','basis','cs','ce','ts','te','rooms','pb2b','pb2c','pcomp','lycos','lyrn','lyg'].forEach(id=>{
     const el=document.getElementById(id); if(!el) return;
     el.addEventListener('change',()=>{readForm(); if(['cs','ce','pb2b','pb2c','pcomp','lycos','lyrn','lyg','rooms','cur'].includes(id)) render();});
   });
