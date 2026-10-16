@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fix B2B search and add download
+      - name: Add formatted Excel download
         run: |
-          curl -fsSL -o prebuy-page.json "https://tmpfiles.org/dl/1792145662.c9c2e1263fc7f833/wUAaZOrfdyAs/prebuy-page.json"
+          curl -fsSL -o prebuy-page.json "https://tmpfiles.org/dl/1792155586.9c78bd04b3a60fdf/w3AIZlBg7DuF/prebuy-page.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('prebuy-page.json').read_text(encoding='utf-8'))['html']
-          if 'downloadSheet' not in page or 'nameTries' not in page:
+          if 'buildPrebuyXlsx' not in page or 'Download Excel' not in page:
               raise SystemExit('page missing')
           Path('prebuy.html').write_text(page, encoding='utf-8')
           print('wrote', len(page))
@@ -25,5 +25,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add prebuy.html
-          git diff --cached --quiet || git commit -m "Fix B2B hotel search and add download"
+          git diff --cached --quiet || git commit -m "Download a formatted Pre-buy workbook"
           git push
