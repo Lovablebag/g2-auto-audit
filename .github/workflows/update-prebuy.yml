@@ -8,22 +8,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Add formatted Excel download
+      - name: Fix Write emails overlap
         run: |
-          curl -fsSL -o prebuy-page.json "https://tmpfiles.org/dl/1792155586.9c78bd04b3a60fdf/w3AIZlBg7DuF/prebuy-page.json"
+          curl -fsSL -o topup-page.json "https://tmpfiles.org/dl/1792397487.3c82def5816d28de/wQA9nOenwScr/topup-page.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
-          page = json.loads(Path('prebuy-page.json').read_text(encoding='utf-8'))['html']
-          if 'buildPrebuyXlsx' not in page or 'Download Excel' not in page:
+          page = json.loads(Path('topup-page.json').read_text(encoding='utf-8'))['html']
+          if 'minmax(380px,46%)' not in page:
               raise SystemExit('page missing')
-          Path('prebuy.html').write_text(page, encoding='utf-8')
+          Path('topup.html').write_text(page, encoding='utf-8')
           print('wrote', len(page))
           PY
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add prebuy.html
-          git diff --cached --quiet || git commit -m "Download a formatted Pre-buy workbook"
+          git add topup.html
+          git diff --cached --quiet || git commit -m "Stop the email preview covering the editor"
           git push
