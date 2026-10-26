@@ -88,6 +88,7 @@ progress{width:100%;height:10px}
       <button class="btn" id="wow">WoW</button>
       <button class="btn" id="mom">MoM</button>
       <button class="btn" id="nweeks">Period 1 = 4 weeks before Period 2</button>
+      <button class="btn pri" id="generate">Generate preview</button>
       <label class="hint"><input type="checkbox" id="yoy"> Same period last year (Method YoY)</label>
     </div>
     <p class="hint" id="rangeInfo"></p>
@@ -337,6 +338,7 @@ async function run(){
   };
 }
 $('p2e').onchange = run;
+$('generate').onclick = run;
 $('city').onchange = run;
 $('nweeks').onclick = () => {
   const p2s=$('p2s').value; if(!p2s) return;
