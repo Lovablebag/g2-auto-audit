@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Add Generate button
+      - name: Match header
         run: |
-          curl -fsSL -o period.json "https://tmpfiles.org/dl/1793033319.904c33c81a8807cb/wcAYVaqKF1IL/period.json"
+          curl -fsSL -o period.json "https://tmpfiles.org/dl/1793033702.24f97cd35d869736/w7AuVJqCsSMA/period.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('period.json').read_text())['content']
-          if 'Generate preview' not in page: raise SystemExit('missing')
+          if 'header-badge' not in page or 'dark-toggle' not in page: raise SystemExit('missing')
           Path('period.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add period.html
-          git diff --cached --quiet || git commit -m "Add Generate preview button"
+          git diff --cached --quiet || git commit -m "Match Period Compare header to the app"
           git push
