@@ -8,34 +8,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Add Period Compare
+      - name: Add Period Compare nav
         run: |
-          curl -fsSL -o period.json "https://tmpfiles.org/dl/1793032819.10cd7410a1107e36/wXACVTq8vl3A/period.html.json"
-          curl -fsSL -o worker.json "https://tmpfiles.org/dl/1793032820.917c7bc4fc420528/wJACVrqgvhYL/worker.js.json"
+          curl -fsSL -o index.json "https://tmpfiles.org/dl/1793032898.7456649e42865ae9/w9AOVGqhYv5M/index.html.json"
+          curl -fsSL -o topup.json "https://tmpfiles.org/dl/1793032898.a524204b80e24895/w6ALVvqmYZWU/topup.html.json"
+          curl -fsSL -o prebuy.json "https://tmpfiles.org/dl/1793032899.1bc1bf571db58da0/wnA9VKqVY50c/prebuy.html.json"
           python3 - << 'PY'
-          import json, re
+          import json
           from pathlib import Path
-          page = json.loads(Path('period.json').read_text())['content']
-          worker = json.loads(Path('worker.json').read_text())['content']
-          if 'Period Compare' not in page or 'Papa.parse' not in worker:
-              raise SystemExit('files missing')
-          Path('period.html').write_text(page)
-          Path('period-worker.js').write_text(worker)
-          nav = '<a class="app-nav-link" href="./period.html">Period Compare</a>'
-          for f in ['index.html','topup.html','rates.html','uuid.html','prebuy.html']:
-              p = Path(f)
-              if not p.exists(): continue
-              t = p.read_text()
-              if 'period.html' in t: continue
-              t = re.sub(r'(<a class="app-nav-link[^"]*" href="\./prebuy\.html">Pre-buy Price Check</a>)', r'\1\n    '+nav, t)
-              p.write_text(t)
-              print('patched', f)
-          print('wrote period', len(page), 'worker', len(worker))
+          for src, dest in [('index.json','index.html'),('topup.json','topup.html'),('prebuy.json','prebuy.html')]:
+              page = json.loads(Path(src).read_text())['html']
+              if 'period.html' not in page: raise SystemExit(dest+' missing link')
+              Path(dest).write_text(page)
+              print('wrote', dest)
           PY
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add period.html period-worker.js index.html topup.html rates.html uuid.html prebuy.html
-          git diff --cached --quiet || git commit -m "Add Period Compare tool"
+          git add index.html topup.html prebuy.html
+          git diff --cached --quiet || git commit -m "Add Period Compare to nav"
           git push
