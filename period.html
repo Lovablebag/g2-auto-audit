@@ -5,21 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Period Compare · G2 Travel</title>
 <style>
-:root{--blue:#1A7DC4;--dkblue:#0F5A91;--bg:#f0f2f5;--surface:#ffffff;--border:#C0C8D8;--text:#1a1a2e;--muted:#6b7a99;--ink:#1a1a2e;--mute:#6b7a99;--line:#C0C8D8;--card:#fff;--paper:#f0f2f5;--teal:#1A7DC4}
-[data-theme="dark"]{--blue:#4AA3E0;--dkblue:#2a82c4;--bg:#0f1117;--surface:#1a1d27;--border:#2e3347;--text:#e8ecf5;--muted:#7a85a3;--ink:#e8ecf5;--mute:#7a85a3;--line:#2e3347;--card:#1a1d27;--paper:#0f1117;--teal:#4AA3E0}
+:root{--ink:#1a2b2a;--mute:#5c6e6c;--line:#d7e3e1;--card:#fff;--paper:#f4f7f6;--teal:#1f6f6a;--navy:#1f3864}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.45;min-height:100vh}
-.header{background:var(--blue);padding:.75rem 2rem;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;border-bottom:3px solid var(--dkblue)}
-.logo-mark{font-size:11px;font-weight:700;color:#fff;letter-spacing:.12em;text-transform:uppercase;background:rgba(255,255,255,.18);padding:4px 11px;border-radius:5px}
-.header-title{font-size:15px;font-weight:600;color:#fff}
-.header-sub{font-size:11px;color:rgba(255,255,255,.6)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.45}
+.header{display:flex;align-items:center;gap:14px;padding:14px 28px;background:var(--navy);color:#fff}
+.logo-mark{width:32px;height:32px;border-radius:6px;background:#2e75b6;display:grid;place-items:center;font-weight:700}
+.header-title{font-weight:650}.header-sub{font-size:.82rem;opacity:.75}
 .app-nav{display:flex;align-items:center;gap:4px;margin-left:14px;flex-wrap:wrap;flex:1}
-.app-nav-link{color:rgba(255,255,255,.75);text-decoration:none;font-size:12px;font-weight:600;padding:6px 11px;border-radius:20px;border:1px solid transparent;white-space:nowrap;background:none}
+.app-nav-link{color:rgba(255,255,255,.75);text-decoration:none;font-size:12px;font-weight:600;padding:6px 11px;border-radius:20px;border:1px solid transparent;white-space:nowrap}
 .app-nav-link:hover{background:rgba(255,255,255,.12);color:#fff}
 .app-nav-link.is-active{background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.2)}
-.header-badge{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.75);font-size:11px;padding:3px 9px;border-radius:20px;margin-left:auto;font-family:monospace}
-.dark-toggle{background:none;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;margin-left:8px}
-.dark-toggle:hover{background:rgba(255,255,255,.12);color:#fff}
 main{max-width:1280px;margin:0 auto;padding:28px}
 h2{font-size:1.6rem;margin:0 0 6px}
 .lead{color:var(--mute);margin:0 0 20px}
@@ -58,10 +53,8 @@ progress{width:100%;height:10px}
     <a class="app-nav-link" href="./rates.html">Live Rates</a>
     <a class="app-nav-link" href="./uuid.html">Property UUID</a>
     <a class="app-nav-link" href="./prebuy.html">Pre-buy Price Check</a>
-    <a class="app-nav-link is-active" href="./period.html">Period Compare</a>
+    <a class="app-nav-link" href="./period.html" class="app-nav-link is-active">Period Compare</a>
   </nav>
-  <div class="header-badge">v4.4</div>
-  <button class="dark-toggle" id="dark-toggle" title="Toggle dark mode">🌙 Dark</button>
 </header>
 <main>
   <h2>Period Compare</h2>
@@ -369,18 +362,5 @@ $('mom').onclick = () => {
 };
 </script>
 </main>
-<script>
-(function(){
-  var btn=document.getElementById('dark-toggle');
-  var root=document.documentElement;
-  var dark=localStorage.getItem('aa-dark')==='1';
-  function apply(d){
-    if(d){ root.setAttribute('data-theme','dark'); btn.textContent='☀️ Light'; }
-    else { root.removeAttribute('data-theme'); btn.textContent='🌙 Dark'; }
-  }
-  apply(dark);
-  btn.addEventListener('click',function(){ dark=!dark; localStorage.setItem('aa-dark',dark?'1':'0'); apply(dark); });
-})();
-</script>
 </body>
 </html>
