@@ -8,24 +8,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Add Period Compare nav
+      - name: Add Generate button
         run: |
-          curl -fsSL -o index.json "https://tmpfiles.org/dl/1793032898.7456649e42865ae9/w9AOVGqhYv5M/index.html.json"
-          curl -fsSL -o topup.json "https://tmpfiles.org/dl/1793032898.a524204b80e24895/w6ALVvqmYZWU/topup.html.json"
-          curl -fsSL -o prebuy.json "https://tmpfiles.org/dl/1793032899.1bc1bf571db58da0/wnA9VKqVY50c/prebuy.html.json"
+          curl -fsSL -o period.json "https://tmpfiles.org/dl/1793033319.904c33c81a8807cb/wcAYVaqKF1IL/period.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
-          for src, dest in [('index.json','index.html'),('topup.json','topup.html'),('prebuy.json','prebuy.html')]:
-              page = json.loads(Path(src).read_text())['html']
-              if 'period.html' not in page: raise SystemExit(dest+' missing link')
-              Path(dest).write_text(page)
-              print('wrote', dest)
+          page = json.loads(Path('period.json').read_text())['content']
+          if 'Generate preview' not in page: raise SystemExit('missing')
+          Path('period.html').write_text(page)
+          print('wrote', len(page))
           PY
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html topup.html prebuy.html
-          git diff --cached --quiet || git commit -m "Add Period Compare to nav"
+          git add period.html
+          git diff --cached --quiet || git commit -m "Add Generate preview button"
           git push
