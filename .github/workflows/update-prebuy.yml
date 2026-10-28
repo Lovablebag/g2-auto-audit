@@ -8,27 +8,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Sync nav on every page
+      - name: Restore matching header
         run: |
-          curl -fsSL -o prebuy.json "https://tmpfiles.org/dl/1793033889.674825146475473e/wWAQVfqA4p5W/prebuy.html.json"
-          curl -fsSL -o rates.json "https://tmpfiles.org/dl/1793033890.3f69c45ec147f397/wMAyVNqt4uWr/rates.html.json"
-          curl -fsSL -o uuid.json "https://tmpfiles.org/dl/1793033890.f9537c5a7376bc6b/wNA3VAqd4r7S/uuid.html.json"
-          curl -fsSL -o period.json "https://tmpfiles.org/dl/1793033890.0a6c3ce9cf29727a/wNAFVxqF4KyU/period.html.json"
-          curl -fsSL -o topup.json "https://tmpfiles.org/dl/1793033891.1c079d1d31c6ff25/wTAHV6qI4zbT/topup.html.json"
+          curl -fsSL -o period.json "https://tmpfiles.org/dl/1793175744.af3a121d8674039f/wRAKLpFZ36di/period.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
-          for src, dest in [('prebuy.json','prebuy.html'),('rates.json','rates.html'),('uuid.json','uuid.html'),('period.json','period.html'),('topup.json','topup.html')]:
-              page = json.loads(Path(src).read_text())['html']
-              if 'Live Rates' not in page or 'Property UUID' not in page or 'Period Compare' not in page:
-                  raise SystemExit(dest+' incomplete nav')
-              Path(dest).write_text(page)
-              print('wrote', dest)
+          page = json.loads(Path('period.json').read_text())['content']
+          if 'header-badge' not in page or 'v4.4' not in page: raise SystemExit('missing')
+          Path('period.html').write_text(page)
+          print('wrote', len(page))
           PY
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add prebuy.html rates.html uuid.html period.html topup.html
-          git diff --cached --quiet || git commit -m "Make the tool nav identical on every page"
+          git add period.html
+          git diff --cached --quiet || git commit -m "Restore Period Compare header to match the app"
           git push
