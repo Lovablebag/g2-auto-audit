@@ -60,6 +60,325 @@ progress{width:100%;height:10px}
     <a class="app-nav-link" href="./prebuy.html">Pre-buy Price Check</a>
     <a class="app-nav-link is-active" href="./period.html">Period Compare</a>
   </nav>
-  <div class="header-badge">v4.4</div>
-  <button class="dark-toggle" id="dark-toggle" title="Toggle dark mode">🌙 Dark</button>
 </header>
+<main>
+  <h2>Period Compare</h2>
+  <p class="lead">Compare any two creation-date periods (promo, MoM, WoW, or custom). Upload Daily Creations CSVs, pick a Master City and two periods, and download the report. All processing stays in your browser.</p>
+
+  <section class="card">
+    <h3>1. Upload Daily Creations</h3>
+    <input id="files" type="file" accept=".csv,text/csv" multiple>
+    <p class="hint" id="fileInfo">Upload one or more CSV exports. Same header. Processing happens locally.</p>
+    <progress id="prog" value="0" max="100" hidden></progress>
+  </section>
+
+  <section class="card" id="setup" hidden>
+    <h3>2. Set up the comparison</h3>
+    <div class="grid">
+      <div><label>Master City</label><select id="city"></select></div>
+      <div><label>Lead time min (days)</label><input id="ltMin" type="number" value="0"></div>
+      <div><label>Lead time max (days)</label><input id="ltMax" type="number" value="90"></div>
+      <div><label>Margin Period 1 %</label><input id="m1" type="number" step="0.1" value="7.5"></div>
+      <div><label>Margin Period 2 %</label><input id="m2" type="number" step="0.1" value="5.9"></div>
+      <div><label>REAL STOP threshold (bk/week)</label><input id="realStop" type="number" step="0.1" value="2.5"></div>
+      <div><label>Frequency look-back (weeks)</label><input id="lookback" type="number" value="12"></div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <div><label>Period 1 start</label><input id="p1s" type="date"></div>
+      <div><label>Period 1 end</label><input id="p1e" type="date"></div>
+      <div><label>Period 2 start</label><input id="p2s" type="date"></div>
+      <div><label>Period 2 end</label><input id="p2e" type="date"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" id="wow">WoW</button>
+      <button class="btn" id="mom">MoM</button>
+      <button class="btn" id="nweeks">Period 1 = 4 weeks before Period 2</button>
+      <button class="btn pri" id="generate">Generate preview</button>
+      <label class="hint"><input type="checkbox" id="yoy"> Same period last year (Method YoY)</label>
+    </div>
+    <p class="hint" id="rangeInfo"></p>
+  </section>
+
+  <section class="card" id="fxCard" hidden>
+    <h3>3. Currency rates (units per 1 EUR)</h3>
+    <p class="hint">Fetched from Frankfurter for the Period 2 end date. Edit if needed.</p>
+    <table id="fxTable"><thead><tr><th>Currency</th><th>Rate per 1 EUR</th><th>Date</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <section class="card" id="preview" hidden>
+    <h3>Preview</h3>
+    <div class="kpi" id="kpis"></div>
+    <p id="counts"></p>
+    <div class="row">
+      <button class="btn pri" id="dlCity">Download city report</button>
+      <button class="btn" id="dlMulti">Download multi-city summary</button>
+    </div>
+    <p class="err" id="err"></p>
+  </section>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let DATA = null; // {cities, rows, minD, maxD}
+let FX = {};
+
+function iso(d){ return d.toISOString().slice(0,10); }
+function parseISO(s){ const [y,m,d]=s.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)); }
+function addDays(s, n){ const d=parseISO(s); d.setUTCDate(d.getUTCDate()+n); return iso(d); }
+function daysBetween(a,b){ return Math.round((parseISO(b)-parseISO(a))/86400000)+1; }
+function inRange(d, a, b){ return d>=a && d<=b; }
+function weeksOf(a,b){ return daysBetween(a,b)/7; }
+function mondayOf(s){ const d=parseISO(s); const wd=(d.getUTCDay()+6)%7; d.setUTCDate(d.getUTCDate()-wd); return iso(d); }
+
+function scopeOk(r){
+  const c = r.Contract;
+  if(c==='Margin' || c==='Static') return true;
+  if(c==='Dynamic') return /synxis|hyperguest\s*marketplace/i.test(r.Source||'');
+  return false;
+}
+
+async function fetchFX(codes, date){
+  if(!codes.length) return {};
+  let res = await fetch(`https://api.frankfurter.dev/v2/rates?from=${date}&quotes=${codes.join(',')}&base=EUR`);
+  if(!res.ok) res = await fetch(`https://api.frankfurter.dev/v2/rates?quotes=${codes.join(',')}&base=EUR`);
+  if(!res.ok) throw new Error('Frankfurter unreachable');
+  const j = await res.json();
+  const arr = Array.isArray(j) ? j : (j.rates ? Object.entries(j.rates).map(([quote,rate])=>({quote,rate,date:j.date})) : []);
+  const out = {};
+  for(const c of codes){
+    const hit = arr.find(x => (x.quote||'').toUpperCase()===c);
+    if(hit) out[c] = { rate: Number(hit.rate), date: hit.date || date };
+  }
+  return out;
+}
+
+function costEur(r){
+  const c = (r.Curr||'EUR').toUpperCase();
+  const rate = c==='EUR' ? 1 : (FX[c] && FX[c].rate);
+  if(!rate) return null;
+  return Number(r.Cost||0) / rate;
+}
+
+function analyze(city, p1s, p1e, p2s, p2e, ltMin, ltMax){
+  const rows = DATA.rows.filter(r => r['Master City']===city && scopeOk(r));
+  const p1w = weeksOf(p1s, p1e), p2w = weeksOf(p2s, p2e);
+  const inP1 = r => inRange(r._d, p1s, p1e);
+  const inP2 = r => inRange(r._d, p2s, p2e);
+  const leadOk = r => { const l=Number(r['Lead Time']); return l>=ltMin && l<=ltMax; };
+  const p1 = rows.filter(r => inP1(r) && leadOk(r));
+  const p2 = rows.filter(r => inP2(r) && leadOk(r));
+  const sum = (arr, f) => arr.reduce((s,r)=>s+f(r),0);
+  const rn1 = sum(p1, r=>Number(r.Nights||0))/p1w;
+  const rn2 = sum(p2, r=>Number(r.Nights||0))/p2w;
+  const bk1 = p1.length/p1w, bk2 = p2.length/p2w;
+  const c1 = sum(p1, costEur)/p1w, c2 = sum(p2, costEur)/p2w;
+  const m1 = Number($('m1').value)/100, m2 = Number($('m2').value)/100;
+  const rev1 = c1/(1-m1), rev2 = c2/(1-m2);
+  const prof1 = rev1-c1, prof2 = rev2-c2;
+  // stopped / started
+  const props1 = new Set(p1.map(r=>r.Property));
+  const props2 = new Set(p2.map(r=>r.Property));
+  const stopped = [], started = [];
+  const look = Number($('lookback').value);
+  const thresh = Number($('realStop').value);
+  for(const pr of props1){
+    if(props2.has(pr)) continue;
+    const hist = rows.filter(r => r.Property===pr);
+    const before = hist.filter(r => r._d < p2s);
+    const after = hist.filter(r => r._d > p2e);
+    const w12start = addDays(p2s, -look*7);
+    const l12 = hist.filter(r => r._d>=w12start && r._d<p2s);
+    const rate = l12.length/look;
+    const long = hist.filter(r => inP2(r) && Number(r['Lead Time'])>ltMax);
+    let ans, rd;
+    if(long.length){ ans='Not stopped - sold in Period 2 at a long lead time'; }
+    else if(after.length){ ans='Short gap - sold again after Period 2'; }
+    else if(rate>=thresh){ ans='REAL STOP - needs feedback from Sourcing/DM (closed? contract or rate change?)'; }
+    else { ans='Normal variation - low-volume hotel, a week with no booking is expected'; }
+    stopped.push({ property:pr, answer:ans, rn1: sum(p1.filter(r=>r.Property===pr), r=>Number(r.Nights||0))/p1w, rate, n12:l12.length });
+  }
+  for(const pr of props2){
+    if(props1.has(pr)) continue;
+    started.push({ property:pr, rn2: sum(p2.filter(r=>r.Property===pr), r=>Number(r.Nights||0))/p2w });
+  }
+  const clients1 = new Set(p1.map(r=>r['Client Name']));
+  const clients2 = new Set(p2.map(r=>r['Client Name']));
+  const newClients = [...clients2].filter(c => !clients1.has(c));
+  const pairs1 = new Set(p1.map(r=>r.Property+'|'+r['Client Name']));
+  const pairs2 = new Set(p2.map(r=>r.Property+'|'+r['Client Name']));
+  const newPairs = [...pairs2].filter(p => !pairs1.has(p));
+  return { rows:rows.length, rn1, rn2, bk1, bk2, c1, c2, rev1, rev2, prof1, prof2, stopped, started, newClients, newPairs, p1, p2 };
+}
+
+function renderPreview(a){
+  const chg = (a,b)=> a? ((b/a-1)*100).toFixed(0)+'%' : 'n/a';
+  $('kpis').innerHTML = `
+    <div><span class="hint">Room nights / week</span><b>${a.rn1.toFixed(0)} → ${a.rn2.toFixed(0)}</b><span>${chg(a.rn1,a.rn2)}</span></div>
+    <div><span class="hint">Bookings / week</span><b>${a.bk1.toFixed(1)} → ${a.bk2.toFixed(1)}</b><span>${chg(a.bk1,a.bk2)}</span></div>
+    <div><span class="hint">Supplier cost EUR / week</span><b>${a.c1.toFixed(0)} → ${a.c2.toFixed(0)}</b><span>${chg(a.c1,a.c2)}</span></div>
+    <div><span class="hint">Stopped</span><b>${a.stopped.length}</b><span>${a.stopped.filter(s=>s.answer.startsWith('REAL')).length} REAL STOP</span></div>
+    <div><span class="hint">Started</span><b>${a.started.length}</b></div>
+    <div><span class="hint">New clients / pairs</span><b>${a.newClients.length} / ${a.newPairs.length}</b></div>`;
+  $('counts').textContent = `In-scope rows for this city: ${a.rows.toLocaleString()}. Data tab will include them.`;
+  $('preview').hidden = false;
+}
+
+async function buildWorkbook(city, a, p1s, p1e, p2s, p2e){
+  const wb = new ExcelJS.Workbook();
+  const navy = '1F3864', thin = {style:'thin', color:{argb:'FFBFBFBF'}};
+  const header = (ws, row, labels) => {
+    labels.forEach((t,i)=>{ const c=ws.getCell(row,i+1); c.value=t; c.font={name:'Arial',bold:true,color:{argb:'FFFFFFFF'},size:10}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:navy}}; c.alignment={horizontal:'center',wrapText:true}; });
+    ws.getRow(row).height=30;
+  };
+  // Results
+  const ws = wb.addWorksheet('Results');
+  ws.getCell('A1').value = `${city} results - Period 2 vs Period 1 (Revenue Team method)`;
+  ws.getCell('A1').font = {name:'Arial', bold:true, size:16, color:{argb:navy}};
+  ws.getCell('A2').value = `Period 1 = ${p1s} to ${p1e}; Period 2 = ${p2s} to ${p2e}. Per-week values = total / (days/7).`;
+  header(ws, 5, ['KPI','Period 1 (per week)','Period 2 (per week)','Change']);
+  const kpis = [
+    ['Room nights', a.rn1, a.rn2],
+    ['Bookings', a.bk1, a.bk2],
+    ['Supplier cost (EUR)', a.c1, a.c2],
+    ['Revenue (estimated)', a.rev1, a.rev2],
+    ['Profit (estimated)', a.prof1, a.prof2]
+  ];
+  kpis.forEach((k,i)=>{
+    const r=6+i;
+    ws.getCell(r,1).value=k[0];
+    ws.getCell(r,2).value=k[1]; ws.getCell(r,2).numFmt='#,##0.0';
+    ws.getCell(r,3).value=k[2]; ws.getCell(r,3).numFmt='#,##0.0';
+    ws.getCell(r,4).value=k[1]?k[2]/k[1]-1:null; ws.getCell(r,4).numFmt='0%';
+  });
+  // Stopped
+  const wsS = wb.addWorksheet('Stopped selling');
+  wsS.getCell('A1').value = `Stopped selling - ${city}`;
+  header(wsS, 3, ['Property','Answer','Period 1 RN/week','12-week rate']);
+  a.stopped.forEach((s,i)=>{
+    wsS.getCell(4+i,1).value=s.property;
+    wsS.getCell(4+i,2).value=s.answer;
+    wsS.getCell(4+i,3).value=s.rn1; wsS.getCell(4+i,3).numFmt='#,##0.0';
+    wsS.getCell(4+i,4).value=s.rate; wsS.getCell(4+i,4).numFmt='0.0';
+  });
+  if(!a.stopped.length) wsS.getCell('A4').value='No properties stopped selling in Period 2.';
+  // Started
+  const wsT = wb.addWorksheet('Started selling');
+  wsT.getCell('A1').value = `Started selling - ${city}`;
+  header(wsT, 3, ['Property','Period 2 RN/week']);
+  a.started.forEach((s,i)=>{ wsT.getCell(4+i,1).value=s.property; wsT.getCell(4+i,2).value=s.rn2; });
+  // New
+  const wsN = wb.addWorksheet('New clients & pairs');
+  wsN.getCell('A1').value = `New clients & pairs - ${city}`;
+  header(wsN, 3, ['Client']);
+  a.newClients.forEach((c,i)=> wsN.getCell(4+i,1).value=c);
+  // Data
+  const wsD = wb.addWorksheet('Data (booking)');
+  const fxNote = Object.keys(FX).length ? 'Rates: '+Object.entries(FX).map(([c,v])=>`${c}=${v.rate}`).join(', ') : 'All EUR';
+  wsD.getCell('A1').value = `Bookings, Master City ${city}. ${fxNote}.`;
+  const cols = ['Created (UTC)','Booking ID','Master City','City','Property','Contract','Client Name','Source Market','Check-In','Nights','Lead Time','Status','Cost','Rate Plan','Offer'];
+  header(wsD, 3, cols);
+  a.p1.concat(a.p2).forEach((r,i)=>{
+    cols.forEach((c,j)=> wsD.getCell(4+i,j+1).value = r[c]);
+  });
+  wsD.autoFilter = { from:{row:3,column:1}, to:{row:3,column:cols.length} };
+  wsD.views = [{ state:'frozen', ySplit:3 }];
+  // Chart data
+  const wsC = wb.addWorksheet('Chart data');
+  wsC.getCell('A1').value='Chart data';
+  header(wsC, 3, ['Period','Room nights']);
+  wsC.getCell('A4').value='Period 1 (per week)'; wsC.getCell('B4').value=a.rn1;
+  wsC.getCell('A5').value='Period 2 (per week)'; wsC.getCell('B5').value=a.rn2;
+  return wb;
+}
+
+$('files').onchange = async (e) => {
+  const files = [...e.target.files];
+  if(!files.length) return;
+  $('prog').hidden=false; $('prog').value=10;
+  const worker = new Worker(URL.createObjectURL(new Blob([await (await fetch('./period-worker.js')).text()], {type:'text/javascript'})));
+  worker.onmessage = (ev) => {
+    if(ev.data.type==='progress'){ $('prog').value=ev.data.pct; $('fileInfo').textContent=`Reading… ${ev.data.total.toLocaleString()} rows`; }
+    if(ev.data.type==='done'){
+      DATA = ev.data;
+      DATA.rows.forEach(r => r._d = String(r['Created (UTC)']||'').slice(0,10));
+      $('city').innerHTML = DATA.cities.map(c=>`<option>${c}</option>`).join('');
+      $('rangeInfo').textContent = `Data covers ${DATA.minD} to ${DATA.maxD} (${DATA.kept.toLocaleString()} rows kept).`;
+      $('setup').hidden=false; $('prog').hidden=true;
+      worker.terminate();
+    }
+  };
+  worker.postMessage({ files });
+};
+
+async function run(){
+  $('err').textContent='';
+  if(!DATA) return;
+  const city=$('city').value, p1s=$('p1s').value, p1e=$('p1e').value, p2s=$('p2s').value, p2e=$('p2e').value;
+  if(!p1s||!p1e||!p2s||!p2e) { $('err').textContent='Set both periods.'; return; }
+  if(p2s<=p1e) { $('err').textContent='Period 2 must start after Period 1 ends.'; return; }
+  if(DATA.maxD < p2e) { $('err').textContent=`Data ends ${DATA.maxD}, Period 2 ends ${p2e}. Upload newer exports.`; return; }
+  const cityRows = DATA.rows.filter(r=>r['Master City']===city);
+  const currs = [...new Set(cityRows.map(r=>(r.Curr||'EUR').toUpperCase()))].filter(c=>c&&c!=='EUR');
+  if(currs.length && !Object.keys(FX).length){
+    try{
+      const got = await fetchFX(currs, p2e);
+      FX = got;
+      const tb = $('fxTable').querySelector('tbody');
+      tb.innerHTML = currs.map(c=>`<tr><td>${c}</td><td><input data-cur="${c}" type="number" step="0.0001" value="${got[c]?got[c].rate:''}"></td><td>${got[c]?got[c].date:'manual'}</td></tr>`).join('');
+      $('fxCard').hidden=false;
+      tb.querySelectorAll('input').forEach(inp=>inp.oninput=()=>{ FX[inp.dataset.cur]={rate:Number(inp.value),date:'manual'}; });
+      const missing = currs.filter(c=>!got[c]);
+      if(missing.length){ $('err').textContent=`Enter rate for ${missing.join(', ')} (units per 1 EUR).`; return; }
+    }catch(e){ $('err').textContent='Frankfurter unreachable. Enter rates manually.'; $('fxCard').hidden=false; return; }
+  }
+  const a = analyze(city, p1s, p1e, p2s, p2e, Number($('ltMin').value), Number($('ltMax').value));
+  renderPreview(a);
+  $('dlCity').onclick = async () => {
+    const wb = await buildWorkbook(city, a, p1s, p1e, p2s, p2e);
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href=url; link.download=`${city}_${p2s}_${p2e}_Report.xlsx`; link.click();
+  };
+}
+$('p2e').onchange = run;
+$('generate').onclick = run;
+$('city').onchange = run;
+$('nweeks').onclick = () => {
+  const p2s=$('p2s').value; if(!p2s) return;
+  $('p1e').value = addDays(p2s,-1);
+  $('p1s').value = addDays(p2s,-28);
+};
+$('wow').onclick = () => {
+  const end = DATA ? DATA.maxD : iso(new Date());
+  const mon = mondayOf(end);
+  $('p2s').value=mon; $('p2e').value=addDays(mon,6);
+  $('p1s').value=addDays(mon,-7); $('p1e').value=addDays(mon,-1);
+};
+$('mom').onclick = () => {
+  const end = DATA ? DATA.maxD : iso(new Date());
+  const d=parseISO(end);
+  const p2s = iso(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)));
+  const p2e = iso(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth()+1, 0)));
+  const p1s = iso(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth()-1, 1)));
+  const p1e = iso(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 0)));
+  $('p2s').value=p2s; $('p2e').value=p2e; $('p1s').value=p1s; $('p1e').value=p1e;
+};
+</script>
+</main>
+<script>
+(function(){
+  var btn=document.getElementById('dark-toggle');
+  var root=document.documentElement;
+  var dark=localStorage.getItem('aa-dark')==='1';
+  function apply(d){
+    if(d){ root.setAttribute('data-theme','dark'); btn.textContent='☀️ Light'; }
+    else { root.removeAttribute('data-theme'); btn.textContent='🌙 Dark'; }
+  }
+  apply(dark);
+  btn.addEventListener('click',function(){ dark=!dark; localStorage.setItem('aa-dark',dark?'1':'0'); apply(dark); });
+})();
+</script>
+</body>
+</html>
