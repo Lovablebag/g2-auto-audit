@@ -8,22 +8,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Write full period page
+      - name: Update Live Rates form
         run: |
-          curl -fsSL -o period.json "https://tmpfiles.org/dl/1793175844.4a1c58d0d923e96b/wpAfLBFBu0gN/period_full.json"
+          curl -fsSL -o rates.json "https://tmpfiles.org/dl/1793365488.0ab2e858a5bd0f80/wKABHjEHgo1r/rates.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
-          page = json.loads(Path('period.json').read_text())['content']
-          if 'header-badge' not in page or 'Generate preview' not in page or 'analyze' not in page:
-              raise SystemExit('incomplete page')
-          Path('period.html').write_text(page)
+          page = json.loads(Path('rates.json').read_text())['html']
+          if 'Nights' not in page or 'addDays' not in page: raise SystemExit('missing')
+          Path('rates.html').write_text(page)
           print('wrote', len(page))
           PY
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add period.html
-          git diff --cached --quiet || git commit -m "Restore full Period Compare page with matching header"
+          git add rates.html
+          git diff --cached --quiet || git commit -m "Live Rates: check-in plus nights, hotel header"
           git push
