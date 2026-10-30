@@ -78,8 +78,9 @@ const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&','<':'<','>
 const today = new Date();
 const iso = d => d.toISOString().slice(0,10);
 const plus = n => iso(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()+n)));
-const S = {q:'', country:'NL', city:'', checkin:plus(21), checkout:plus(22), currency:'EUR', nat:'IT', adults:2, board:'', cancel:'', rateType:'', hotel:null, hits:[], more:false, rates:[], nights:1, msg:'', msgk:'', busy:false};
+const S = {q:'', country:'NL', city:'', checkin:plus(21), nights:1, currency:'EUR', nat:'IT', adults:2, board:'', cancel:'', rateType:'', hotel:null, hits:[], more:false, rates:[], msg:'', msgk:'', busy:false};
 
+function addDays(iso,n){ const d=new Date(iso+"T00:00:00Z"); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); }
 function money(n, c){ if(n==null || n==='') return '—'; return Number(n).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+c; }
 
 async function api(body){
@@ -94,7 +95,7 @@ function read(){
   S.country = $('#cc').value.trim().toUpperCase();
   S.city = $('#city').value.trim();
   S.checkin = $('#in').value;
-  S.checkout = $('#out').value;
+  S.nights = Math.max(1, Number($('#nights').value)||1);
   S.currency = $('#cur').value;
   S.nat = $('#nat').value.trim().toUpperCase();
   S.adults = Number($('#ad').value)||2;
@@ -124,10 +125,10 @@ async function findHotels(more){
 async function loadRates(){
   read();
   if(!S.hotel){ S.msg='Pick a hotel first.'; S.msgk='err'; return render(); }
-  if(!S.checkin || !S.checkout || S.checkout<=S.checkin){ S.msg='Check-out must be after check-in.'; S.msgk='err'; return render(); }
+  if(!S.checkin || S.nights<1){ S.msg='Set a check-in and at least 1 night.'; S.msgk='err'; return render(); }
   S.busy=true; S.msg='Loading live rates…'; S.msgk=''; render();
   try{
-    const j = await api({mode:'rates', hotelId:S.hotel.id, checkin:S.checkin, checkout:S.checkout, currency:S.currency, guestNationality:S.nat, adults:S.adults});
+    const j = await api({mode:'rates', hotelId:S.hotel.id, checkin:S.checkin, checkout:addDays(S.checkin,S.nights), currency:S.currency, guestNationality:S.nat, adults:S.adults});
     S.rates = j.rates||[];
     S.nights = j.nights||1;
     S.msg = S.rates.length ? S.rates.length+' rates.' : 'No availability for those dates.';
@@ -157,7 +158,7 @@ function render(){
         <div class="field"><label>City</label><input id="city" value="${esc(S.city)}" placeholder="Amsterdam"></div>
         <div class="field"><label>Hotel name</label><input id="q" value="${esc(S.q)}" placeholder="part of the name"></div>
         <div class="field"><label>Check-in</label><input id="in" type="date" value="${esc(S.checkin)}"></div>
-        <div class="field"><label>Check-out</label><input id="out" type="date" value="${esc(S.checkout)}"></div>
+        <div class="field"><label>Nights</label><input id="nights" type="number" min="1" max="30" value="${S.nights}"></div>
         <div class="field"><label>Currency</label><select id="cur">${['EUR','GBP','USD','CHF'].map(c=>`<option ${c===S.currency?'selected':''}>${c}</option>`).join('')}</select></div>
         <div class="field"><label>Guest nationality</label><input id="nat" value="${esc(S.nat)}" maxlength="2"></div>
         <div class="field"><label>Adults</label><input id="ad" type="number" min="1" max="6" value="${S.adults}"></div>
@@ -190,7 +191,7 @@ function render(){
       ${S.more?`<div class="row" style="margin-top:10px"><button class="btn sm" id="more">Load more hotels</button></div>`:''}
     </div>
     <div class="card" style="padding:0;overflow:hidden">
-      <div style="padding:14px 16px 8px"><h3>Rates</h3><p class="hint">${S.nights} night${S.nights===1?'':'s'} · cheapest first · taxes shown only when they are extra</p></div>
+      <div style="padding:14px 16px 8px"><h3>${esc(S.hotel&&S.hotel.name||'Rates')}</h3><p class="hint">${esc(S.city||'')} · Check-in ${esc(S.checkin)} · ${S.nights} night${S.nights===1?'':'s'}</p></div>
       <div class="scroll"><table><thead><tr>
         <th>Room</th><th>Board</th><th>Rate type</th><th>Cancellation</th><th class="num">Stay total</th><th>Extra taxes</th>
       </tr></thead><tbody>${rows.length?rows.map(r=>`<tr>
