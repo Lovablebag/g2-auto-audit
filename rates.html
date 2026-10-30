@@ -128,7 +128,7 @@ async function loadRates(){
   if(!S.checkin || S.nights<1){ S.msg='Set a check-in and at least 1 night.'; S.msgk='err'; return render(); }
   S.busy=true; S.msg='Loading live rates…'; S.msgk=''; render();
   try{
-    const j = await api({mode:'rates', hotelId:S.hotel.id, checkin:S.checkin, checkout:addDays(S.checkin,S.nights), currency:S.currency, guestNationality:S.nat, adults:S.adults});
+    const j = await api({mode:'rates', hotelId:S.hotel.id, checkin:S.checkin, checkout:addDays(S.checkin,S.nights), currency:S.currency, guestNationality:S.nat, adults:S.adults, maxRates:200, refundableOnly:S.cancel==='flex', boardType:S.board||undefined});
     S.rates = j.rates||[];
     S.nights = j.nights||1;
     S.msg = S.rates.length ? S.rates.length+' rates.' : 'No availability for those dates.';
@@ -207,8 +207,8 @@ function render(){
   $('#find').onclick=()=>findHotels(false);
   const moreBtn=document.getElementById('more'); if(moreBtn) moreBtn.onclick=()=>findHotels(true);
   $('#rates').onclick=loadRates;
-  $('#board').onchange=()=>{ S.board=$('#board').value; render(); };
-  $('#cancel').onchange=()=>{ S.cancel=$('#cancel').value; render(); };
+  $('#board').onchange=()=>{ S.board=$('#board').value; if(S.hotel) loadRates(); else render(); };
+  $('#cancel').onchange=()=>{ S.cancel=$('#cancel').value; if(S.hotel) loadRates(); else render(); };
   $('#rateType').onchange=()=>{ S.rateType=$('#rateType').value; render(); };
   document.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{ S.hotel=S.hits[+b.dataset.use]; S.hits=[]; S.msg='Hotel set. Load rates when the dates are right.'; S.msgk='ok'; render(); });
 }

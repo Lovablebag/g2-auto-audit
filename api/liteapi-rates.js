@@ -80,8 +80,11 @@ async function searchRates(res, key, body) {
     currency: String(body.currency || 'EUR').toUpperCase(),
     guestNationality: String(body.guestNationality || 'IT').toUpperCase(),
     occupancies: [{ adults }],
-    timeout: 12
+    timeout: 12,
+    maxRatesPerHotel: Math.min(Math.max(Number(body.maxRates) || 200, 1), 500)
   };
+  if (body.refundableOnly) payload.refundableRatesOnly = true;
+  if (body.boardType) payload.boardType = String(body.boardType);
   const json = await lite(key, 'https://api.liteapi.travel/v3.0/hotels/rates', payload);
   const hotel = (json.data || [])[0] || {};
   const nights = Math.max(1, Math.round((Date.parse(checkout) - Date.parse(checkin)) / 86400000));
