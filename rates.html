@@ -201,13 +201,15 @@ function render(){
         <td>${r.refundable?'<span class="tag ok">Flexible</span>':'<span class="tag bad">Non-refundable</span>'}</td>
         <td class="num"><b>${money(r.total, r.currency)}</b></td>
         <td class="hint">${r.taxes&&r.taxes.length?r.taxes.map(t=>esc((t.description||'Tax')+' '+money(t.amount,t.currency||r.currency))).join(' · '):'Included or not listed'}</td>
-      </tr>`).join(''):`<tr><td colspan="6" class="hint">No rates yet.</td></tr>`}</tbody></table></div>
+      </tr>`).join(''):`<tr><td colspan="6" class="hint">${S.rates.length&&!shown().length?'No rates match these filters.':'No rates yet.'}</td></tr>`}</tbody></table></div>
     </div>
   </section>`;
   $('#find').onclick=()=>findHotels(false);
   const moreBtn=document.getElementById('more'); if(moreBtn) moreBtn.onclick=()=>findHotels(true);
   $('#rates').onclick=loadRates;
   $('#board').onchange=()=>{ S.board=$('#board').value; render(); };
+  $('#cancel').onchange=()=>{ S.cancel=$('#cancel').value; render(); };
+  $('#rateType').onchange=()=>{ S.rateType=$('#rateType').value; render(); };
   document.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{ S.hotel=S.hits[+b.dataset.use]; S.hits=[]; S.msg='Hotel set. Load rates when the dates are right.'; S.msgk='ok'; render(); });
 }
 (function(){
