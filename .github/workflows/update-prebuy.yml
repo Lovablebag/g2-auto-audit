@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Update Live Rates form
+      - name: Add rate filters
         run: |
-          curl -fsSL -o rates.json "https://tmpfiles.org/dl/1793365488.0ab2e858a5bd0f80/wKABHjEHgo1r/rates.json"
+          curl -fsSL -o rates.json "https://tmpfiles.org/dl/1793365738.87a67f3c87677d3b/wpArHhEeLR3N/rates.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('rates.json').read_text())['html']
-          if 'Nights' not in page or 'addDays' not in page: raise SystemExit('missing')
+          if 'Cancellation' not in page or 'rateType' not in page: raise SystemExit('missing')
           Path('rates.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add rates.html
-          git diff --cached --quiet || git commit -m "Live Rates: check-in plus nights, hotel header"
+          git diff --cached --quiet || git commit -m "Live Rates: cancellation and rate type filters"
           git push
