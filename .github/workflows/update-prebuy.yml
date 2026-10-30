@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Restore nights field
+      - name: Fix filter events
         run: |
-          curl -fsSL -o rates.json "https://tmpfiles.org/dl/1793365877.8ea929eea7f2a4b5/wiAJHpEs5aV0/rates.json"
+          curl -fsSL -o rates.json "https://tmpfiles.org/dl/1793367701.45f11187e4769cf5/w2A3HHpn1lEZ/rates.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('rates.json').read_text())['html']
-          if 'Nights' not in page or 'addDays' not in page or 'Cancellation' not in page: raise SystemExit('missing')
+          if 'cancel' not in page or 'rateType' not in page: raise SystemExit('missing')
           Path('rates.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add rates.html
-          git diff --cached --quiet || git commit -m "Live Rates: nights field with filters"
+          git diff --cached --quiet || git commit -m "Live Rates: cancellation filter updates the table"
           git push
