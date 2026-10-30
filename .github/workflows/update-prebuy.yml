@@ -8,21 +8,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fix filter events
+      - name: Server-side rate filters
         run: |
-          curl -fsSL -o rates.json "https://tmpfiles.org/dl/1793367701.45f11187e4769cf5/w2A3HHpn1lEZ/rates.json"
+          curl -fsSL -o rates.json "https://tmpfiles.org/dl/1793368069.999f432c700b060f/wdA0HSpdGYNJ/rates.json"
+          curl -fsSL -o proxy.json "https://tmpfiles.org/dl/1793368069.07b8fc94387debba/wnA4HIpkGgxp/proxy.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('rates.json').read_text())['html']
-          if 'cancel' not in page or 'rateType' not in page: raise SystemExit('missing')
+          proxy = json.loads(Path('proxy.json').read_text())['js']
+          if 'refundableOnly' not in page or 'maxRatesPerHotel' not in proxy: raise SystemExit('missing')
           Path('rates.html').write_text(page)
-          print('wrote', len(page))
+          Path('api/liteapi-rates.js').write_text(proxy)
+          print('wrote', len(page), len(proxy))
           PY
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rates.html
-          git diff --cached --quiet || git commit -m "Live Rates: cancellation filter updates the table"
+          git add rates.html api/liteapi-rates.js
+          git diff --cached --quiet || git commit -m "Live Rates: request refundable rates and raise the rate limit"
           git push
