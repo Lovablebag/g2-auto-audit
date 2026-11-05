@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Reset and distributions
+      - name: Cancellation heatmap
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793868271.b22e4752ebec2af1/wTAKJ4LPxOlj/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793868778.0b8f21070852110c/w3AaJYHIUig0/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'btn-reset' not in page or 'c-meal' not in page: raise SystemExit('missing')
+          if 'Where cancellations happen' not in page or 'at risk' in page: raise SystemExit('missing')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: reset filters, distribution charts for meal rate cancel room occupancy"
+          git diff --cached --quiet || git commit -m "Region: cancellation heatmap lead time x LOS, remove at risk"
           git push
