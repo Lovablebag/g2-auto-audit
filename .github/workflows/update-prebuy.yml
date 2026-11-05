@@ -8,24 +8,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Audit lands on review
+      - name: Remove checklist from price
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793880487.8e7ead8214bf16e1/wYAnJqJZkUvU/region.json"
-          curl -fsSL -o index.json "https://tmpfiles.org/dl/1793880433.b6880dff68ccf8f5/wPA5JvJjhRnY/index.json"
+          curl -fsSL -o index.json "https://tmpfiles.org/dl/1793880705.ab0b5686f997875b/waA6JRJiNvRt/index.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
-          region = json.loads(Path('region.json').read_text())['html']
-          index = json.loads(Path('index.json').read_text())['html']
-          if '#audit' not in region or "hash === 'audit'" not in index: raise SystemExit('missing')
-          Path('region.html').write_text(region)
-          Path('index.html').write_text(index)
-          print('wrote', len(region), len(index))
+          page = json.loads(Path('index.json').read_text())['html']
+          if 's8-checklist-pc' in page: raise SystemExit('still there')
+          Path('index.html').write_text(page)
+          print('wrote', len(page))
           PY
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add region.html index.html
-          git diff --cached --quiet || git commit -m "Region: audit opens the review page and prefills hotel info"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Price Check: remove checklist, keep it only on the audit review"
           git push
