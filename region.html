@@ -707,7 +707,10 @@ function distTable(rows){
   }, 50);
   return `<div class="grid2">
     <div><div style="font-weight:600;margin-bottom:4px">Source market (room nights)</div><div class="chart-box"><canvas id="c-sm"></canvas></div></div>
-    <div id="top-clients"><div style="font-weight:600;margin-bottom:4px;display:flex;justify-content:space-between"><span>Top clients (room nights)</span><button class="btn btn-secondary" style="font-size:11px;padding:2px 8px" onclick="this.parentElement.parentElement.style.display='none'">Hide</button></div><div class="chart-box"><canvas id="c-cl"></canvas></div></div>
+    <div id="top-clients-wrap">
+  <button class="btn btn-secondary" id="btn-show-clients" style="font-size:11px;padding:2px 8px;display:none;margin-bottom:8px" onclick="document.getElementById('top-clients').style.display='block';this.style.display='none'">Show Top Clients</button>
+  <div id="top-clients"><div style="font-weight:600;margin-bottom:4px;display:flex;justify-content:space-between"><span>Top clients (room nights)</span><button class="btn btn-secondary" style="font-size:11px;padding:2px 8px" onclick="this.parentElement.parentElement.style.display='none';document.getElementById('btn-show-clients').style.display='inline-block'">Hide</button></div><div class="chart-box"><canvas id="c-cl"></canvas></div></div>
+</div>
     <div><div style="font-weight:600;margin-bottom:4px">Meal plan</div><div class="chart-box"><canvas id="c-meal"></canvas></div></div>
     <div><div style="font-weight:600;margin-bottom:4px">Cancellation policy</div><div class="chart-box"><canvas id="c-nrf"></canvas></div></div>
     <div><div style="font-weight:600;margin-bottom:4px">Room type</div><div class="chart-box"><canvas id="c-room"></canvas></div></div>
