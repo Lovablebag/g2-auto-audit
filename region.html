@@ -285,22 +285,33 @@ function kpis(rows){
   const total = bookings.size;
   return {rn, cost, adr: rn? cost/rn : 0, cancelPct: rows.length? cancelled/rows.length*100 : 0, multi, bookings: total, rows: rows.length};
 }
+function baseline(){
+  const cmp = cmpRows();
+  if(cmp){
+    const y26 = cmp.filter(r=>(r['Created (UTC)']||'').startsWith('2026'));
+    return {rows: y26, label: S.cmp.val+' 2026'};
+  }
+  return null;
+}
 function render(){
   const rows = filtered(S.sales);
   const y25 = rows.filter(r=>(r['Created (UTC)']||'').startsWith('2025'));
   const y26 = rows.filter(r=>(r['Created (UTC)']||'').startsWith('2026'));
-  const a25 = kpis(y25), a26 = kpis(y26);
+  const a26 = kpis(y26);
+  const base = baseline();
+  const aBase = base ? kpis(base.rows) : kpis(y25);
+  const baseLabel = base ? base.label : '2025';
   const cards = [
-    ['Room nights 2025', a25.rn.toLocaleString(), null],
-    ['Room nights 2026 YTD', a26.rn.toLocaleString(), delta(a26.rn, a25.rn)],
-    ['Cost 2025', '€'+Math.round(a25.cost).toLocaleString(), null],
-    ['Cost 2026 YTD', '€'+Math.round(a26.cost).toLocaleString(), delta(a26.cost, a25.cost)],
-    ['ADR 2026', '€'+a26.adr.toFixed(0), delta(a26.adr, a25.adr)],
-    ['Cancel 2026', a26.cancelPct.toFixed(1)+'%', delta(a26.cancelPct, a25.cancelPct, true)],
+    ['Room nights '+baseLabel, aBase.rn.toLocaleString(), null],
+    ['Room nights 2026 YTD', a26.rn.toLocaleString(), delta(a26.rn, aBase.rn)],
+    ['Cost '+baseLabel, '€'+Math.round(aBase.cost).toLocaleString(), null],
+    ['Cost 2026 YTD', '€'+Math.round(a26.cost).toLocaleString(), delta(a26.cost, aBase.cost)],
+    ['ADR 2026', '€'+a26.adr.toFixed(0), delta(a26.adr, aBase.adr)],
+    ['Cancel 2026', a26.cancelPct.toFixed(1)+'%', delta(a26.cancelPct, aBase.cancelPct, true)],
     ['Multi-room 2026', a26.multi.toLocaleString(), null],
-    ['Bookings 2026', a26.bookings.toLocaleString(), delta(a26.bookings, a25.bookings)]
+    ['Bookings 2026', a26.bookings.toLocaleString(), delta(a26.bookings, aBase.bookings)]
   ];
-  $('#kpis').innerHTML = cards.map(([l,v,d])=>'<div class="kpi"><div class="l">'+l+'</div><div class="v">'+v+'</div>'+(d?'<div class="d '+d.cls+'">'+d.txt+' vs 2025</div>':'')+'</div>').join('');
+  $('#kpis').innerHTML = cards.map(([l,v,d])=>'<div class="kpi"><div class="l">'+l+'</div><div class="v">'+v+'</div>'+(d?'<div class="d '+d.cls+'">'+d.txt+' vs '+baseLabel+'</div>':'')+'</div>').join('');
   renderTabs(rows);
 }
 function delta(a,b,lowerBetter){
@@ -334,6 +345,7 @@ function byYearMonth(rows, dateKey){
   return {y25,y26};
 }
 function salesView(rows){
+  const base=baseline();
   const y25=rows.filter(r=>(r['Created (UTC)']||'').startsWith('2025'));
   const y26=rows.filter(r=>(r['Created (UTC)']||'').startsWith('2026'));
   const k25=kpis(y25), k26=kpis(y26);
@@ -355,18 +367,22 @@ function salesView(rows){
       <div><div style="font-weight:600;margin-bottom:4px">Room nights by check-in date</div><div class="chart-box"><canvas id="c-ci"></canvas></div></div>
       <div><div style="font-weight:600;margin-bottom:4px">Room nights by booking date</div><div class="chart-box"><canvas id="c-bk"></canvas></div></div>
     </div>
-    <div style="font-weight:600;margin:8px 0 4px">2025 vs 2026 YTD</div>
+    <div style="font-weight:600;margin:8px 0 4px">${base ? base.label+' vs 2026 YTD' : '2025 vs 2026 YTD'}</div>
     <div class="chart-box"><canvas id="c-cmp"></canvas></div>`;
-  lineChart('c-ci', MN, ci.y25, ci.y26);
-  lineChart('c-bk', MN, bk.y25, bk.y26);
+  lineChart('c-ci', MN, base ? byYearMonth(base.rows,'Check-In').y26 : ci.y25, ci.y26, base?base.label:'2025');
+  lineChart('c-bk', MN, base ? byYearMonth(base.rows,'Created (UTC)').y26 : bk.y25, bk.y26, base?base.label:'2025');
+  const bK = base ? kpis(base.rows) : k25;
+  const bLabel = base ? base.label : '2025';
   new Chart($('#c-cmp'), {type:'bar', data:{labels:['Room nights','Bookings','Cost /100'], datasets:[
-    {label:'2025', data:[k25.rn, k25.bookings, k25.cost/100], backgroundColor:'#94a3b8'},
+    {label:bLabel, data:[bK.rn, bK.bookings, bK.cost/100], backgroundColor:'#94a3b8'},
     {label:'2026 YTD', data:[k26.rn, k26.bookings, k26.cost/100], backgroundColor:'#1e6fd9'}
-  ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}}});
+  ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}, datalabels:{display:false}},
+    animation:{onComplete:function(){ const c=this; const ctx=c.ctx; ctx.font='12px system-ui'; ctx.fillStyle='#1a1a2e'; ctx.textAlign='center'; c.data.datasets.forEach((ds,i)=>{ const meta=c.getDatasetMeta(i); meta.data.forEach((bar,j)=>{ const v=ds.data[j]; if(v) ctx.fillText(Math.round(v).toLocaleString(), bar.x, bar.y-6); }); }); }},
+    scales:{y:{beginAtZero:true}}}});
 }
-function lineChart(id, labels, a, b){
+function lineChart(id, labels, a, b, aLabel){
   new Chart($('#'+id), {type:'line', data:{labels, datasets:[
-    {label:'2025', data:a, borderColor:'#94a3b8', backgroundColor:'rgba(148,163,184,.15)', fill:true, tension:.3},
+    {label:aLabel||'2025', data:a, borderColor:'#94a3b8', backgroundColor:'rgba(148,163,184,.15)', fill:true, tension:.3},
     {label:'2026 YTD', data:b, borderColor:'#1e6fd9', backgroundColor:'rgba(30,111,217,.15)', fill:true, tension:.3}
   ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true}}}});
 }
