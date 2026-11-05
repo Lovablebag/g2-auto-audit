@@ -439,14 +439,14 @@ $('#cmp-type').onchange = () => {
 };
 $('#cmp-val').onchange = () => { S.cmp.val = $('#cmp-val').value; render(); };
 
-function filtered(rows, key, skipStatus){
+function filtered(rows, key){
   const f = S.filters;
   return rows.filter(r =>
     (!f.country || r.Country===f.country) &&
     (!f.master || r['Master City']===f.master) &&
     (!f.city || r.City===f.city) &&
     (!f.prop || r.Property===f.prop) &&
-    (skipStatus || !f.status || r.Status===f.status) &&
+    (!f.status || r.Status===f.status) &&
     contractOk(r, f.contract)
   );
 }
@@ -491,7 +491,7 @@ function baseline(){
   return null;
 }
 function render(){
-  const rows = S.tab==='cancellations' ? filtered(S.sales, null, true) : filtered(S.sales);
+  const rows = filtered(S.sales);
   const y25 = rows.filter(r=>(r['Created (UTC)']||'').startsWith('2025'));
   const y26 = rows.filter(r=>(r['Created (UTC)']||'').startsWith('2026'));
   const a26 = kpis(y26);
@@ -718,10 +718,10 @@ function distTable(rows){
   </div>`;
 }
 function doughnut(id, items, colors){
-  new Chart($('#'+id), {type:'doughnut', data:{labels:items.map(s=>s.k), datasets:[{data:items.map(s=>s.rn), backgroundColor:colors}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right'}}}});
+  new Chart($('#'+id), {type:'doughnut', data:{labels:items.map(s=>s.k+' ('+s.rn.toLocaleString()+')'), datasets:[{data:items.map(s=>s.rn), backgroundColor:colors}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right'}}}});
 }
 function barH(id, items, color){
-  new Chart($('#'+id), {type:'bar', data:{labels:items.map(s=>String(s.k).slice(0,22)), datasets:[{data:items.map(s=>s.rn), backgroundColor:color}]}, options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}}}});
+  new Chart($('#'+id), {type:'bar', data:{labels:items.map(s=>String(s.k).slice(0,22)), datasets:[{data:items.map(s=>s.rn), backgroundColor:color}]}, options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, datalabels:{anchor:'end', align:'end', formatter:v=>v.toLocaleString(), font:{size:10}}}, scales:{x:{beginAtZero:true}}}});
 }
 function cancelTable(rows){ return ''; }
 function allotTable(){
