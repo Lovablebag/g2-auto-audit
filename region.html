@@ -679,7 +679,12 @@ function offersView(){
     const key=o.includes(':')?o.split(':').slice(1).join(':').trim():o.trim();
     rnMap.set(key.toLowerCase(), (rnMap.get(key.toLowerCase())||0)+(Number(r.Nights)||0));
   });
-  const items=rows;
+  const seen=new Set();
+  const items=rows.filter(r=>{
+    const k=(r.Property||'')+'|'+(r['Offer Name']||'')+'|'+xlDate(r['Book To']);
+    if(seen.has(k)) return false;
+    seen.add(k); return true;
+  });
   $('#tab-body').innerHTML='<table><tr><th>Property</th><th>Offer</th><th>Type</th><th>Book to</th><th>Room nights</th></tr>'+
     items.map(r=>{
       const name=r['Offer Name']||'';
