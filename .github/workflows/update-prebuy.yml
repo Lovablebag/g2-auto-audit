@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Audit panel in region
+      - name: Full audit flow
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793886206.8930e0a47bf5bb0a/wiA1JZ0PZczg/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793887549.82cb365ea9bc8480/wMAZJg0fzZbX/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'audit-panel' not in page or 'btn-gen-audit' not in page: raise SystemExit('missing')
+          if 'audit-flow' not in page or 'btn-to-dash' not in page: raise SystemExit('missing')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: price check and checklist with audit Excel"
+          git diff --cached --quiet || git commit -m "Region: full audit flow with hotel info, price check, checklist, dashboard"
           git push
