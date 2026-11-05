@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Visual region charts
+      - name: Year split and charts
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793865626.8568fccd495289a7/wSAbJ1V3F9s5/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793865989.01a77e80739c2c86/wgApJwVEkE7e/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'chart.js' not in page.lower() and 'Chart' not in page: raise SystemExit('missing charts')
+          if 'Room nights 2025' not in page or 'xlDate' not in page: raise SystemExit('missing')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: visual charts for sales, pick-up, cancellations"
+          git diff --cached --quiet || git commit -m "Region: 2025 vs 2026 YTD, distribution and demand charts, offer dates"
           git push
