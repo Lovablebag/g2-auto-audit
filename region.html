@@ -94,6 +94,7 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
         <div class="field"><label>City</label><select id="f-city"><option value="">All</option></select></div>
         <div class="field"><label>Property</label><select id="f-prop"><option value="">All</option></select></div>
         <div class="field"><label>Status</label><select id="f-status"><option value="">All</option><option value="Confirmed">Confirmed</option></select></div>
+        <div class="field"><label>Contract</label><select id="f-contract"><option value="">All</option><option value="Static">Static</option><option value="Margin">Margin</option><option value="Dynamic">Dynamic</option><option value="Direct">Direct</option></select></div>
         <div class="field"><label>Compare vs</label><select id="cmp-type"><option value="">None</option><option value="master">Master City</option><option value="city">City</option><option value="prop">Property</option></select></div>
         <div class="field"><label>&nbsp;</label><select id="cmp-val" disabled><option value="">Select…</option></select></div>
         <button class="btn btn-primary" id="btn-audit" disabled>Audit property</button>
@@ -108,7 +109,7 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
 </div>
 <script>
 const $ = s => document.querySelector(s);
-const S = {sales:[], avail:[], plans:[], offers:[], filters:{country:'',master:'',city:'',prop:'',status:''}, cmp:{type:'',val:''}, tab:'sales'};
+const S = {sales:[], avail:[], plans:[], offers:[], filters:{country:'',master:'',city:'',prop:'',status:'',contract:''}, cmp:{type:'',val:''}, tab:'sales'};
 const TABS = ['Sales','Pick-up','Distributions','Cancellations','Allotment','Weekday','City demand','Offers & Flags'];
 
 $('#dark-toggle').onclick = () => document.body.classList.toggle('dark');
@@ -217,14 +218,15 @@ function fill(sel, vals){
 function uniq(a){ return [...new Set(a)]; }
 function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&','<':'<','>':'>','"':'"'}[c])); }
 
-['f-country','f-master','f-city','f-prop','f-status'].forEach(id=>{
+['f-country','f-master','f-city','f-prop','f-status','f-contract'].forEach(id=>{
   $('#'+id).onchange = () => {
     S.filters.country = $('#f-country').value;
     S.filters.master = $('#f-master').value;
     S.filters.city = $('#f-city').value;
     S.filters.prop = $('#f-prop').value;
     S.filters.status = $('#f-status').value;
-    if(id!=='f-prop' && id!=='f-status') cascade();
+    S.filters.contract = $('#f-contract').value;
+    if(id!=='f-prop' && id!=='f-status' && id!=='f-contract') cascade();
     $('#btn-audit').disabled = !S.filters.prop;
     render();
   };
@@ -247,8 +249,21 @@ function filtered(rows, key){
     (!f.master || r['Master City']===f.master) &&
     (!f.city || r.City===f.city) &&
     (!f.prop || r.Property===f.prop) &&
-    (!f.status || r.Status===f.status)
+    (!f.status || r.Status===f.status) &&
+    contractOk(r, f.contract)
   );
+}
+function contractOk(r, c){
+  if(!c) return true;
+  const ct = r.Contract || '';
+  if(c==='Static' || c==='Margin') return ct===c;
+  if(c==='Direct') return ct==='Margin' || ct==='Static';
+  if(c==='Dynamic'){
+    if(ct!=='Dynamic') return false;
+    const s = (r.Source||'').toLowerCase();
+    return s.includes('synxis') || s.includes('hyperguest marketplace');
+  }
+  return true;
 }
 function cmpRows(){
   if(!S.cmp.type || !S.cmp.val) return null;
