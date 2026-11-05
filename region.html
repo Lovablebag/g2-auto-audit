@@ -65,7 +65,38 @@ function auditDash(){
   const y26=rows.filter(r=>(r['Created (UTC)']||'').startsWith('2026'));
   const a25=kpis(y25), a26=kpis(y26);
   const ci=byYearMonth(rows,'Check-In'), bk=byYearMonth(rows,'Created (UTC)');
-  $('#audit-dash').innerHTML=`<div class="kpis" style="margin-bottom:12px">
+  $('#audit-dash').innerHTML=`<div id="audit-flow" class="card" style="display:none;margin-top:14px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div style="font-weight:700">Audit — <span id="audit-prop"></span></div>
+    <button class="btn btn-secondary" id="btn-close-audit">Close</button>
+  </div>
+  <div id="audit-step1">
+    <div style="font-weight:600;margin-bottom:6px">Hotel Info</div>
+    <div class="filters" style="margin-bottom:12px">
+      <div class="f"><label>Property</label><input id="ai-prop"></div>
+      <div class="f"><label>City</label><input id="ai-city"></div>
+      <div class="f"><label>Master City</label><input id="ai-master"></div>
+      <div class="f"><label>Chain</label><input id="ai-chain"></div>
+      <div class="f"><label>Contract Type</label><input id="ai-contract"></div>
+      <div class="f"><label>Owner</label><input id="ai-owner"></div>
+    </div>
+    <div style="font-weight:600;margin-bottom:6px">Price Check</div>
+    <div style="overflow-x:auto"><table id="pc-table"><thead><tr>
+      <th>Check-in</th><th>Nts</th><th>Room</th><th>Meal</th><th>Cnx</th><th>G2 €</th><th>B2B €</th><th>B2C €</th><th>B2C NET</th><th>%</th>
+    </tr></thead><tbody id="pc-body"></tbody></table></div>
+    <button class="btn btn-secondary" id="btn-add-pc" style="margin:8px 0">+ Add row</button>
+    <div style="font-weight:600;margin:12px 0 6px">Audit Checklist</div>
+    <div id="chk-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+    <div style="margin-top:14px"><button class="btn btn-primary" id="btn-to-dash">Continue to dashboard</button></div>
+  </div>
+  <div id="audit-step2" style="display:none">
+    <button class="btn btn-secondary" id="btn-back-step1">← Edit Price Check</button>
+    <div id="audit-dash" style="margin-top:12px"></div>
+    <div style="margin-top:14px"><button class="btn btn-primary" id="btn-gen-audit">Generate PPTX</button></div>
+  </div>
+</div>
+
+<div class="kpis" style="margin-bottom:12px">
     <div class="kpi"><div class="l">Room nights 2025</div><div class="v">${a25.rn.toLocaleString()}</div></div>
     <div class="kpi"><div class="l">Room nights 2026 YTD</div><div class="v">${a26.rn.toLocaleString()}</div></div>
     <div class="kpi"><div class="l">Cost 2025</div><div class="v">€${Math.round(a25.cost).toLocaleString()}</div></div>
@@ -271,36 +302,6 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
       <div class="tabs" id="tabs"></div>
       <div id="tab-body"></div>
     </div>
-  </div>
-</div>
-<div id="audit-flow" class="card" style="display:none;margin-top:14px">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-    <div style="font-weight:700">Audit — <span id="audit-prop"></span></div>
-    <button class="btn btn-secondary" id="btn-close-audit">Close</button>
-  </div>
-  <div id="audit-step1">
-    <div style="font-weight:600;margin-bottom:6px">Hotel Info</div>
-    <div class="filters" style="margin-bottom:12px">
-      <div class="f"><label>Property</label><input id="ai-prop"></div>
-      <div class="f"><label>City</label><input id="ai-city"></div>
-      <div class="f"><label>Master City</label><input id="ai-master"></div>
-      <div class="f"><label>Chain</label><input id="ai-chain"></div>
-      <div class="f"><label>Contract Type</label><input id="ai-contract"></div>
-      <div class="f"><label>Owner</label><input id="ai-owner"></div>
-    </div>
-    <div style="font-weight:600;margin-bottom:6px">Price Check</div>
-    <div style="overflow-x:auto"><table id="pc-table"><thead><tr>
-      <th>Check-in</th><th>Nts</th><th>Room</th><th>Meal</th><th>Cnx</th><th>G2 €</th><th>B2B €</th><th>B2C €</th><th>B2C NET</th><th>%</th>
-    </tr></thead><tbody id="pc-body"></tbody></table></div>
-    <button class="btn btn-secondary" id="btn-add-pc" style="margin:8px 0">+ Add row</button>
-    <div style="font-weight:600;margin:12px 0 6px">Audit Checklist</div>
-    <div id="chk-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
-    <div style="margin-top:14px"><button class="btn btn-primary" id="btn-to-dash">Continue to dashboard</button></div>
-  </div>
-  <div id="audit-step2" style="display:none">
-    <button class="btn btn-secondary" id="btn-back-step1">← Edit Price Check</button>
-    <div id="audit-dash" style="margin-top:12px"></div>
-    <div style="margin-top:14px"><button class="btn btn-primary" id="btn-gen-audit">Generate PPTX</button></div>
   </div>
 </div>
 </div>
