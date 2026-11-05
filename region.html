@@ -656,8 +656,8 @@ function cancelView(rows){
   const mRate=byMT.map((t,i)=>t? Math.round(byM[i]/t*100) : 0);
   const mk=new Map();
   rows.forEach(r=>{ const k=r['Source Market']||'(blank)'; if(!mk.has(k)) mk.set(k,{t:0,c:0}); const o=mk.get(k); o.t++; if(/cancel/i.test(r.Status)) o.c++; });
-  const total=rows.length;
-  const min=Math.max(5, Math.round(total*0.01));
+  const totalBk=rows.length;
+  const min=Math.max(5, Math.round(totalBk*0.01));
   const top=[...mk.entries()].filter(([,v])=>v.t>=min).map(([k,v])=>({k,pct:Math.round(v.c/v.t*100)})).sort((a,b)=>b.pct-a.pct).slice(0,8);
   // heatmap lead time x LOS
   const ltBuckets=[[0,7,'0-7'],[8,14,'8-14'],[15,30,'15-30'],[31,60,'31-60'],[61,90,'61-90'],[91,9999,'90+']];
