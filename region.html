@@ -678,14 +678,14 @@ function offersView(){
     if(!o) return;
     rnMap.set(o, (rnMap.get(o)||0)+(Number(r.Nights)||0));
   });
-  const items=rows.slice(0,30);
+  const items=rows;
   $('#tab-body').innerHTML='<table><tr><th>Property</th><th>Offer</th><th>Type</th><th>Book to</th><th>Room nights</th></tr>'+
     items.map(r=>{
       const name=r['Offer Name']||'';
       const rn=rnMap.get(name)||0;
       return '<tr><td>'+esc(r.Property||'')+'</td><td>'+esc(name)+'</td><td>'+esc(r['Offer Type']||'')+'</td><td>'+xlDate(r['Book To'])+'</td><td>'+rn.toLocaleString()+'</td></tr>';
     }).join('')+'</table>'+
-    (rows.length>30?'<p style="color:var(--muted)">Showing 30 of '+rows.length+'</p>':'');
+    '';
 }
 
 $('#btn-reset').onclick = () => {
