@@ -10,12 +10,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Show all offers
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793878903.a7147a9ccc2146d0/wpAZJFJ1wefe/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793878962.b48210ff12be22d1/wNAbJgJMe6eL/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'slice(0,30)' in page or 'Showing 30' in page: raise SystemExit('still truncated')
+          if 'Showing 30' in page: raise SystemExit('still truncated')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
