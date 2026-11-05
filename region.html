@@ -706,7 +706,7 @@ $('#btn-reset').onclick = () => {
 $('#btn-audit').onclick = () => {
   if(!S.filters.prop) return;
   sessionStorage.setItem('region-audit', JSON.stringify({property:S.filters.prop, city:S.filters.city, master:S.filters.master, country:S.filters.country}));
-  location.href = './index.html#price';
+  location.href = './index.html#audit';
 };
 </script>
 </body>

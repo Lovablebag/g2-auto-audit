@@ -888,6 +888,7 @@ window.addEventListener('DOMContentLoaded', function() {
   });
   var hash = (location.hash || '').replace('#', '');
   if (hash === 'files' || hash === 'excel' || hash === 'price' || hash === 'search') goAppNav(hash);
+  else if (hash === 'audit') { showPhase('phase-build2'); try { const a=JSON.parse(sessionStorage.getItem('region-audit')||'{}'); if(a.property){ const f=id=>document.getElementById(id); if(f('f-property')) f('f-property').value=a.property; if(f('f-city')) f('f-city').value=a.city||''; if(f('f-mastercity')) f('f-mastercity').value=a.master||''; } } catch(e){} }
   else setAppNav('search');
   // Entry cards
   document.getElementById('card-build').addEventListener('click', function() { showPhase('phase-build1'); });
