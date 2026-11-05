@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Cancellation heatmap
+      - name: Availability chart
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793868778.0b8f21070852110c/w3AaJYHIUig0/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793869245.4b3673a0ef179b1b/wmAwJtHEyFEW/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'Where cancellations happen' not in page or 'at risk' in page: raise SystemExit('missing')
+          if 'Sold out' not in page or 'Days with 0 available' not in page: raise SystemExit('missing')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: cancellation heatmap lead time x LOS, remove at risk"
+          git diff --cached --quiet || git commit -m "Region: availability line chart, sold out and stop sales lists"
           git push
