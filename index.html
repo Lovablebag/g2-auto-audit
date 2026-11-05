@@ -452,7 +452,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
       </div>
     </div>
   </div>
-    <div class="phase-nav">
+  <div class="section" style="margin-top:20px">
+    <div class="section-header"><div class="section-badge">§8</div><div class="section-title">Audit Checklist</div><span class="tag tag-manual">Manual</span><div class="section-desc">Flag issues - leave on No Issue if all ok</div></div>
+    <div class="section-body">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Select <strong>Issue</strong> only when there is a problem and add a comment. Items left on <strong>No Issue</strong> will not be flagged.</p>
+      <div class="checklist-grid" id="s8-checklist-pc"></div>
+    </div>
+  </div>
+  <div class="phase-nav">
     <button class="btn-secondary" id="btn-back-entry-pc2">← Back</button>
     <button class="btn-primary" id="btn-download-pc2">⬇️ Download Excel</button>
   </div>
@@ -879,9 +886,16 @@ window.addEventListener('DOMContentLoaded', function() {
       goAppNav(a.getAttribute('data-nav'));
     });
   });
-  var hash = (location.hash || '').replace('#', '');
-  if (hash === 'files' || hash === 'excel' || hash === 'price' || hash === 'search') goAppNav(hash);
-  else setAppNav('search');
+  function applyHash(){
+    var hash = (location.hash || '').replace('#', '');
+    if (hash === 'audit') {
+      showPhase('phase-build2');
+      try { const a=JSON.parse(sessionStorage.getItem('region-audit')||'{}'); if(a.property){ const f=id=>document.getElementById(id); if(f('f-property')) f('f-property').value=a.property; if(f('f-city')) f('f-city').value=a.city||''; if(f('f-mastercity')) f('f-mastercity').value=a.master||''; } } catch(e){}
+    } else if (hash === 'files' || hash === 'excel' || hash === 'price' || hash === 'search') goAppNav(hash);
+    else setAppNav('search');
+  }
+  applyHash();
+  window.addEventListener('hashchange', applyHash);
   // Entry cards
   document.getElementById('card-build').addEventListener('click', function() { showPhase('phase-build1'); });
   document.getElementById('card-excel').addEventListener('click', function() { showPhase('phase-excel'); });
@@ -1294,7 +1308,7 @@ S8_ITEMS.forEach(function(item) {
 });
 
 function renderS8Checklist() {
-  const grid = document.getElementById('s8-checklist');
+  const grid = document.getElementById('s8-checklist') || document.getElementById('s8-checklist-pc');
   if (!grid) return;
   grid.innerHTML = '';
   S8_ITEMS.forEach(function(item) {
