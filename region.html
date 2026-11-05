@@ -4,8 +4,128 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Region Dashboard · G2 Travel</title>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">
+const PC=[];
+const CHK=[
+  ['release','Release','0 Day Release'],
+  ['stopsales','Stop-sales','Stop-sales or full closures'],
+  ['rateplans','Rate Plans','All rate plan mix loaded'],
+  ['roomtypes','Room Types','All available room types loaded'],
+  ['restrictions','Restrictions','Booking or stay restrictions'],
+  ['status','Status','Contract status active'],
+  ['offers','Active Offers','Tactical offers loaded'],
+  ['opaque','Opaque','Opaque rate plan loaded']
+];
+const chkState={};
+CHK.forEach(c=>chkState[c[0]]='ok');
+function openAudit(){
+  $('#audit-prop').textContent=S.filters.prop;
+  if(!PC.length) PC.push({cin:'',nts:1,room:'',meal:'',cnx:'',g2:'',b2b:'',b2c:''});
+  renderPC();
+  renderChk();
+  $('#audit-panel').style.display='block';
+  $('#audit-panel').scrollIntoView({behavior:'smooth'});
+}
+function renderPC(){
+  $('#pc-body').innerHTML=PC.map((r,i)=>`<tr>
+    <td><input type="date" value="${r.cin}" onchange="PC[${i}].cin=this.value"></td>
+    <td><input type="number" value="${r.nts}" style="width:50px" onchange="PC[${i}].nts=this.value"></td>
+    <td><input value="${r.room}" onchange="PC[${i}].room=this.value"></td>
+    <td><input value="${r.meal}" onchange="PC[${i}].meal=this.value"></td>
+    <td><input value="${r.cnx}" onchange="PC[${i}].cnx=this.value"></td>
+    <td><input type="number" value="${r.g2}" style="width:70px" onchange="PC[${i}].g2=this.value;renderPC()"></td>
+    <td><input type="number" value="${r.b2b}" style="width:70px" onchange="PC[${i}].b2b=this.value;renderPC()"></td>
+    <td><input type="number" value="${r.b2c}" style="width:70px" onchange="PC[${i}].b2c=this.value;renderPC()"></td>
+    <td>${r.b2c?(Number(r.b2c)*0.85).toFixed(2):'-'}</td>
+    <td>${r.g2&&r.b2b?((Number(r.b2b)-Number(r.g2))/Number(r.g2)*100).toFixed(1)+'%':'-'}</td>
+  </tr>`).join('');
+}
+function renderChk(){
+  $('#chk-grid').innerHTML=CHK.map(c=>`<div style="border:1px solid var(--line);border-radius:8px;padding:8px">
+    <div style="font-weight:600">${c[1]}</div>
+    <div style="font-size:11px;color:var(--muted)">${c[2]}</div>
+    <label><input type="radio" name="chk-${c[0]}" value="ok" ${chkState[c[0]]==='ok'?'checked':''} onchange="chkState['${c[0]}']='ok'"> No Issue</label>
+    <label><input type="radio" name="chk-${c[0]}" value="issue" ${chkState[c[0]]==='issue'?'checked':''} onchange="chkState['${c[0]}']='issue'"> Issue</label>
+  </div>`).join('');
+}
+$('#btn-close-audit').onclick=()=>$('#audit-panel').style.display='none';
+$('#btn-add-pc').onclick=()=>{PC.push({cin:'',nts:1,room:'',meal:'',cnx:'',g2:'',b2b:'',b2c:''});renderPC();};
+$('#btn-gen-audit').onclick=()=>{
+  const rows=[['Property',S.filters.prop],['City',S.filters.city],['Master City',S.filters.master],[],['Price Check'],['Check-in','Nts','Room','Meal','Cnx','G2','B2B','B2C','B2C NET','%']];
+  PC.forEach(r=>{
+    const net=r.b2c?(Number(r.b2c)*0.85).toFixed(2):'';
+    const pct=r.g2&&r.b2b?((Number(r.b2b)-Number(r.g2))/Number(r.g2)*100).toFixed(1):'';
+    rows.push([r.cin,r.nts,r.room,r.meal,r.cnx,r.g2,r.b2b,r.b2c,net,pct]);
+  });
+  rows.push([],['Checklist']);
+  CHK.forEach(c=>rows.push([c[1],chkState[c[0]]]));
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Audit');
+  XLSX.writeFile(wb,(S.filters.prop||'audit')+'-audit.xlsx');
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
+const PC=[];
+const CHK=[
+  ['release','Release','0 Day Release'],
+  ['stopsales','Stop-sales','Stop-sales or full closures'],
+  ['rateplans','Rate Plans','All rate plan mix loaded'],
+  ['roomtypes','Room Types','All available room types loaded'],
+  ['restrictions','Restrictions','Booking or stay restrictions'],
+  ['status','Status','Contract status active'],
+  ['offers','Active Offers','Tactical offers loaded'],
+  ['opaque','Opaque','Opaque rate plan loaded']
+];
+const chkState={};
+CHK.forEach(c=>chkState[c[0]]='ok');
+function openAudit(){
+  $('#audit-prop').textContent=S.filters.prop;
+  if(!PC.length) PC.push({cin:'',nts:1,room:'',meal:'',cnx:'',g2:'',b2b:'',b2c:''});
+  renderPC();
+  renderChk();
+  $('#audit-panel').style.display='block';
+  $('#audit-panel').scrollIntoView({behavior:'smooth'});
+}
+function renderPC(){
+  $('#pc-body').innerHTML=PC.map((r,i)=>`<tr>
+    <td><input type="date" value="${r.cin}" onchange="PC[${i}].cin=this.value"></td>
+    <td><input type="number" value="${r.nts}" style="width:50px" onchange="PC[${i}].nts=this.value"></td>
+    <td><input value="${r.room}" onchange="PC[${i}].room=this.value"></td>
+    <td><input value="${r.meal}" onchange="PC[${i}].meal=this.value"></td>
+    <td><input value="${r.cnx}" onchange="PC[${i}].cnx=this.value"></td>
+    <td><input type="number" value="${r.g2}" style="width:70px" onchange="PC[${i}].g2=this.value;renderPC()"></td>
+    <td><input type="number" value="${r.b2b}" style="width:70px" onchange="PC[${i}].b2b=this.value;renderPC()"></td>
+    <td><input type="number" value="${r.b2c}" style="width:70px" onchange="PC[${i}].b2c=this.value;renderPC()"></td>
+    <td>${r.b2c?(Number(r.b2c)*0.85).toFixed(2):'-'}</td>
+    <td>${r.g2&&r.b2b?((Number(r.b2b)-Number(r.g2))/Number(r.g2)*100).toFixed(1)+'%':'-'}</td>
+  </tr>`).join('');
+}
+function renderChk(){
+  $('#chk-grid').innerHTML=CHK.map(c=>`<div style="border:1px solid var(--line);border-radius:8px;padding:8px">
+    <div style="font-weight:600">${c[1]}</div>
+    <div style="font-size:11px;color:var(--muted)">${c[2]}</div>
+    <label><input type="radio" name="chk-${c[0]}" value="ok" ${chkState[c[0]]==='ok'?'checked':''} onchange="chkState['${c[0]}']='ok'"> No Issue</label>
+    <label><input type="radio" name="chk-${c[0]}" value="issue" ${chkState[c[0]]==='issue'?'checked':''} onchange="chkState['${c[0]}']='issue'"> Issue</label>
+  </div>`).join('');
+}
+$('#btn-close-audit').onclick=()=>$('#audit-panel').style.display='none';
+$('#btn-add-pc').onclick=()=>{PC.push({cin:'',nts:1,room:'',meal:'',cnx:'',g2:'',b2b:'',b2c:''});renderPC();};
+$('#btn-gen-audit').onclick=()=>{
+  const rows=[['Property',S.filters.prop],['City',S.filters.city],['Master City',S.filters.master],[],['Price Check'],['Check-in','Nts','Room','Meal','Cnx','G2','B2B','B2C','B2C NET','%']];
+  PC.forEach(r=>{
+    const net=r.b2c?(Number(r.b2c)*0.85).toFixed(2):'';
+    const pct=r.g2&&r.b2b?((Number(r.b2b)-Number(r.g2))/Number(r.g2)*100).toFixed(1):'';
+    rows.push([r.cin,r.nts,r.room,r.meal,r.cnx,r.g2,r.b2b,r.b2c,net,pct]);
+  });
+  rows.push([],['Checklist']);
+  CHK.forEach(c=>rows.push([c[1],chkState[c[0]]]));
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Audit');
+  XLSX.writeFile(wb,(S.filters.prop||'audit')+'-audit.xlsx');
+};
+</script>
 <style>
 :root{--blue:#1e6fd9;--navy:#0f2c5b;--bg:#f4f6f9;--card:#fff;--text:#1a1a2e;--muted:#6b7280;--line:#e5e7eb;--ok:#16a34a;--bad:#dc2626;--radius:10px}
 body.dark{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--line:#334155}
@@ -106,6 +226,22 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
       <div class="tabs" id="tabs"></div>
       <div id="tab-body"></div>
     </div>
+  </div>
+</div>
+<div id="audit-panel" class="card" style="display:none;margin-top:14px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div style="font-weight:700">Audit — <span id="audit-prop"></span></div>
+    <button class="btn btn-secondary" id="btn-close-audit">Close</button>
+  </div>
+  <div style="font-weight:600;margin-bottom:6px">Price Check</div>
+  <div style="overflow-x:auto"><table id="pc-table"><thead><tr>
+    <th>Check-in</th><th>Nts</th><th>Room</th><th>Meal</th><th>Cnx</th><th>G2 €</th><th>B2B €</th><th>B2C €</th><th>B2C NET</th><th>%</th>
+  </tr></thead><tbody id="pc-body"></tbody></table></div>
+  <button class="btn btn-secondary" id="btn-add-pc" style="margin:8px 0">+ Add row</button>
+  <div style="font-weight:600;margin:12px 0 6px">Audit Checklist</div>
+  <div id="chk-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+  <div style="margin-top:14px;display:flex;gap:8px">
+    <button class="btn btn-primary" id="btn-gen-audit">Generate audit Excel</button>
   </div>
 </div>
 <script>
@@ -705,8 +841,67 @@ $('#btn-reset').onclick = () => {
 };
 $('#btn-audit').onclick = () => {
   if(!S.filters.prop) return;
-  sessionStorage.setItem('region-audit', JSON.stringify({property:S.filters.prop, city:S.filters.city, master:S.filters.master, country:S.filters.country}));
-  location.href = './index.html#audit';
+  openAudit();
+};
+
+const PC=[];
+const CHK=[
+  ['release','Release','0 Day Release'],
+  ['stopsales','Stop-sales','Stop-sales or full closures'],
+  ['rateplans','Rate Plans','All rate plan mix loaded'],
+  ['roomtypes','Room Types','All available room types loaded'],
+  ['restrictions','Restrictions','Booking or stay restrictions'],
+  ['status','Status','Contract status active'],
+  ['offers','Active Offers','Tactical offers loaded'],
+  ['opaque','Opaque','Opaque rate plan loaded']
+];
+const chkState={};
+CHK.forEach(c=>chkState[c[0]]='ok');
+function openAudit(){
+  $('#audit-prop').textContent=S.filters.prop;
+  if(!PC.length) PC.push({cin:'',nts:1,room:'',meal:'',cnx:'',g2:'',b2b:'',b2c:''});
+  renderPC();
+  renderChk();
+  $('#audit-panel').style.display='block';
+  $('#audit-panel').scrollIntoView({behavior:'smooth'});
+}
+function renderPC(){
+  $('#pc-body').innerHTML=PC.map((r,i)=>`<tr>
+    <td><input type="date" value="${r.cin}" onchange="PC[${i}].cin=this.value"></td>
+    <td><input type="number" value="${r.nts}" style="width:50px" onchange="PC[${i}].nts=this.value"></td>
+    <td><input value="${r.room}" onchange="PC[${i}].room=this.value"></td>
+    <td><input value="${r.meal}" onchange="PC[${i}].meal=this.value"></td>
+    <td><input value="${r.cnx}" onchange="PC[${i}].cnx=this.value"></td>
+    <td><input type="number" value="${r.g2}" style="width:70px" onchange="PC[${i}].g2=this.value;renderPC()"></td>
+    <td><input type="number" value="${r.b2b}" style="width:70px" onchange="PC[${i}].b2b=this.value;renderPC()"></td>
+    <td><input type="number" value="${r.b2c}" style="width:70px" onchange="PC[${i}].b2c=this.value;renderPC()"></td>
+    <td>${r.b2c?(Number(r.b2c)*0.85).toFixed(2):'-'}</td>
+    <td>${r.g2&&r.b2b?((Number(r.b2b)-Number(r.g2))/Number(r.g2)*100).toFixed(1)+'%':'-'}</td>
+  </tr>`).join('');
+}
+function renderChk(){
+  $('#chk-grid').innerHTML=CHK.map(c=>`<div style="border:1px solid var(--line);border-radius:8px;padding:8px">
+    <div style="font-weight:600">${c[1]}</div>
+    <div style="font-size:11px;color:var(--muted)">${c[2]}</div>
+    <label><input type="radio" name="chk-${c[0]}" value="ok" ${chkState[c[0]]==='ok'?'checked':''} onchange="chkState['${c[0]}']='ok'"> No Issue</label>
+    <label><input type="radio" name="chk-${c[0]}" value="issue" ${chkState[c[0]]==='issue'?'checked':''} onchange="chkState['${c[0]}']='issue'"> Issue</label>
+  </div>`).join('');
+}
+$('#btn-close-audit').onclick=()=>$('#audit-panel').style.display='none';
+$('#btn-add-pc').onclick=()=>{PC.push({cin:'',nts:1,room:'',meal:'',cnx:'',g2:'',b2b:'',b2c:''});renderPC();};
+$('#btn-gen-audit').onclick=()=>{
+  const rows=[['Property',S.filters.prop],['City',S.filters.city],['Master City',S.filters.master],[],['Price Check'],['Check-in','Nts','Room','Meal','Cnx','G2','B2B','B2C','B2C NET','%']];
+  PC.forEach(r=>{
+    const net=r.b2c?(Number(r.b2c)*0.85).toFixed(2):'';
+    const pct=r.g2&&r.b2b?((Number(r.b2b)-Number(r.g2))/Number(r.g2)*100).toFixed(1):'';
+    rows.push([r.cin,r.nts,r.room,r.meal,r.cnx,r.g2,r.b2b,r.b2c,net,pct]);
+  });
+  rows.push([],['Checklist']);
+  CHK.forEach(c=>rows.push([c[1],chkState[c[0]]]));
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Audit');
+  XLSX.writeFile(wb,(S.filters.prop||'audit')+'-audit.xlsx');
 };
 </script>
 </body>
