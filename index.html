@@ -879,6 +879,18 @@ function showPhase(id) {
 }
 
 window.addEventListener('DOMContentLoaded', function() {
+  // Region audit hook - only runs when Region passes data
+  try {
+    const rd=sessionStorage.getItem('region-audit-data');
+    if(rd){
+      sessionStorage.removeItem('region-audit-data');
+      const data=JSON.parse(rd);
+      _D=analyze(data);
+      showPhase('phase-dashboard');
+      setTimeout(function(){ renderDashboard('dsbar','dtabbar','dtc',_D); }, 80);
+    }
+  } catch(e){ console.error('region hook', e); }
+
   document.querySelectorAll('.app-nav-link[data-nav]').forEach(function(a) {
     a.addEventListener('click', function(ev) {
       if (a.getAttribute('data-nav') === 'topup' || a.getAttribute('data-nav') === 'prebuy') return;
