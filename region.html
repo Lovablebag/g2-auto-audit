@@ -900,8 +900,9 @@ $('#btn-reset').onclick = () => {
   render();
 };
 $('#btn-audit').onclick = () => {
-  if(!S.filters.prop) return;
+  if(!S.filters.prop){ alert('Select a property first'); return; }
   openAudit();
+  $('#audit-flow').style.border='2px solid #1e6fd9';
 };
 
 const PC=[];
