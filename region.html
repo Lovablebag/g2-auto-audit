@@ -22,7 +22,7 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--bg
 .dark-toggle{background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer}
 .main{max-width:1280px;margin:0 auto;padding:20px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:16px}
-.upload-zone{border:2px dashed var(--line);border-radius:var(--radius);padding:40px;text-align:center;cursor:pointer}
+.upload-zone{border:2px dashed var(--line);border-radius:var(--radius);padding:12px 16px;text-align:center;cursor:pointer}
 .upload-zone:hover{border-color:var(--blue)}
 .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
 .field{display:flex;flex-direction:column;gap:4px}
@@ -76,10 +76,9 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
 <div class="main">
   <div id="upload-card" class="card">
     <h2 style="margin:0 0 8px">Region Dashboard</h2>
-    <p style="color:var(--muted);margin:0 0 16px">Drop the folder with the 9 files (4 Daily Creations, 3 Availability, Rate Plan, Offer Details). Nothing is stored.</p>
+    <p style="color:var(--muted);margin:0 0 16px">Drop the folder with the 9 files (4 Daily Creations, 3 Availability, Rate Plan, Offer Details).</p>
     <div class="upload-zone" id="drop">
-      <div style="font-size:32px;margin-bottom:8px">📁</div>
-      <div style="font-weight:600">Drop the folder here or click to browse</div>
+      <div style="font-weight:600">📁 Drop the folder here or click to browse</div>
       <div style="font-size:12px;color:var(--muted);margin-top:4px">4 Daily Creations · 3 Availability · Rate Plan · Offer Details</div>
       <input type="file" id="files" webkitdirectory multiple accept=".csv,.xlsx" style="display:none">
     </div>
@@ -490,9 +489,7 @@ function weekdayView(rows){
   new Chart($('#c-wd'), {type:'bar', data:{labels:days, datasets:[
     {label:baseLabel, data:b, backgroundColor:'#94a3b8'},
     {label:'2026 YTD', data:a, backgroundColor:'#1e6fd9'}
-  ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}},
-    animation:{onComplete:function(){ const c=this; const ctx=c.ctx; ctx.font='11px system-ui'; ctx.fillStyle='#1a1a2e'; ctx.textAlign='center'; c.data.datasets.forEach((ds,i)=>{ const meta=c.getDatasetMeta(i); meta.data.forEach((bar,j)=>{ const v=ds.data[j]; if(v) ctx.fillText(Math.round(v).toLocaleString(), bar.x, bar.y-4); }); }); }},
-    scales:{y:{beginAtZero:true}}}});
+  ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true}}}});
 }
 function distTable(rows){
   const sm = topN(rows,'Source Market', 8);
