@@ -8,26 +8,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Add region dashboard
+      - name: Visual region charts
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793865008.b95eec76d1ee76d5/wUA6JDVgbgGv/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793865626.8568fccd495289a7/wSAbJ1V3F9s5/region.json"
           python3 - << 'PY'
-          import json, re
+          import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'Region Dashboard' not in page: raise SystemExit('missing')
+          if 'chart.js' not in page.lower() and 'Chart' not in page: raise SystemExit('missing charts')
           Path('region.html').write_text(page)
-          idx = Path('index.html').read_text()
-          if 'region.html' not in idx:
-              idx = idx.replace('href="./period.html">Period Compare</a>',
-                                'href="./period.html">Period Compare</a>\n    <a class="app-nav-link" href="./region.html">Region</a>')
-              Path('index.html').write_text(idx)
           print('wrote', len(page))
           PY
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add region.html index.html
-          git diff --cached --quiet || git commit -m "Add Region dashboard"
+          git add region.html
+          git diff --cached --quiet || git commit -m "Region: visual charts for sales, pick-up, cancellations"
           git push
