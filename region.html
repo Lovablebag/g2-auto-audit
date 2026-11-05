@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Region Dashboard · G2 Travel</title>
@@ -111,8 +109,6 @@ $('#btn-gen-audit').onclick=()=>{
   sessionStorage.setItem('region-audit-data', JSON.stringify(data));
   location.href='./index.html#excel';
 };
-</script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
 const PC=[];
 const CHK=[
   ['release','Release','0 Day Release'],
@@ -266,7 +262,7 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
         <div class="field"><label>&nbsp;</label><select id="cmp-val" disabled><option value="">Select…</option></select></div>
         <button class="btn btn-primary" id="btn-audit" disabled>Audit property</button>
         <button class="btn btn-secondary" id="btn-reset">Reset</button>
-        <button class="btn btn-secondary" id="btn-pdf">Download PDF</button>
+        
       </div>
     </div>
     <div class="kpis" id="kpis"></div>
@@ -493,25 +489,6 @@ function baseline(){
   }
   return null;
 }
-async function downloadPDF(){
-  const btn=$('#btn-pdf');
-  btn.disabled=true; btn.textContent='Generating...';
-  try {
-    const clients=$('#top-clients');
-    if(clients) clients.style.display='none';
-    const canvas=await html2canvas(document.querySelector('.wrap'),{scale:1,backgroundColor:'#f4f6fa',logging:false});
-    if(clients) clients.style.display='block';
-    const {jsPDF}=window.jspdf;
-    const pdf=new jsPDF('p','mm','a4');
-    const img=canvas.toDataURL('image/jpeg',0.7);
-    const w=pdf.internal.pageSize.getWidth();
-    const h=canvas.height*w/canvas.width;
-    pdf.addImage(img,'JPEG',0,0,w,h);
-    pdf.save(($('#f-prop').value||'region')+'-report.pdf');
-  } catch(e) { alert('PDF error: '+e.message); }
-  btn.disabled=false; btn.textContent='Download PDF';
-}
-$('#btn-pdf').onclick=downloadPDF;
 function render(){
   const rows = filtered(S.sales);
   const y25 = rows.filter(r=>(r['Created (UTC)']||'').startsWith('2025'));
