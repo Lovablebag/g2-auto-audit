@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Offers and compare text
+      - name: Show all offers
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793878255.12dbc8f460093e64/wQA2JOo9IZwe/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793878903.a7147a9ccc2146d0/wpAZJFJ1wefe/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'offersView' not in page or 'vs compare' in page: raise SystemExit('missing')
+          if 'slice(0,30)' in page or 'Showing 30' in page: raise SystemExit('still truncated')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: remove vs compare text, Offers tab with book to and room nights"
+          git diff --cached --quiet || git commit -m "Region: show all offers, no truncation"
           git push
