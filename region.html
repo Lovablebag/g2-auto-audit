@@ -93,6 +93,7 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
         <div class="field"><label>Master City</label><select id="f-master"><option value="">All</option></select></div>
         <div class="field"><label>City</label><select id="f-city"><option value="">All</option></select></div>
         <div class="field"><label>Property</label><select id="f-prop"><option value="">All</option></select></div>
+        <div class="field"><label>Status</label><select id="f-status"><option value="">All</option><option value="Confirmed">Confirmed</option></select></div>
         <div class="field"><label>Compare vs</label><select id="cmp-type"><option value="">None</option><option value="master">Master City</option><option value="city">City</option><option value="prop">Property</option></select></div>
         <div class="field"><label>&nbsp;</label><select id="cmp-val" disabled><option value="">Select…</option></select></div>
         <button class="btn btn-primary" id="btn-audit" disabled>Audit property</button>
@@ -107,7 +108,7 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
 </div>
 <script>
 const $ = s => document.querySelector(s);
-const S = {sales:[], avail:[], plans:[], offers:[], filters:{country:'',master:'',city:'',prop:''}, cmp:{type:'',val:''}, tab:'sales'};
+const S = {sales:[], avail:[], plans:[], offers:[], filters:{country:'',master:'',city:'',prop:'',status:''}, cmp:{type:'',val:''}, tab:'sales'};
 const TABS = ['Sales','Pick-up','Distributions','Cancellations','Allotment','Weekday','City demand','Offers & Flags'];
 
 $('#dark-toggle').onclick = () => document.body.classList.toggle('dark');
@@ -216,13 +217,14 @@ function fill(sel, vals){
 function uniq(a){ return [...new Set(a)]; }
 function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&','<':'<','>':'>','"':'"'}[c])); }
 
-['f-country','f-master','f-city','f-prop'].forEach(id=>{
+['f-country','f-master','f-city','f-prop','f-status'].forEach(id=>{
   $('#'+id).onchange = () => {
     S.filters.country = $('#f-country').value;
     S.filters.master = $('#f-master').value;
     S.filters.city = $('#f-city').value;
     S.filters.prop = $('#f-prop').value;
-    if(id!=='f-prop') cascade();
+    S.filters.status = $('#f-status').value;
+    if(id!=='f-prop' && id!=='f-status') cascade();
     $('#btn-audit').disabled = !S.filters.prop;
     render();
   };
@@ -244,7 +246,8 @@ function filtered(rows, key){
     (!f.country || r.Country===f.country) &&
     (!f.master || r['Master City']===f.master) &&
     (!f.city || r.City===f.city) &&
-    (!f.prop || r.Property===f.prop)
+    (!f.prop || r.Property===f.prop) &&
+    (!f.status || r.Status===f.status)
   );
 }
 function cmpRows(){
