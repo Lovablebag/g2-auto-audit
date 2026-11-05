@@ -494,25 +494,21 @@ function baseline(){
 async function downloadPDF(){
   const btn=$('#btn-pdf');
   btn.disabled=true; btn.textContent='Generating...';
-  const clients=$('#top-clients');
-  if(clients) clients.style.display='none';
-  const showBtn=$('#btn-show-clients');
-  if(showBtn) showBtn.style.display='none';
-  const canvas=await html2canvas(document.querySelector('.wrap'),{scale:2,backgroundColor:'#f4f6fa'});
-  if(clients) clients.style.display='block';
-  const {jsPDF}=window.jspdf;
-  const pdf=new jsPDF('p','mm','a4');
-  const img=canvas.toDataURL('image/png');
-  const w=pdf.internal.pageSize.getWidth();
-  const h=canvas.height*w/canvas.width;
-  let y=0;
-  while(y<canvas.height){
-    const pageH=Math.min(h-y*w/canvas.width, pdf.internal.pageSize.getHeight());
-    pdf.addImage(img,'PNG',0,0,w,h);
-    y+=pdf.internal.pageSize.getHeight()*canvas.width/w;
-    if(y<canvas.height) pdf.addPage();
-  }
-  pdf.save(($('#f-prop').value||'region')+'-report.pdf');
+  try {
+    const clients=$('#top-clients');
+    if(clients) clients.style.display='none';
+    const showBtn=$('#btn-show-clients');
+    if(showBtn) showBtn.style.display='none';
+    const canvas=await html2canvas(document.querySelector('.wrap'),{scale:1,backgroundColor:'#f4f6fa',logging:false});
+    if(clients) clients.style.display='block';
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF('p','mm','a4');
+    const img=canvas.toDataURL('image/jpeg',0.7);
+    const w=pdf.internal.pageSize.getWidth();
+    const h=canvas.height*w/canvas.width;
+    pdf.addImage(img,'JPEG',0,0,w,h);
+    pdf.save(($('#f-prop').value||'region')+'-report.pdf');
+  } catch(e) { alert('PDF error: '+e.message); }
   btn.disabled=false; btn.textContent='Download PDF';
 }
 $('#btn-pdf').onclick=downloadPDF;
@@ -656,8 +652,8 @@ function cancelView(rows){
   const mRate=byMT.map((t,i)=>t? Math.round(byM[i]/t*100) : 0);
   const mk=new Map();
   rows.forEach(r=>{ const k=r['Source Market']||'(blank)'; if(!mk.has(k)) mk.set(k,{t:0,c:0}); const o=mk.get(k); o.t++; if(/cancel/i.test(r.Status)) o.c++; });
-  const totalBk=rows.length;
-  const min=Math.max(5, Math.round(totalBk*0.01));
+  const total=rows.length;
+  const min=Math.max(5, Math.round(total*0.01));
   const top=[...mk.entries()].filter(([,v])=>v.t>=min).map(([k,v])=>({k,pct:Math.round(v.c/v.t*100)})).sort((a,b)=>b.pct-a.pct).slice(0,8);
   // heatmap lead time x LOS
   const ltBuckets=[[0,7,'0-7'],[8,14,'8-14'],[15,30,'15-30'],[31,60,'31-60'],[61,90,'61-90'],[91,9999,'90+']];
