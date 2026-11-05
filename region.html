@@ -91,19 +91,46 @@ $('#btn-back-step1').onclick=()=>{
   $('#audit-step2').style.display='none';
   $('#audit-step1').style.display='block';
 };
-$('#btn-gen-audit').onclick=()=>{
-  const rows=[['Property',$('#ai-prop').value],['City',$('#ai-city').value],['Master City',$('#ai-master').value],['Chain',$('#ai-chain').value],['Contract',$('#ai-contract').value],['Owner',$('#ai-owner').value],[],['Price Check'],['Check-in','Nts','Room','Meal','Cnx','G2','B2B','B2C','B2C NET','%']];
+$('#btn-gen-audit').onclick=async ()=>{
+  const btn=$('#btn-gen-audit');
+  btn.disabled=true; btn.textContent='Generating...';
+  const pres=new PptxGenJS();
+  pres.layout='LAYOUT_WIDE';
+  pres.title='Hotel Audit - '+$('#ai-prop').value;
+  const C={blue:'1A7DC4',dk:'1A1A2E',white:'FFFFFF',gray:'555566',lgray:'F4F6FA',red:'C0392B',green:'1A7A3C'};
+  // title
+  let sl=pres.addSlide();
+  sl.addShape(pres.shapes.RECTANGLE,{x:0,y:0,w:13.3,h:7.5,fill:{color:C.blue}});
+  sl.addText('Hotel Contract Audit',{x:0.5,y:2.5,w:12,h:0.8,fontSize:32,color:C.white,bold:true});
+  sl.addText($('#ai-prop').value+' · '+$('#ai-city').value,{x:0.5,y:3.4,w:12,h:0.5,fontSize:18,color:C.white});
+  sl.addText($('#ai-chain').value+' · '+$('#ai-contract').value,{x:0.5,y:4,w:12,h:0.4,fontSize:14,color:'D0E8F5'});
+  // price check
+  sl=pres.addSlide();
+  sl.addText('Price Check',{x:0.4,y:0.3,w:12,h:0.4,fontSize:20,bold:true,color:C.dk});
+  const pcRows=[['Check-in','Nts','Room','Meal','Cnx','G2','B2B','B2C','B2C NET','%']];
   PC.forEach(r=>{
     const net=r.b2c?(Number(r.b2c)*0.85).toFixed(2):'';
-    const pct=r.g2&&r.b2b?((Number(r.b2b)-Number(r.g2))/Number(r.g2)*100).toFixed(1):'';
-    rows.push([r.cin,r.nts,r.room,r.meal,r.cnx,r.g2,r.b2b,r.b2c,net,pct]);
+    const pct=r.g2&&r.b2b?((Number(r.b2b)-Number(r.g2))/Number(r.g2)*100).toFixed(1)+'%':'';
+    pcRows.push([r.cin,r.nts,r.room,r.meal,r.cnx,r.g2,r.b2b,r.b2c,net,pct]);
   });
-  rows.push([],['Checklist']);
-  CHK.forEach(c=>rows.push([c[1],chkState[c[0]]]));
-  const ws=XLSX.utils.aoa_to_sheet(rows);
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Audit');
-  XLSX.writeFile(wb,($('#ai-prop').value||'audit')+'-audit.xlsx');
+  sl.addTable(pcRows.map(r=>r.map(c=>({text:String(c||''),options:{fontSize:10,color:C.dk}}))),{x:0.4,y:0.9,w:12.5,colW:[1.3,0.6,1.5,1.2,1,1,1,1,1.2,0.8],border:[{pt:0.5,color:'C0C8D8'}]});
+  // checklist
+  sl=pres.addSlide();
+  sl.addText('Audit Checklist',{x:0.4,y:0.3,w:12,h:0.4,fontSize:20,bold:true,color:C.dk});
+  const chkRows=[['Item','Status']];
+  CHK.forEach(c=>chkRows.push([c[1],chkState[c[0]]==='issue'?'Issue':'No Issue']));
+  sl.addTable(chkRows.map((r,i)=>r.map(c=>({text:String(c),options:{fontSize:12,color:i&&r[1]==='Issue'?C.red:C.dk,bold:i===0}}))),{x:0.4,y:0.9,w:8,colW:[4,4],border:[{pt:0.5,color:'C0C8D8'}]});
+  // sales
+  sl=pres.addSlide();
+  sl.addText('Sales Overview',{x:0.4,y:0.3,w:12,h:0.4,fontSize:20,bold:true,color:C.dk});
+  const rows=filtered(S.sales);
+  const y25=rows.filter(r=>(r['Created (UTC)']||'').startsWith('2025'));
+  const y26=rows.filter(r=>(r['Created (UTC)']||'').startsWith('2026'));
+  const a25=kpis(y25), a26=kpis(y26);
+  const kpiRows=[['Metric','2025','2026 YTD'],['Room nights',a25.rn.toLocaleString(),a26.rn.toLocaleString()],['Cost','€'+Math.round(a25.cost).toLocaleString(),'€'+Math.round(a26.cost).toLocaleString()],['Bookings',a25.bookings.toLocaleString(),a26.bookings.toLocaleString()],['ADR','€'+a25.adr.toFixed(0),'€'+a26.adr.toFixed(0)]];
+  sl.addTable(kpiRows.map((r,i)=>r.map(c=>({text:String(c),options:{fontSize:12,color:C.dk,bold:i===0}}))),{x:0.4,y:0.9,w:8,colW:[3,2.5,2.5],border:[{pt:0.5,color:'C0C8D8'}]});
+  await pres.writeFile({fileName:($('#ai-prop').value||'audit')+'-audit.pptx'});
+  btn.disabled=false; btn.textContent='Generate PPTX';
 };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
@@ -296,7 +323,7 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
   <div id="audit-step2" style="display:none">
     <button class="btn btn-secondary" id="btn-back-step1">← Edit Price Check</button>
     <div id="audit-dash" style="margin-top:12px"></div>
-    <div style="margin-top:14px"><button class="btn btn-primary" id="btn-gen-audit">Generate audit Excel</button></div>
+    <div style="margin-top:14px"><button class="btn btn-primary" id="btn-gen-audit">Generate PPTX</button></div>
   </div>
 </div>
 </div>
