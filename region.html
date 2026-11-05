@@ -110,7 +110,7 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
 <script>
 const $ = s => document.querySelector(s);
 const S = {sales:[], avail:[], plans:[], offers:[], filters:{country:'',master:'',city:'',prop:'',status:'',contract:''}, cmp:{type:'',val:''}, tab:'sales'};
-const TABS = ['Sales','Pick-up','Distributions','Cancellations','Allotment','Weekday','City demand','Offers & Flags'];
+const TABS = ['Sales','Pick-up','Distributions','Cancellations','Allotment','Weekday','Demand','Offers & Flags'];
 
 $('#dark-toggle').onclick = () => document.body.classList.toggle('dark');
 $('#drop').onclick = () => $('#files').click();
@@ -330,7 +330,7 @@ function renderTabs(rows){
   else if(S.tab==='cancellations') cancelView(rows);
   else if(S.tab==='allotment') body.innerHTML = allotTable();
   else if(S.tab==='weekday') weekdayView(rows);
-  else if(S.tab==='city demand') body.innerHTML = demandTable(rows);
+  else if(S.tab==='demand') demandView(rows);
   else body.innerHTML = offersTable();
 }
 const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -577,14 +577,62 @@ function allotTable(){
     <div><div style="font-weight:600;margin-bottom:4px">Stop sales</div>${list(stopSales)}</div>
   </div>`;
 }
-function demandTable(rows){
-  const los = bucket(rows, r=>Number(r.Nights)||0, [[1,1],[2,2],[3,3],[4,7],[8,14],[15,999]], ['1','2','3','4-7','8-14','15+']);
-  const bw = bucket(rows, r=>Number(r['Lead Time'])||0, [[0,7],[8,14],[15,30],[31,60],[61,90],[91,999]], ['0-7','8-14','15-30','31-60','61-90','90+']);
+function demandView(rows){
+  const base=baseline();
+  if(!base){
+    $('#tab-body').innerHTML='<p style="color:var(--muted);padding:20px">Select a compare target to see demand.</p>';
+    return;
+  }
+  const sub=rows.filter(r=>(r['Created (UTC)']||'').startsWith('2026'));
+  const tgt=base.rows;
+  const los=bucket(sub, r=>Number(r.Nights)||0, [[1,1],[2,2],[3,3],[4,7],[8,14],[15,999]], ['1','2','3','4-7','8-14','15+']);
+  const losT=bucket(tgt, r=>Number(r.Nights)||0, [[1,1],[2,2],[3,3],[4,7],[8,14],[15,999]], ['1','2','3','4-7','8-14','15+']);
+  const bw=bucket(sub, r=>Number(r['Lead Time'])||0, [[0,7],[8,14],[15,30],[31,60],[61,90],[91,999]], ['0-7','8-14','15-30','31-60','61-90','90+']);
+  const bwT=bucket(tgt, r=>Number(r['Lead Time'])||0, [[0,7],[8,14],[15,30],[31,60],[61,90],[91,999]], ['0-7','8-14','15-30','31-60','61-90','90+']);
+  // top 10 markets from target
+  const tgtMk=topN(tgt,'Source Market',10).map(m=>m.k);
+  const subMkMap=new Map(topN(sub,'Source Market',100).map(m=>[m.k,m.rn]));
+  const mkSub=tgtMk.map(k=>subMkMap.get(k)||0);
+  const mkTgt=tgtMk.map(k=>topN(tgt,'Source Market',100).find(m=>m.k===k)?.rn||0);
+  const meal=topN(sub,'Meal Basis',5), mealT=topN(tgt,'Meal Basis',5);
+  const mealKeys=[...new Set([...meal.map(m=>m.k),...mealT.map(m=>m.k)])].slice(0,5);
+  const mealSub=mealKeys.map(k=>meal.find(m=>m.k===k)?.rn||0);
+  const mealTgt=mealKeys.map(k=>mealT.find(m=>m.k===k)?.rn||0);
+  const nrfS=[0,0], nrfT=[0,0];
+  sub.forEach(r=>{ if(/^y/i.test(r['Non-Refundable'])) nrfS[1]+=Number(r.Nights)||0; else nrfS[0]+=Number(r.Nights)||0; });
+  tgt.forEach(r=>{ if(/^y/i.test(r['Non-Refundable'])) nrfT[1]+=Number(r.Nights)||0; else nrfT[0]+=Number(r.Nights)||0; });
+  const occ=topN(sub,'Passengers',6), occT=topN(tgt,'Passengers',6);
+  const occKeys=[...new Set([...occ.map(m=>m.k),...occT.map(m=>m.k)])].slice(0,6);
+  const occSub=occKeys.map(k=>occ.find(m=>m.k===k)?.rn||0);
+  const occTgt=occKeys.map(k=>occT.find(m=>m.k===k)?.rn||0);
+  $('#tab-body').innerHTML=`<div class="grid2">
+    <div><div style="font-weight:600;margin-bottom:4px">Length of stay</div><div class="chart-box"><canvas id="d-los"></canvas></div></div>
+    <div><div style="font-weight:600;margin-bottom:4px">Booking window</div><div class="chart-box"><canvas id="d-bw"></canvas></div></div>
+    <div><div style="font-weight:600;margin-bottom:4px">Top 10 markets (target baseline)</div><div class="chart-box"><canvas id="d-mk"></canvas></div></div>
+    <div><div style="font-weight:600;margin-bottom:4px">Cancellation type</div><div class="chart-box"><canvas id="d-nrf"></canvas></div></div>
+    <div><div style="font-weight:600;margin-bottom:4px">Meal plan</div><div class="chart-box"><canvas id="d-meal"></canvas></div></div>
+    <div><div style="font-weight:600;margin-bottom:4px">Occupancy</div><div class="chart-box"><canvas id="d-occ"></canvas></div></div>
+  </div>`;
   setTimeout(()=>{
-    new Chart($('#c-los'), {type:'bar', data:{labels:los.map(x=>x.k), datasets:[{data:los.map(x=>x.n), backgroundColor:'#1e6fd9'}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}});
-    new Chart($('#c-bw'), {type:'bar', data:{labels:bw.map(x=>x.k), datasets:[{data:bw.map(x=>x.n), backgroundColor:'#10b981'}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}});
+    cmpBar('d-los', los.map(x=>x.k), los.map(x=>x.n), losT.map(x=>x.n));
+    cmpBar('d-bw', bw.map(x=>x.k), bw.map(x=>x.n), bwT.map(x=>x.n));
+    cmpBarH('d-mk', tgtMk, mkSub, mkTgt);
+    cmpBar('d-nrf', ['Flexible','Non-refundable'], nrfS, nrfT);
+    cmpBar('d-meal', mealKeys, mealSub, mealTgt);
+    cmpBarH('d-occ', occKeys, occSub, occTgt);
   }, 50);
-  return '<div class="grid2"><div><div style="font-weight:600;margin-bottom:4px">Length of stay (nights)</div><div class="chart-box"><canvas id="c-los"></canvas></div></div><div><div style="font-weight:600;margin-bottom:4px">Booking window (days)</div><div class="chart-box"><canvas id="c-bw"></canvas></div></div></div>';
+}
+function cmpBar(id, labels, sub, tgt){
+  new Chart($('#'+id), {type:'bar', data:{labels, datasets:[
+    {label:'Target', data:tgt, backgroundColor:'#94a3b8'},
+    {label:'Subject', data:sub, backgroundColor:'#1e6fd9'}
+  ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true}}}});
+}
+function cmpBarH(id, labels, sub, tgt){
+  new Chart($('#'+id), {type:'bar', data:{labels:labels.map(l=>String(l).slice(0,18)), datasets:[
+    {label:'Target', data:tgt, backgroundColor:'#94a3b8'},
+    {label:'Subject', data:sub, backgroundColor:'#1e6fd9'}
+  ]}, options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{x:{beginAtZero:true}}}});
 }
 function bucket(rows, fn, ranges, labels){
   const c=ranges.map(()=>0);
