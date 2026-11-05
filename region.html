@@ -264,6 +264,7 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
         <div class="field"><label>&nbsp;</label><select id="cmp-val" disabled><option value="">Select…</option></select></div>
         <button class="btn btn-primary" id="btn-audit" disabled>Audit property</button>
         <button class="btn btn-secondary" id="btn-reset">Reset</button>
+        <button class="btn btn-secondary" id="btn-pdf">Download PDF</button>
       </div>
     </div>
     <div class="kpis" id="kpis"></div>
@@ -490,6 +491,31 @@ function baseline(){
   }
   return null;
 }
+async function downloadPDF(){
+  const btn=$('#btn-pdf');
+  btn.disabled=true; btn.textContent='Generating...';
+  const clients=$('#top-clients');
+  if(clients) clients.style.display='none';
+  const showBtn=$('#btn-show-clients');
+  if(showBtn) showBtn.style.display='none';
+  const canvas=await html2canvas(document.querySelector('.wrap'),{scale:2,backgroundColor:'#f4f6fa'});
+  if(clients) clients.style.display='block';
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF('p','mm','a4');
+  const img=canvas.toDataURL('image/png');
+  const w=pdf.internal.pageSize.getWidth();
+  const h=canvas.height*w/canvas.width;
+  let y=0;
+  while(y<canvas.height){
+    const pageH=Math.min(h-y*w/canvas.width, pdf.internal.pageSize.getHeight());
+    pdf.addImage(img,'PNG',0,0,w,h);
+    y+=pdf.internal.pageSize.getHeight()*canvas.width/w;
+    if(y<canvas.height) pdf.addPage();
+  }
+  pdf.save(($('#f-prop').value||'region')+'-report.pdf');
+  btn.disabled=false; btn.textContent='Download PDF';
+}
+$('#btn-pdf').onclick=downloadPDF;
 function render(){
   const rows = filtered(S.sales);
   const y25 = rows.filter(r=>(r['Created (UTC)']||'').startsWith('2025'));
