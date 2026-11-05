@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Audit lands on review
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793880432.292a494b5ac89b46/w2AyJ6JahBAC/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793880487.8e7ead8214bf16e1/wYAnJqJZkUvU/region.json"
           curl -fsSL -o index.json "https://tmpfiles.org/dl/1793880433.b6880dff68ccf8f5/wPA5JvJjhRnY/index.json"
           python3 - << 'PY'
           import json
