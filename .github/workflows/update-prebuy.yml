@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Full audit flow
+      - name: PPTX generation
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793887549.82cb365ea9bc8480/wMAZJg0fzZbX/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793887711.b8613e540b4ff869/w8ARJ60kI6o6/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'audit-flow' not in page or 'btn-to-dash' not in page: raise SystemExit('missing')
+          if 'pptxgenjs' not in page or 'PptxGenJS' not in page: raise SystemExit('missing')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: full audit flow with hotel info, price check, checklist, dashboard"
+          git diff --cached --quiet || git commit -m "Region: generate PPTX from audit flow"
           git push
