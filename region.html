@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Region Dashboard · G2 Travel</title>
@@ -109,11 +111,6 @@ $('#btn-gen-audit').onclick=()=>{
   sessionStorage.setItem('region-audit-data', JSON.stringify(data));
   location.href='./index.html#excel';
 };
-</script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script>
 const PC=[];
 const CHK=[
   ['release','Release','0 Day Release'],
@@ -500,8 +497,6 @@ async function downloadPDF(){
   try {
     const clients=$('#top-clients');
     if(clients) clients.style.display='none';
-    const showBtn=$('#btn-show-clients');
-    if(showBtn) showBtn.style.display='none';
     const canvas=await html2canvas(document.querySelector('.wrap'),{scale:1,backgroundColor:'#f4f6fa',logging:false});
     if(clients) clients.style.display='block';
     const {jsPDF}=window.jspdf;
@@ -655,9 +650,7 @@ function cancelView(rows){
   const mRate=byMT.map((t,i)=>t? Math.round(byM[i]/t*100) : 0);
   const mk=new Map();
   rows.forEach(r=>{ const k=r['Source Market']||'(blank)'; if(!mk.has(k)) mk.set(k,{t:0,c:0}); const o=mk.get(k); o.t++; if(/cancel/i.test(r.Status)) o.c++; });
-  const total=rows.length;
-  const min=Math.max(5, Math.round(total*0.01));
-  const top=[...mk.entries()].filter(([,v])=>v.t>=min).map(([k,v])=>({k,pct:Math.round(v.c/v.t*100)})).sort((a,b)=>b.pct-a.pct).slice(0,8);
+  const totalBk=rows.length; const min=Math.max(5,Math.round(totalBk*0.01)); const top=[...mk.entries()].filter(([,v])=>v.t>=min).map(([k,v])=>({k,pct:Math.round(v.c/v.t*100)})).sort((a,b)=>b.pct-a.pct).slice(0,8);
   // heatmap lead time x LOS
   const ltBuckets=[[0,7,'0-7'],[8,14,'8-14'],[15,30,'15-30'],[31,60,'31-60'],[61,90,'61-90'],[91,9999,'90+']];
   const losBuckets=[[1,1,'1'],[2,2,'2'],[3,3,'3'],[4,7,'4-7'],[8,14,'8-14'],[15,9999,'15+']];
@@ -745,10 +738,10 @@ function distTable(rows){
   </div>`;
 }
 function doughnut(id, items, colors){
-  new Chart($('#'+id), {type:'doughnut', data:{labels:items.map(s=>s.k+' ('+s.rn.toLocaleString()+')'), datasets:[{data:items.map(s=>s.rn), backgroundColor:colors}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right'}}}});
+  new Chart($('#'+id), {type:'doughnut', data:{labels:items.map(s=>s.k), datasets:[{data:items.map(s=>s.rn), backgroundColor:colors}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right'}}}});
 }
 function barH(id, items, color){
-  new Chart($('#'+id), {type:'bar', data:{labels:items.map(s=>String(s.k).slice(0,22)), datasets:[{data:items.map(s=>s.rn), backgroundColor:color}]}, options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, datalabels:{anchor:'end', align:'end', formatter:v=>v.toLocaleString(), font:{size:10}}}, scales:{x:{beginAtZero:true}}}});
+  new Chart($('#'+id), {type:'bar', data:{labels:items.map(s=>String(s.k).slice(0,22)), datasets:[{data:items.map(s=>s.rn), backgroundColor:color}]}, options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}}}});
 }
 function cancelTable(rows){ return ''; }
 function allotTable(){
