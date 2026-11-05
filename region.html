@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Region Dashboard · G2 Travel</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root{--blue:#1e6fd9;--navy:#0f2c5b;--bg:#f4f6f9;--card:#fff;--text:#1a1a2e;--muted:#6b7280;--line:#e5e7eb;--ok:#16a34a;--bad:#dc2626;--radius:10px}
 body.dark{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--line:#334155}
@@ -46,6 +47,9 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
 .msg{padding:10px;border-radius:6px;background:#ecfdf5;color:#065f46;margin-bottom:12px}
 .msg.err{background:#fef2f2;color:#991b1b}
 .hidden{display:none}
+.chart-box{height:220px;margin:12px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:800px){.grid2{grid-template-columns:1fr}}
 .progress{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:8px 0}
 .progress>div{height:100%;background:var(--blue);width:0;transition:width .2s}
 </style>
@@ -289,52 +293,141 @@ function renderTabs(rows){
   $('#tabs').innerHTML = TABS.map(t=>'<button class="tab'+(S.tab===t.toLowerCase()?' on':'')+'" data-t="'+t.toLowerCase()+'">'+t+'</button>').join('');
   $('#tabs').onclick = e => { if(e.target.dataset.t){ S.tab=e.target.dataset.t; renderTabs(rows); } };
   const body = $('#tab-body');
-  if(S.tab==='sales') body.innerHTML = salesTable(rows);
-  else if(S.tab==='pick-up') body.innerHTML = pickupTable(rows);
+  if(S.tab==='sales') salesView(rows);
+  else if(S.tab==='pick-up') pickupView(rows);
   else if(S.tab==='distributions') body.innerHTML = distTable(rows);
-  else if(S.tab==='cancellations') body.innerHTML = cancelTable(rows);
+  else if(S.tab==='cancellations') cancelView(rows);
   else if(S.tab==='allotment') body.innerHTML = allotTable();
-  else if(S.tab==='weekday') body.innerHTML = weekdayTable(rows);
+  else if(S.tab==='weekday') weekdayView(rows);
   else if(S.tab==='city demand') body.innerHTML = demandTable(rows);
   else body.innerHTML = offersTable();
 }
-function topN(rows, key, n=10){
-  const m = new Map();
-  rows.forEach(r=>{ const k=r[key]||'(blank)'; if(!m.has(k)) m.set(k,{k,rn:0,cost:0,n:0}); const o=m.get(k); o.rn+=Number(r.Nights)||0; o.cost+=Number(r.Cost)||0; o.n++; });
-  return [...m.values()].sort((a,b)=>b.rn-a.rn).slice(0,n);
+const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function byYearMonth(rows, dateKey){
+  const y25=Array(12).fill(0), y26=Array(12).fill(0);
+  rows.forEach(r=>{
+    const d=new Date(r[dateKey]); if(isNaN(d)) return;
+    const y=d.getFullYear(), m=d.getMonth();
+    const n=Number(r.Nights)||0;
+    if(y===2025) y25[m]+=n; else if(y===2026) y26[m]+=n;
+  });
+  return {y25,y26};
 }
-function salesTable(rows){
-  const items = topN(rows, S.filters.prop?'Client Name':'Property', 15);
-  return '<table><tr><th>'+(S.filters.prop?'Client':'Property')+'</th><th>Room nights</th><th>Cost</th><th>Bookings</th></tr>'+
-    items.map(i=>'<tr><td>'+esc(i.k)+'</td><td>'+i.rn.toLocaleString()+'</td><td>€'+Math.round(i.cost).toLocaleString()+'</td><td>'+i.n+'</td></tr>').join('')+'</table>';
+function salesView(rows){
+  const y25=rows.filter(r=>(r['Created (UTC)']||'').startsWith('2025'));
+  const y26=rows.filter(r=>(r['Created (UTC)']||'').startsWith('2026'));
+  const k25=kpis(y25), k26=kpis(y26);
+  const nrf=rows.filter(r=>/^y/i.test(r['Non-Refundable'])).reduce((s,r)=>s+(Number(r.Nights)||0),0);
+  const flex=rows.reduce((s,r)=>s+(Number(r.Nights)||0),0)-nrf;
+  const ci=byYearMonth(rows,'Check-In');
+  const bk=byYearMonth(rows,'Created (UTC)');
+  $('#tab-body').innerHTML = `
+    <div class="kpis" style="margin-bottom:12px">
+      <div class="kpi"><div class="l">Room nights 2025</div><div class="v">${k25.rn.toLocaleString()}</div></div>
+      <div class="kpi"><div class="l">Room nights 2026 YTD</div><div class="v">${k26.rn.toLocaleString()}</div></div>
+      <div class="kpi"><div class="l">Bookings 2025</div><div class="v">${k25.bookings.toLocaleString()}</div></div>
+      <div class="kpi"><div class="l">Bookings 2026 YTD</div><div class="v">${k26.bookings.toLocaleString()}</div></div>
+      <div class="kpi"><div class="l">Cost 2025</div><div class="v">€${Math.round(k25.cost).toLocaleString()}</div></div>
+      <div class="kpi"><div class="l">Cost 2026 YTD</div><div class="v">€${Math.round(k26.cost).toLocaleString()}</div></div>
+    </div>
+    <p style="color:var(--muted);font-size:12px">NRF: ${nrf.toLocaleString()} RN · Flexible: ${flex.toLocaleString()} RN</p>
+    <div class="grid2">
+      <div><div style="font-weight:600;margin-bottom:4px">Room nights by check-in date</div><div class="chart-box"><canvas id="c-ci"></canvas></div></div>
+      <div><div style="font-weight:600;margin-bottom:4px">Room nights by booking date</div><div class="chart-box"><canvas id="c-bk"></canvas></div></div>
+    </div>
+    <div style="font-weight:600;margin:8px 0 4px">2025 vs 2026 YTD</div>
+    <div class="chart-box"><canvas id="c-cmp"></canvas></div>`;
+  lineChart('c-ci', MN, ci.y25, ci.y26);
+  lineChart('c-bk', MN, bk.y25, bk.y26);
+  new Chart($('#c-cmp'), {type:'bar', data:{labels:['Room nights','Bookings','Cost /100'], datasets:[
+    {label:'2025', data:[k25.rn, k25.bookings, k25.cost/100], backgroundColor:'#94a3b8'},
+    {label:'2026 YTD', data:[k26.rn, k26.bookings, k26.cost/100], backgroundColor:'#1e6fd9'}
+  ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}}});
 }
-function pickupTable(rows){
-  const m = new Map();
-  rows.forEach(r=>{ const d=(r['Created (UTC)']||'').slice(0,7); if(!d) return; if(!m.has(d)) m.set(d,{rn:0,n:0}); const o=m.get(d); o.rn+=Number(r.Nights)||0; o.n++; });
-  const items=[...m.entries()].sort().slice(-12);
-  return '<table><tr><th>Created month</th><th>Room nights</th><th>Bookings</th></tr>'+items.map(([k,v])=>'<tr><td>'+k+'</td><td>'+v.rn.toLocaleString()+'</td><td>'+v.n+'</td></tr>').join('')+'</table>';
+function lineChart(id, labels, a, b){
+  new Chart($('#'+id), {type:'line', data:{labels, datasets:[
+    {label:'2025', data:a, borderColor:'#94a3b8', backgroundColor:'rgba(148,163,184,.15)', fill:true, tension:.3},
+    {label:'2026 YTD', data:b, borderColor:'#1e6fd9', backgroundColor:'rgba(30,111,217,.15)', fill:true, tension:.3}
+  ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true}}}});
+}
+function pickupView(rows){
+  const y26=rows.filter(r=>(r['Created (UTC)']||'').startsWith('2026'));
+  const m=new Map();
+  y26.forEach(r=>{ const k=(r['Created (UTC)']||'').slice(0,7); if(!k) return; if(!m.has(k)) m.set(k,{rn:0,n:0,cost:0}); const o=m.get(k); o.rn+=Number(r.Nights)||0; o.n++; o.cost+=Number(r.Cost)||0; });
+  const items=[...m.entries()].sort();
+  const peak=items.reduce((a,b)=>b[1].rn>a[1].rn?b:a, items[0]||['',{rn:0,n:0,cost:0}]);
+  const low=items.filter(i=>i[1].rn>0).reduce((a,b)=>b[1].rn<a[1].rn?b:a, items[0]||['',{rn:0}]);
+  const first=items[0]||['',{rn:0,n:0,cost:0}], last=items[items.length-1]||['',{rn:0,n:0,cost:0}];
+  // weekly
+  const wk=new Map();
+  y26.forEach(r=>{ const d=new Date(r['Created (UTC)']); if(isNaN(d)) return; const w=isoWeek(d); if(!wk.has(w)) wk.set(w,0); wk.set(w, wk.get(w)+(Number(r.Nights)||0)); });
+  const weeks=[...wk.entries()].sort();
+  const roll=weeks.map((_,i)=>{ const s=weeks.slice(Math.max(0,i-3),i+1); return s.reduce((a,x)=>a+x[1],0)/s.length; });
+  $('#tab-body').innerHTML = `
+    <div class="kpis" style="margin-bottom:12px">
+      <div class="kpi"><div class="l">First month</div><div class="v">${first[0].slice(5)}</div><div class="d">${first[1].rn} RN · €${Math.round(first[1].cost)}</div></div>
+      <div class="kpi"><div class="l">Peak month</div><div class="v">${peak[0].slice(5)}</div><div class="d">${peak[1].rn} RN · ${peak[1].n} bkgs</div></div>
+      <div class="kpi"><div class="l">Lowest month</div><div class="v">${low[0].slice(5)}</div><div class="d">${low[1].rn} RN</div></div>
+      <div class="kpi"><div class="l">Last month</div><div class="v">${last[0].slice(5)}</div><div class="d">${last[1].rn} RN · €${Math.round(last[1].cost)}</div></div>
+    </div>
+    <div style="font-weight:600;margin-bottom:4px">Weekly room nights & 4-week rolling average</div>
+    <div class="chart-box"><canvas id="c-wk"></canvas></div>
+    <table><tr><th>Month</th><th>Room nights</th><th>Bookings</th><th>Cost</th></tr>
+    ${items.map(([k,v])=>'<tr><td>'+k+'</td><td>'+v.rn.toLocaleString()+'</td><td>'+v.n+'</td><td>€'+Math.round(v.cost).toLocaleString()+'</td></tr>').join('')}</table>`;
+  new Chart($('#c-wk'), {type:'bar', data:{labels:weeks.map(w=>w[0]), datasets:[
+    {type:'bar', label:'Weekly RN', data:weeks.map(w=>w[1]), backgroundColor:'#93c5fd'},
+    {type:'line', label:'4-wk avg', data:roll, borderColor:'#dc2626', tension:.3, pointRadius:2}
+  ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true}}}});
+}
+function isoWeek(d){
+  const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  t.setUTCDate(t.getUTCDate()+4-(t.getUTCDay()||7));
+  const y=new Date(Date.UTC(t.getUTCFullYear(),0,1));
+  const w=Math.ceil((((t-y)/86400000)+1)/7);
+  return t.getUTCFullYear()+' W'+String(w).padStart(2,'0');
+}
+function cancelView(rows){
+  const total=rows.length;
+  const cancelled=rows.filter(r=>/cancel/i.test(r.Status));
+  const rate=total? cancelled.length/total*100 : 0;
+  const rnLost=cancelled.reduce((s,r)=>s+(Number(r.Nights)||0),0);
+  const costLost=cancelled.reduce((s,r)=>s+(Number(r.Cost)||0),0);
+  const byM=Array(12).fill(0), byMT=Array(12).fill(0);
+  rows.forEach(r=>{ const d=new Date(r['Created (UTC)']); if(isNaN(d)||d.getFullYear()!==2026) return; byMT[d.getMonth()]++; if(/cancel/i.test(r.Status)) byM[d.getMonth()]++; });
+  const mRate=byMT.map((t,i)=>t? Math.round(byM[i]/t*100) : 0);
+  const mk=new Map();
+  rows.forEach(r=>{ const k=r['Source Market']||'(blank)'; if(!mk.has(k)) mk.set(k,{t:0,c:0}); const o=mk.get(k); o.t++; if(/cancel/i.test(r.Status)) o.c++; });
+  const top=[...mk.entries()].filter(([,v])=>v.t>=5).map(([k,v])=>({k,pct:Math.round(v.c/v.t*100)})).sort((a,b)=>b.pct-a.pct).slice(0,8);
+  $('#tab-body').innerHTML = `
+    <div class="kpis" style="margin-bottom:12px">
+      <div class="kpi"><div class="l">Cancellation rate</div><div class="v">${rate.toFixed(0)}%</div></div>
+      <div class="kpi"><div class="l">Cancelled bookings</div><div class="v">${cancelled.length.toLocaleString()}</div><div class="d">of ${total.toLocaleString()}</div></div>
+      <div class="kpi"><div class="l">Room nights lost</div><div class="v">${rnLost.toLocaleString()}</div><div class="d">€${Math.round(costLost).toLocaleString()} at risk</div></div>
+    </div>
+    <div class="grid2">
+      <div><div style="font-weight:600;margin-bottom:4px">Monthly cancellation rate % (2026)</div><div class="chart-box"><canvas id="c-cm"></canvas></div></div>
+      <div><div style="font-weight:600;margin-bottom:4px">Rate by source market</div><div class="chart-box"><canvas id="c-cs"></canvas></div></div>
+    </div>`;
+  new Chart($('#c-cm'), {type:'bar', data:{labels:MN, datasets:[{data:mRate, backgroundColor:'#60a5fa'}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,max:100}}}});
+  new Chart($('#c-cs'), {type:'bar', data:{labels:top.map(t=>t.k), datasets:[{data:top.map(t=>t.pct), backgroundColor:'#1e6fd9'}]}, options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,max:100}}}});
+}
+function weekdayView(rows){
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const m=days.map(()=>0);
+  rows.forEach(r=>{ const d=new Date(r['Check-In']); if(isNaN(d)) return; m[d.getDay()]+=Number(r.Nights)||0; });
+  $('#tab-body').innerHTML = '<div style="font-weight:600;margin-bottom:4px">Room nights by arrival day</div><div class="chart-box"><canvas id="c-wd"></canvas></div>';
+  new Chart($('#c-wd'), {type:'bar', data:{labels:days, datasets:[{data:m, backgroundColor:'#1e6fd9'}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}});
 }
 function distTable(rows){
   return twoCol(topN(rows,'Source Market'), topN(rows,'Client Name'), 'Source Market', 'Client');
 }
-function cancelTable(rows){
-  const m = new Map();
-  rows.forEach(r=>{ const k=r['Source Market']||'(blank)'; if(!m.has(k)) m.set(k,{t:0,c:0}); const o=m.get(k); o.t++; if(/cancel/i.test(r.Status)) o.c++; });
-  const items=[...m.entries()].map(([k,v])=>({k,pct:v.t?v.c/v.t*100:0,t:v.t})).filter(i=>i.t>=5).sort((a,b)=>b.pct-a.pct).slice(0,10);
-  return '<table><tr><th>Source Market</th><th>Cancellation %</th><th>Rows</th></tr>'+items.map(i=>'<tr><td>'+esc(i.k)+'</td><td>'+i.pct.toFixed(1)+'%</td><td>'+i.t+'</td></tr>').join('')+'</table>';
-}
+function cancelTable(rows){ return ''; }
 function allotTable(){
   const f=S.filters;
   const rows=S.avail.filter(r=>(!f.country||r.Country===f.country)&&(!f.master||r['Master City']===f.master)&&(!f.city||r.City===f.city)&&(!f.prop||r.Property===f.prop));
   let avail=0, sold=0, closed=0;
   rows.forEach(r=>{ avail+=Number(r.Available)||0; sold+=Number(r.Sold)||0; if(/^y/i.test(r['Full Closure'])) closed++; });
   return '<div class="kpis"><div class="kpi"><div class="l">Available</div><div class="v">'+avail.toLocaleString()+'</div></div><div class="kpi"><div class="l">Sold</div><div class="v">'+sold.toLocaleString()+'</div></div><div class="kpi"><div class="l">Full closure days</div><div class="v">'+closed+'</div></div></div>';
-}
-function weekdayTable(rows){
-  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const m=days.map(()=>({rn:0,n:0}));
-  rows.forEach(r=>{ const d=new Date(r['Check-In']); if(isNaN(d)) return; const o=m[d.getDay()]; o.rn+=Number(r.Nights)||0; o.n++; });
-  return '<table><tr><th>Arrival day</th><th>Room nights</th><th>Bookings</th></tr>'+m.map((o,i)=>'<tr><td>'+days[i]+'</td><td>'+o.rn.toLocaleString()+'</td><td>'+o.n+'</td></tr>').join('')+'</table>';
 }
 function demandTable(rows){
   const los = bucket(rows, r=>Number(r.Nights)||0, [[1,1],[2,2],[3,3],[4,7],[8,14],[15,999]], ['1','2','3','4-7','8-14','15+']);
@@ -355,6 +448,11 @@ function twoCol(a,b,la,lb){
   }
   return h+'</table>';
 }
+function topN(rows, key, n=10){
+  const m = new Map();
+  rows.forEach(r=>{ const k=r[key]||'(blank)'; if(!m.has(k)) m.set(k,{k,rn:0,cost:0,n:0}); const o=m.get(k); o.rn+=Number(r.Nights)||0; o.cost+=Number(r.Cost)||0; o.n++; });
+  return [...m.values()].sort((a,b)=>b.rn-a.rn).slice(0,n);
+}
 function offersTable(){
   const f=S.filters;
   const rows=S.offers.filter(r=>(!f.country||r.Country===f.country)&&(!f.city||r.City===f.city)&&(!f.prop||r.Property===f.prop));
@@ -363,6 +461,7 @@ function offersTable(){
     items.map(r=>'<tr><td>'+esc(r.Property||'')+'</td><td>'+esc(r['Offer Name']||'')+'</td><td>'+esc(r['Offer Type']||'')+'</td><td>'+esc(r['Book From']||'')+'</td><td>'+esc(r['Travel From']||'')+'</td></tr>').join('')+'</table>'+
     (rows.length>20?'<p style="color:var(--muted)">Showing 20 of '+rows.length+'</p>':'');
 }
+
 $('#btn-audit').onclick = () => {
   if(!S.filters.prop) return;
   sessionStorage.setItem('region-audit', JSON.stringify({property:S.filters.prop, city:S.filters.city, master:S.filters.master, country:S.filters.country}));
