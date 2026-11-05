@@ -98,6 +98,7 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
         <div class="field"><label>Compare vs</label><select id="cmp-type"><option value="">None</option><option value="master">Master City</option><option value="city">City</option><option value="prop">Property</option></select></div>
         <div class="field"><label>&nbsp;</label><select id="cmp-val" disabled><option value="">Select…</option></select></div>
         <button class="btn btn-primary" id="btn-audit" disabled>Audit property</button>
+        <button class="btn btn-secondary" id="btn-reset">Reset</button>
       </div>
     </div>
     <div class="kpis" id="kpis"></div>
@@ -457,12 +458,34 @@ function weekdayView(rows){
 function distTable(rows){
   const sm = topN(rows,'Source Market', 8);
   const cl = topN(rows,'Client Name', 8);
+  const meal = topN(rows,'Meal Basis', 6);
+  const room = topN(rows,'Room Code', 8);
+  const occ = topN(rows,'Passengers', 8);
+  const nrf = [{k:'Flexible', rn:0},{k:'Non-refundable', rn:0}];
+  rows.forEach(r=>{ if(/^y/i.test(r['Non-Refundable'])) nrf[1].rn+=Number(r.Nights)||0; else nrf[0].rn+=Number(r.Nights)||0; });
   const colors = ['#1e6fd9','#60a5fa','#93c5fd','#f59e0b','#10b981','#8b5cf6','#ef4444','#6b7280'];
   setTimeout(()=>{
-    new Chart($('#c-sm'), {type:'doughnut', data:{labels:sm.map(s=>s.k), datasets:[{data:sm.map(s=>s.rn), backgroundColor:colors}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right'}}}});
-    new Chart($('#c-cl'), {type:'bar', data:{labels:cl.map(s=>s.k.slice(0,20)), datasets:[{data:cl.map(s=>s.rn), backgroundColor:'#1e6fd9'}]}, options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}}}});
+    doughnut('c-sm', sm, colors);
+    barH('c-cl', cl, '#1e6fd9');
+    doughnut('c-meal', meal, colors);
+    doughnut('c-nrf', nrf, ['#10b981','#ef4444']);
+    barH('c-room', room, '#8b5cf6');
+    barH('c-occ', occ, '#f59e0b');
   }, 50);
-  return '<div class="grid2"><div><div style="font-weight:600;margin-bottom:4px">Source market (room nights)</div><div class="chart-box"><canvas id="c-sm"></canvas></div></div><div><div style="font-weight:600;margin-bottom:4px">Top clients (room nights)</div><div class="chart-box"><canvas id="c-cl"></canvas></div></div></div>';
+  return `<div class="grid2">
+    <div><div style="font-weight:600;margin-bottom:4px">Source market (room nights)</div><div class="chart-box"><canvas id="c-sm"></canvas></div></div>
+    <div><div style="font-weight:600;margin-bottom:4px">Top clients (room nights)</div><div class="chart-box"><canvas id="c-cl"></canvas></div></div>
+    <div><div style="font-weight:600;margin-bottom:4px">Meal plan</div><div class="chart-box"><canvas id="c-meal"></canvas></div></div>
+    <div><div style="font-weight:600;margin-bottom:4px">Cancellation policy</div><div class="chart-box"><canvas id="c-nrf"></canvas></div></div>
+    <div><div style="font-weight:600;margin-bottom:4px">Room type</div><div class="chart-box"><canvas id="c-room"></canvas></div></div>
+    <div><div style="font-weight:600;margin-bottom:4px">Occupancy</div><div class="chart-box"><canvas id="c-occ"></canvas></div></div>
+  </div>`;
+}
+function doughnut(id, items, colors){
+  new Chart($('#'+id), {type:'doughnut', data:{labels:items.map(s=>s.k), datasets:[{data:items.map(s=>s.rn), backgroundColor:colors}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right'}}}});
+}
+function barH(id, items, color){
+  new Chart($('#'+id), {type:'bar', data:{labels:items.map(s=>String(s.k).slice(0,22)), datasets:[{data:items.map(s=>s.rn), backgroundColor:color}]}, options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}}}});
 }
 function cancelTable(rows){ return ''; }
 function allotTable(){
@@ -517,6 +540,15 @@ function offersTable(){
     (rows.length>20?'<p style="color:var(--muted)">Showing 20 of '+rows.length+'</p>':'');
 }
 
+$('#btn-reset').onclick = () => {
+  ['f-country','f-master','f-city','f-prop','f-status','f-contract','cmp-type','cmp-val'].forEach(id=>{ const el=$('#'+id); if(el) el.value=''; });
+  S.filters={country:'',master:'',city:'',prop:'',status:'',contract:''};
+  S.cmp={type:'',val:''};
+  $('#cmp-val').disabled=true;
+  $('#btn-audit').disabled=true;
+  cascade();
+  render();
+};
 $('#btn-audit').onclick = () => {
   if(!S.filters.prop) return;
   sessionStorage.setItem('region-audit', JSON.stringify({property:S.filters.prop, city:S.filters.city, master:S.filters.master, country:S.filters.country}));
