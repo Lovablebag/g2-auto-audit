@@ -490,7 +490,9 @@ function weekdayView(rows){
   new Chart($('#c-wd'), {type:'bar', data:{labels:days, datasets:[
     {label:baseLabel, data:b, backgroundColor:'#94a3b8'},
     {label:'2026 YTD', data:a, backgroundColor:'#1e6fd9'}
-  ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true}}}});
+  ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}},
+    animation:{onComplete:function(){ const c=this; const ctx=c.ctx; ctx.font='11px system-ui'; ctx.fillStyle='#1a1a2e'; ctx.textAlign='center'; c.data.datasets.forEach((ds,i)=>{ const meta=c.getDatasetMeta(i); meta.data.forEach((bar,j)=>{ const v=ds.data[j]; if(v) ctx.fillText(Math.round(v).toLocaleString(), bar.x, bar.y-4); }); }); }},
+    scales:{y:{beginAtZero:true}}}});
 }
 function distTable(rows){
   const sm = topN(rows,'Source Market', 8);
