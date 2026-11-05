@@ -517,9 +517,55 @@ function cancelTable(rows){ return ''; }
 function allotTable(){
   const f=S.filters;
   const rows=S.avail.filter(r=>(!f.country||r.Country===f.country)&&(!f.master||r['Master City']===f.master)&&(!f.city||r.City===f.city)&&(!f.prop||r.Property===f.prop));
-  let avail=0, sold=0, closed=0;
-  rows.forEach(r=>{ avail+=Number(r.Available)||0; sold+=Number(r.Sold)||0; if(/^y/i.test(r['Full Closure'])) closed++; });
-  return '<div class="kpis"><div class="kpi"><div class="l">Available</div><div class="v">'+avail.toLocaleString()+'</div></div><div class="kpi"><div class="l">Sold</div><div class="v">'+sold.toLocaleString()+'</div></div><div class="kpi"><div class="l">Full closure days</div><div class="v">'+closed+'</div></div></div>';
+  let avail=0, sold=0, closed=0, zeroDays=0;
+  const byDate=new Map();
+  const soldOut={}, stopSales={};
+  rows.forEach(r=>{
+    const av=Number(r.Available)||0, so=Number(r.Sold)||0;
+    avail+=av; sold+=so;
+    const d=r.Date||'';
+    if(!byDate.has(d)) byDate.set(d,{av:0,so:0,closed:false});
+    const o=byDate.get(d); o.av+=av; o.so+=so;
+    if(/^y/i.test(r['Full Closure'])){ closed++; o.closed=true; }
+  });
+  // per day aggregate
+  const dates=[...byDate.entries()].sort();
+  dates.forEach(([d,o])=>{
+    if(o.av===0){
+      zeroDays++;
+      const dt=new Date(d); if(isNaN(dt)) return;
+      const mon=dt.toLocaleString('en',{month:'long'});
+      const day=dt.getDate();
+      const bucket=o.closed?stopSales:soldOut;
+      if(!bucket[mon]) bucket[mon]=[];
+      bucket[mon].push(day);
+    }
+  });
+  const totalDays=dates.length;
+  const availPct=totalDays? Math.round((totalDays-zeroDays)/totalDays*100) : 0;
+  const labels=dates.map(([d])=>d.slice(5));
+  const avData=dates.map(([,o])=>o.av);
+  setTimeout(()=>{
+    new Chart($('#c-av'), {type:'line', data:{labels, datasets:[{label:'Available', data:avData, borderColor:'#1e6fd9', backgroundColor:'rgba(30,111,217,.1)', fill:true, tension:.2, pointRadius:0}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}});
+  }, 50);
+  const list=(obj)=>{
+    const keys=Object.keys(obj);
+    if(!keys.length) return '<p style="color:var(--muted)">None</p>';
+    return keys.map(m=>'<div><strong>'+m+':</strong> '+obj[m].sort((a,b)=>a-b).join(', ')+'</div>').join('');
+  };
+  return `<div class="kpis" style="margin-bottom:12px">
+    <div class="kpi"><div class="l">Available</div><div class="v">${avail.toLocaleString()}</div></div>
+    <div class="kpi"><div class="l">Sold</div><div class="v">${sold.toLocaleString()}</div></div>
+    <div class="kpi"><div class="l">Availability</div><div class="v">${availPct}%</div></div>
+    <div class="kpi"><div class="l">Days with 0 available</div><div class="v">${zeroDays}</div></div>
+    <div class="kpi"><div class="l">Full closure days</div><div class="v">${closed}</div></div>
+  </div>
+  <div style="font-weight:600;margin-bottom:4px">Available rooms by date</div>
+  <div class="chart-box"><canvas id="c-av"></canvas></div>
+  <div class="grid2" style="margin-top:12px">
+    <div><div style="font-weight:600;margin-bottom:4px">Sold out</div>${list(soldOut)}</div>
+    <div><div style="font-weight:600;margin-bottom:4px">Stop sales</div>${list(stopSales)}</div>
+  </div>`;
 }
 function demandTable(rows){
   const los = bucket(rows, r=>Number(r.Nights)||0, [[1,1],[2,2],[3,3],[4,7],[8,14],[15,999]], ['1','2','3','4-7','8-14','15+']);
