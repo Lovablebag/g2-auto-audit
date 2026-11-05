@@ -435,16 +435,42 @@ function cancelView(rows){
   const mk=new Map();
   rows.forEach(r=>{ const k=r['Source Market']||'(blank)'; if(!mk.has(k)) mk.set(k,{t:0,c:0}); const o=mk.get(k); o.t++; if(/cancel/i.test(r.Status)) o.c++; });
   const top=[...mk.entries()].filter(([,v])=>v.t>=5).map(([k,v])=>({k,pct:Math.round(v.c/v.t*100)})).sort((a,b)=>b.pct-a.pct).slice(0,8);
+  // heatmap lead time x LOS
+  const ltBuckets=[[0,7,'0-7'],[8,14,'8-14'],[15,30,'15-30'],[31,60,'31-60'],[61,90,'61-90'],[91,9999,'90+']];
+  const losBuckets=[[1,1,'1'],[2,2,'2'],[3,3,'3'],[4,7,'4-7'],[8,14,'8-14'],[15,9999,'15+']];
+  const heat=ltBuckets.map(()=>losBuckets.map(()=>({t:0,c:0})));
+  rows.forEach(r=>{
+    const lt=Number(r['Lead Time'])||0, los=Number(r.Nights)||0;
+    const li=ltBuckets.findIndex(b=>lt>=b[0]&&lt<=b[1]);
+    const oi=losBuckets.findIndex(b=>los>=b[0]&&los<=b[1]);
+    if(li<0||oi<0) return;
+    heat[li][oi].t++;
+    if(/cancel/i.test(r.Status)) heat[li][oi].c++;
+  });
+  let heatHtml='<table style="font-size:12px"><tr><th>Lead time \\ LOS</th>'+losBuckets.map(b=>'<th>'+b[2]+'</th>').join('')+'</tr>';
+  heat.forEach((row,i)=>{
+    heatHtml+='<tr><td style="font-weight:600">'+ltBuckets[i][2]+'</td>';
+    row.forEach(cell=>{
+      const pct=cell.t? Math.round(cell.c/cell.t*100) : 0;
+      const bg=cell.t? 'background:rgba(220,38,38,'+(pct/100*0.7)+')' : '';
+      const fg=pct>50?'color:#fff':'';
+      heatHtml+='<td style="text-align:center;'+bg+';'+fg+'">'+(cell.t?pct+'%':'')+'</td>';
+    });
+    heatHtml+='</tr>';
+  });
+  heatHtml+='</table><p style="font-size:11px;color:var(--muted)">Cell = cancellation % for that lead time and length of stay. Darker = higher rate.</p>';
   $('#tab-body').innerHTML = `
     <div class="kpis" style="margin-bottom:12px">
       <div class="kpi"><div class="l">Cancellation rate</div><div class="v">${rate.toFixed(0)}%</div></div>
       <div class="kpi"><div class="l">Cancelled bookings</div><div class="v">${cancelled.length.toLocaleString()}</div><div class="d">of ${total.toLocaleString()}</div></div>
-      <div class="kpi"><div class="l">Room nights lost</div><div class="v">${rnLost.toLocaleString()}</div><div class="d">€${Math.round(costLost).toLocaleString()} at risk</div></div>
+      <div class="kpi"><div class="l">Room nights lost</div><div class="v">${rnLost.toLocaleString()}</div><div class="d">€${Math.round(costLost).toLocaleString()}</div></div>
     </div>
     <div class="grid2">
       <div><div style="font-weight:600;margin-bottom:4px">Monthly cancellation rate % (2026)</div><div class="chart-box"><canvas id="c-cm"></canvas></div></div>
       <div><div style="font-weight:600;margin-bottom:4px">Rate by source market</div><div class="chart-box"><canvas id="c-cs"></canvas></div></div>
-    </div>`;
+    </div>
+    <div style="font-weight:600;margin:12px 0 4px">Where cancellations happen — lead time × length of stay</div>
+    ${heatHtml}`;
   new Chart($('#c-cm'), {type:'bar', data:{labels:MN, datasets:[{data:mRate, backgroundColor:'#60a5fa'}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,max:100}}}});
   new Chart($('#c-cs'), {type:'bar', data:{labels:top.map(t=>t.k), datasets:[{data:top.map(t=>t.pct), backgroundColor:'#1e6fd9'}]}, options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,max:100}}}});
 }
