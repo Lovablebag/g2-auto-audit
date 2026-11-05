@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Demand percentages
+      - name: Offers and compare text
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793874933.fae1bfca5d68174f/w3AZJSdpojNn/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793878179.ee440faec388575a/wRAvJDoTijKu/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'subjectName' not in page or 'chart-box tall' not in page: raise SystemExit('missing')
+          if 'offersView' not in page or 'vs compare' in page: raise SystemExit('missing')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: Demand as percentages, real name, taller charts"
+          git diff --cached --quiet || git commit -m "Region: remove vs compare text, Offers tab with book to and room nights"
           git push
