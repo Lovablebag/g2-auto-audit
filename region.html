@@ -269,18 +269,20 @@ function kpis(rows){
 }
 function render(){
   const rows = filtered(S.sales);
-  const cmp = cmpRows();
-  const a = kpis(rows);
-  const b = cmp ? kpis(cmp) : null;
+  const y25 = rows.filter(r=>(r['Created (UTC)']||'').startsWith('2025'));
+  const y26 = rows.filter(r=>(r['Created (UTC)']||'').startsWith('2026'));
+  const a25 = kpis(y25), a26 = kpis(y26);
   const cards = [
-    ['Room nights', a.rn.toLocaleString(), b&&delta(a.rn,b.rn)],
-    ['Cost', '€'+Math.round(a.cost).toLocaleString(), b&&delta(a.cost,b.cost)],
-    ['ADR', '€'+a.adr.toFixed(0), b&&delta(a.adr,b.adr)],
-    ['Cancellation', a.cancelPct.toFixed(1)+'%', b&&delta(a.cancelPct,b.cancelPct,true)],
-    ['Multi-room', a.multi.toLocaleString()+' bookings', null],
-    ['Bookings', a.bookings.toLocaleString(), b&&delta(a.bookings,b.bookings)]
+    ['Room nights 2025', a25.rn.toLocaleString(), null],
+    ['Room nights 2026 YTD', a26.rn.toLocaleString(), delta(a26.rn, a25.rn)],
+    ['Cost 2025', '€'+Math.round(a25.cost).toLocaleString(), null],
+    ['Cost 2026 YTD', '€'+Math.round(a26.cost).toLocaleString(), delta(a26.cost, a25.cost)],
+    ['ADR 2026', '€'+a26.adr.toFixed(0), delta(a26.adr, a25.adr)],
+    ['Cancel 2026', a26.cancelPct.toFixed(1)+'%', delta(a26.cancelPct, a25.cancelPct, true)],
+    ['Multi-room 2026', a26.multi.toLocaleString(), null],
+    ['Bookings 2026', a26.bookings.toLocaleString(), delta(a26.bookings, a25.bookings)]
   ];
-  $('#kpis').innerHTML = cards.map(([l,v,d])=>'<div class="kpi"><div class="l">'+l+'</div><div class="v">'+v+'</div>'+(d?'<div class="d '+d.cls+'">'+d.txt+'</div>':'')+'</div>').join('');
+  $('#kpis').innerHTML = cards.map(([l,v,d])=>'<div class="kpi"><div class="l">'+l+'</div><div class="v">'+v+'</div>'+(d?'<div class="d '+d.cls+'">'+d.txt+' vs 2025</div>':'')+'</div>').join('');
   renderTabs(rows);
 }
 function delta(a,b,lowerBetter){
@@ -419,7 +421,14 @@ function weekdayView(rows){
   new Chart($('#c-wd'), {type:'bar', data:{labels:days, datasets:[{data:m, backgroundColor:'#1e6fd9'}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}});
 }
 function distTable(rows){
-  return twoCol(topN(rows,'Source Market'), topN(rows,'Client Name'), 'Source Market', 'Client');
+  const sm = topN(rows,'Source Market', 8);
+  const cl = topN(rows,'Client Name', 8);
+  const colors = ['#1e6fd9','#60a5fa','#93c5fd','#f59e0b','#10b981','#8b5cf6','#ef4444','#6b7280'];
+  setTimeout(()=>{
+    new Chart($('#c-sm'), {type:'doughnut', data:{labels:sm.map(s=>s.k), datasets:[{data:sm.map(s=>s.rn), backgroundColor:colors}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right'}}}});
+    new Chart($('#c-cl'), {type:'bar', data:{labels:cl.map(s=>s.k.slice(0,20)), datasets:[{data:cl.map(s=>s.rn), backgroundColor:'#1e6fd9'}]}, options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}}}});
+  }, 50);
+  return '<div class="grid2"><div><div style="font-weight:600;margin-bottom:4px">Source market (room nights)</div><div class="chart-box"><canvas id="c-sm"></canvas></div></div><div><div style="font-weight:600;margin-bottom:4px">Top clients (room nights)</div><div class="chart-box"><canvas id="c-cl"></canvas></div></div></div>';
 }
 function cancelTable(rows){ return ''; }
 function allotTable(){
@@ -432,7 +441,11 @@ function allotTable(){
 function demandTable(rows){
   const los = bucket(rows, r=>Number(r.Nights)||0, [[1,1],[2,2],[3,3],[4,7],[8,14],[15,999]], ['1','2','3','4-7','8-14','15+']);
   const bw = bucket(rows, r=>Number(r['Lead Time'])||0, [[0,7],[8,14],[15,30],[31,60],[61,90],[91,999]], ['0-7','8-14','15-30','31-60','61-90','90+']);
-  return twoCol(los.map(x=>({k:x.k,rn:x.n})), bw.map(x=>({k:x.k,rn:x.n})), 'LOS (nights)', 'Booking window (days)');
+  setTimeout(()=>{
+    new Chart($('#c-los'), {type:'bar', data:{labels:los.map(x=>x.k), datasets:[{data:los.map(x=>x.n), backgroundColor:'#1e6fd9'}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}});
+    new Chart($('#c-bw'), {type:'bar', data:{labels:bw.map(x=>x.k), datasets:[{data:bw.map(x=>x.n), backgroundColor:'#10b981'}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}});
+  }, 50);
+  return '<div class="grid2"><div><div style="font-weight:600;margin-bottom:4px">Length of stay (nights)</div><div class="chart-box"><canvas id="c-los"></canvas></div></div><div><div style="font-weight:600;margin-bottom:4px">Booking window (days)</div><div class="chart-box"><canvas id="c-bw"></canvas></div></div></div>';
 }
 function bucket(rows, fn, ranges, labels){
   const c=ranges.map(()=>0);
@@ -453,12 +466,20 @@ function topN(rows, key, n=10){
   rows.forEach(r=>{ const k=r[key]||'(blank)'; if(!m.has(k)) m.set(k,{k,rn:0,cost:0,n:0}); const o=m.get(k); o.rn+=Number(r.Nights)||0; o.cost+=Number(r.Cost)||0; o.n++; });
   return [...m.values()].sort((a,b)=>b.rn-a.rn).slice(0,n);
 }
+function xlDate(v){
+  if(!v) return '';
+  if(typeof v==='number' || /^\d{5}$/.test(String(v))){
+    const d=new Date((Number(v)-25569)*86400000);
+    return isNaN(d)?'':d.toISOString().slice(0,10);
+  }
+  return String(v).slice(0,10);
+}
 function offersTable(){
   const f=S.filters;
   const rows=S.offers.filter(r=>(!f.country||r.Country===f.country)&&(!f.city||r.City===f.city)&&(!f.prop||r.Property===f.prop));
   const items=rows.slice(0,20);
   return '<table><tr><th>Property</th><th>Offer</th><th>Type</th><th>Book from</th><th>Travel from</th></tr>'+
-    items.map(r=>'<tr><td>'+esc(r.Property||'')+'</td><td>'+esc(r['Offer Name']||'')+'</td><td>'+esc(r['Offer Type']||'')+'</td><td>'+esc(r['Book From']||'')+'</td><td>'+esc(r['Travel From']||'')+'</td></tr>').join('')+'</table>'+
+    items.map(r=>'<tr><td>'+esc(r.Property||'')+'</td><td>'+esc(r['Offer Name']||'')+'</td><td>'+esc(r['Offer Type']||'')+'</td><td>'+xlDate(r['Book From'])+'</td><td>'+xlDate(r['Travel From'])+'</td></tr>').join('')+'</table>'+
     (rows.length>20?'<p style="color:var(--muted)">Showing 20 of '+rows.length+'</p>':'');
 }
 
