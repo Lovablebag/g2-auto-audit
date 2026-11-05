@@ -19,12 +19,23 @@ const CHK=[
 const chkState={};
 CHK.forEach(c=>chkState[c[0]]='ok');
 function openAudit(){
-  $('#audit-prop').textContent=S.filters.prop;
+  const prop=S.filters.prop;
+  const rows=filtered(S.sales);
+  const first=rows[0]||{};
+  $('#audit-prop').textContent=prop;
+  $('#ai-prop').value=prop;
+  $('#ai-city').value=S.filters.city||first.City||'';
+  $('#ai-master').value=S.filters.master||first['Master City']||'';
+  $('#ai-chain').value=first.Chain||'';
+  $('#ai-contract').value=first.Contract||'';
+  $('#ai-owner').value=first['Contract Owner']||'';
   if(!PC.length) PC.push({cin:'',nts:1,room:'',meal:'',cnx:'',g2:'',b2b:'',b2c:''});
   renderPC();
   renderChk();
-  $('#audit-panel').style.display='block';
-  $('#audit-panel').scrollIntoView({behavior:'smooth'});
+  $('#audit-step1').style.display='block';
+  $('#audit-step2').style.display='none';
+  $('#audit-flow').style.display='block';
+  $('#audit-flow').scrollIntoView({behavior:'smooth'});
 }
 function renderPC(){
   $('#pc-body').innerHTML=PC.map((r,i)=>`<tr>
@@ -48,10 +59,40 @@ function renderChk(){
     <label><input type="radio" name="chk-${c[0]}" value="issue" ${chkState[c[0]]==='issue'?'checked':''} onchange="chkState['${c[0]}']='issue'"> Issue</label>
   </div>`).join('');
 }
-$('#btn-close-audit').onclick=()=>$('#audit-panel').style.display='none';
+function auditDash(){
+  const rows=filtered(S.sales);
+  const y25=rows.filter(r=>(r['Created (UTC)']||'').startsWith('2025'));
+  const y26=rows.filter(r=>(r['Created (UTC)']||'').startsWith('2026'));
+  const a25=kpis(y25), a26=kpis(y26);
+  const ci=byYearMonth(rows,'Check-In'), bk=byYearMonth(rows,'Created (UTC)');
+  $('#audit-dash').innerHTML=`<div class="kpis" style="margin-bottom:12px">
+    <div class="kpi"><div class="l">Room nights 2025</div><div class="v">${a25.rn.toLocaleString()}</div></div>
+    <div class="kpi"><div class="l">Room nights 2026 YTD</div><div class="v">${a26.rn.toLocaleString()}</div></div>
+    <div class="kpi"><div class="l">Cost 2025</div><div class="v">€${Math.round(a25.cost).toLocaleString()}</div></div>
+    <div class="kpi"><div class="l">Cost 2026 YTD</div><div class="v">€${Math.round(a26.cost).toLocaleString()}</div></div>
+  </div>
+  <div class="grid2">
+    <div><div style="font-weight:600;margin-bottom:4px">Room nights by check-in</div><div class="chart-box"><canvas id="a-ci"></canvas></div></div>
+    <div><div style="font-weight:600;margin-bottom:4px">Room nights by booking date</div><div class="chart-box"><canvas id="a-bk"></canvas></div></div>
+  </div>`;
+  setTimeout(()=>{
+    lineChart('a-ci', MN, ci.y25, ci.y26);
+    lineChart('a-bk', MN, bk.y25, bk.y26);
+  }, 50);
+}
+$('#btn-close-audit').onclick=()=>$('#audit-flow').style.display='none';
 $('#btn-add-pc').onclick=()=>{PC.push({cin:'',nts:1,room:'',meal:'',cnx:'',g2:'',b2b:'',b2c:''});renderPC();};
+$('#btn-to-dash').onclick=()=>{
+  $('#audit-step1').style.display='none';
+  $('#audit-step2').style.display='block';
+  auditDash();
+};
+$('#btn-back-step1').onclick=()=>{
+  $('#audit-step2').style.display='none';
+  $('#audit-step1').style.display='block';
+};
 $('#btn-gen-audit').onclick=()=>{
-  const rows=[['Property',S.filters.prop],['City',S.filters.city],['Master City',S.filters.master],[],['Price Check'],['Check-in','Nts','Room','Meal','Cnx','G2','B2B','B2C','B2C NET','%']];
+  const rows=[['Property',$('#ai-prop').value],['City',$('#ai-city').value],['Master City',$('#ai-master').value],['Chain',$('#ai-chain').value],['Contract',$('#ai-contract').value],['Owner',$('#ai-owner').value],[],['Price Check'],['Check-in','Nts','Room','Meal','Cnx','G2','B2B','B2C','B2C NET','%']];
   PC.forEach(r=>{
     const net=r.b2c?(Number(r.b2c)*0.85).toFixed(2):'';
     const pct=r.g2&&r.b2b?((Number(r.b2b)-Number(r.g2))/Number(r.g2)*100).toFixed(1):'';
@@ -62,7 +103,7 @@ $('#btn-gen-audit').onclick=()=>{
   const ws=XLSX.utils.aoa_to_sheet(rows);
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Audit');
-  XLSX.writeFile(wb,(S.filters.prop||'audit')+'-audit.xlsx');
+  XLSX.writeFile(wb,($('#ai-prop').value||'audit')+'-audit.xlsx');
 };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
@@ -228,21 +269,36 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
     </div>
   </div>
 </div>
-<div id="audit-panel" class="card" style="display:none;margin-top:14px">
+<div id="audit-flow" class="card" style="display:none;margin-top:14px">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
     <div style="font-weight:700">Audit — <span id="audit-prop"></span></div>
     <button class="btn btn-secondary" id="btn-close-audit">Close</button>
   </div>
-  <div style="font-weight:600;margin-bottom:6px">Price Check</div>
-  <div style="overflow-x:auto"><table id="pc-table"><thead><tr>
-    <th>Check-in</th><th>Nts</th><th>Room</th><th>Meal</th><th>Cnx</th><th>G2 €</th><th>B2B €</th><th>B2C €</th><th>B2C NET</th><th>%</th>
-  </tr></thead><tbody id="pc-body"></tbody></table></div>
-  <button class="btn btn-secondary" id="btn-add-pc" style="margin:8px 0">+ Add row</button>
-  <div style="font-weight:600;margin:12px 0 6px">Audit Checklist</div>
-  <div id="chk-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
-  <div style="margin-top:14px;display:flex;gap:8px">
-    <button class="btn btn-primary" id="btn-gen-audit">Generate audit Excel</button>
+  <div id="audit-step1">
+    <div style="font-weight:600;margin-bottom:6px">Hotel Info</div>
+    <div class="filters" style="margin-bottom:12px">
+      <div class="f"><label>Property</label><input id="ai-prop"></div>
+      <div class="f"><label>City</label><input id="ai-city"></div>
+      <div class="f"><label>Master City</label><input id="ai-master"></div>
+      <div class="f"><label>Chain</label><input id="ai-chain"></div>
+      <div class="f"><label>Contract Type</label><input id="ai-contract"></div>
+      <div class="f"><label>Owner</label><input id="ai-owner"></div>
+    </div>
+    <div style="font-weight:600;margin-bottom:6px">Price Check</div>
+    <div style="overflow-x:auto"><table id="pc-table"><thead><tr>
+      <th>Check-in</th><th>Nts</th><th>Room</th><th>Meal</th><th>Cnx</th><th>G2 €</th><th>B2B €</th><th>B2C €</th><th>B2C NET</th><th>%</th>
+    </tr></thead><tbody id="pc-body"></tbody></table></div>
+    <button class="btn btn-secondary" id="btn-add-pc" style="margin:8px 0">+ Add row</button>
+    <div style="font-weight:600;margin:12px 0 6px">Audit Checklist</div>
+    <div id="chk-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+    <div style="margin-top:14px"><button class="btn btn-primary" id="btn-to-dash">Continue to dashboard</button></div>
   </div>
+  <div id="audit-step2" style="display:none">
+    <button class="btn btn-secondary" id="btn-back-step1">← Edit Price Check</button>
+    <div id="audit-dash" style="margin-top:12px"></div>
+    <div style="margin-top:14px"><button class="btn btn-primary" id="btn-gen-audit">Generate audit Excel</button></div>
+  </div>
+</div>
 </div>
 <script>
 const $ = s => document.querySelector(s);
