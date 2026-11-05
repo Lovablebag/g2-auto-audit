@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Offers and compare text
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793878179.ee440faec388575a/wRAvJDoTijKu/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793878255.12dbc8f460093e64/wQA2JOo9IZwe/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
