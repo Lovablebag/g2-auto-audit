@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Show top clients
+      - name: Status skip cancellations
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793890499.b5777bf6adb93340/wrAvJi7Cittm/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793890845.3893e170d29880ef/wwAYJM7Xrpe5/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'btn-show-clients' not in page: raise SystemExit('missing')
+          if 'skipStatus' not in page: raise SystemExit('missing')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: show button for Top Clients"
+          git diff --cached --quiet || git commit -m "Region: status filter skips cancellations tab"
           git push
