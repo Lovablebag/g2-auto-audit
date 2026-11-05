@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Contract filter
+      - name: Compare replaces baseline
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793867124.9bc9be5343b30c48/w3A6JeLq7H9p/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793867888.a55139f957d03080/wCAHJQLNCLWV/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'f-contract' not in page or 'hyperguest' not in page: raise SystemExit('missing')
+          if 'baseline' not in page or 'fillText' not in page: raise SystemExit('missing')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: contract filter All Static Margin Dynamic Direct"
+          git diff --cached --quiet || git commit -m "Region: compare replaces 2025 baseline, values on bars"
           git push
