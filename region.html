@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Region Dashboard · G2 Travel</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{--blue:#1e6fd9;--navy:#0f2c5b;--bg:#f4f6f9;--card:#fff;--text:#1a1a2e;--muted:#6b7280;--line:#e5e7eb;--ok:#16a34a;--bad:#dc2626;--radius:10px}
+body.dark{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--line:#334155}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+.header{display:flex;align-items:center;gap:16px;background:var(--blue);color:#fff;padding:10px 20px;flex-wrap:wrap}
+.logo-mark{background:#fff;color:var(--blue);font-weight:700;padding:4px 8px;border-radius:6px}
+.header-title{font-weight:700;font-size:15px}
+.header-sub{font-size:11px;opacity:.8}
+.app-nav{display:flex;gap:6px;flex-wrap:wrap;margin-left:12px}
+.app-nav-link{color:#fff;text-decoration:none;padding:6px 10px;border-radius:6px;font-size:13px;opacity:.85}
+.app-nav-link:hover,.app-nav-link.active{background:rgba(255,255,255,.15);opacity:1}
+.header-badge{margin-left:auto;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:12px;font-size:12px}
+.dark-toggle{background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer}
+.main{max-width:1280px;margin:0 auto;padding:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+.upload-zone{border:2px dashed var(--line);border-radius:var(--radius);padding:40px;text-align:center;cursor:pointer}
+.upload-zone:hover{border-color:var(--blue)}
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase}
+.field select,.field input{padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--text);min-width:140px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px}
+.kpi .v{font-size:20px;font-weight:700}
+.kpi .l{font-size:11px;color:var(--muted)}
+.kpi .d{font-size:12px;margin-top:2px}
+.up{color:var(--ok)}.down{color:var(--bad)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tab{padding:6px 14px;border:1px solid var(--line);border-radius:20px;background:transparent;cursor:pointer;color:var(--text)}
+.tab.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line)}
+th{font-size:11px;color:var(--muted);text-transform:uppercase}
+.btn{padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.btn-secondary{background:transparent;border:1px solid var(--line);color:var(--text)}
+.msg{padding:10px;border-radius:6px;background:#ecfdf5;color:#065f46;margin-bottom:12px}
+.msg.err{background:#fef2f2;color:#991b1b}
+.hidden{display:none}
+.progress{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:8px 0}
+.progress>div{height:100%;background:var(--blue);width:0;transition:width .2s}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="logo-mark">G2</div>
+  <div><div class="header-title">G2 Travel</div><div class="header-sub">Contract & Availability Tools</div></div>
+  <nav class="app-nav">
+    <a class="app-nav-link" href="./index.html#files">Auto Audit (Files)</a>
+    <a class="app-nav-link" href="./index.html#excel">Auto Audit (Excel)</a>
+    <a class="app-nav-link" href="./index.html#price">Price Check</a>
+    <a class="app-nav-link" href="./index.html#search">Hotel Search</a>
+    <a class="app-nav-link" href="./topup.html">Top-up Desk</a>
+    <a class="app-nav-link" href="./rates.html">Live Rates</a>
+    <a class="app-nav-link" href="./uuid.html">Property UUID</a>
+    <a class="app-nav-link" href="./prebuy.html">Pre-buy Price Check</a>
+    <a class="app-nav-link" href="./period.html">Period Compare</a>
+    <a class="app-nav-link active" href="./region.html">Region</a>
+  </nav>
+  <div class="header-badge">v4.4</div>
+  <button class="dark-toggle" id="dark-toggle">🌙 Dark</button>
+</header>
+<div class="main">
+  <div id="upload-card" class="card">
+    <h2 style="margin:0 0 8px">Region Dashboard</h2>
+    <p style="color:var(--muted);margin:0 0 16px">Drop the folder with the 9 files (4 Daily Creations, 3 Availability, Rate Plan, Offer Details). Nothing is stored.</p>
+    <div class="upload-zone" id="drop">
+      <div style="font-size:32px;margin-bottom:8px">📁</div>
+      <div style="font-weight:600">Drop the folder here or click to browse</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">4 Daily Creations · 3 Availability · Rate Plan · Offer Details</div>
+      <input type="file" id="files" webkitdirectory multiple accept=".csv,.xlsx" style="display:none">
+    </div>
+    <div class="progress hidden" id="prog"><div></div></div>
+    <div id="msg"></div>
+  </div>
+  <div id="dash" class="hidden">
+    <div class="card">
+      <div class="filters">
+        <div class="field"><label>Country</label><select id="f-country"><option value="">All</option></select></div>
+        <div class="field"><label>Master City</label><select id="f-master"><option value="">All</option></select></div>
+        <div class="field"><label>City</label><select id="f-city"><option value="">All</option></select></div>
+        <div class="field"><label>Property</label><select id="f-prop"><option value="">All</option></select></div>
+        <div class="field"><label>Compare vs</label><select id="cmp-type"><option value="">None</option><option value="master">Master City</option><option value="city">City</option><option value="prop">Property</option></select></div>
+        <div class="field"><label>&nbsp;</label><select id="cmp-val" disabled><option value="">Select…</option></select></div>
+        <button class="btn btn-primary" id="btn-audit" disabled>Audit property</button>
+      </div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="card">
+      <div class="tabs" id="tabs"></div>
+      <div id="tab-body"></div>
+    </div>
+  </div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const S = {sales:[], avail:[], plans:[], offers:[], filters:{country:'',master:'',city:'',prop:''}, cmp:{type:'',val:''}, tab:'sales'};
+const TABS = ['Sales','Pick-up','Distributions','Cancellations','Allotment','Weekday','City demand','Offers & Flags'];
+
+$('#dark-toggle').onclick = () => document.body.classList.toggle('dark');
+$('#drop').onclick = () => $('#files').click();
+$('#drop').ondragover = e => { e.preventDefault(); };
+$('#drop').ondrop = e => { e.preventDefault(); handleFiles(e.dataTransfer.files); };
+$('#files').onchange = e => handleFiles(e.target.files);
+
+async function handleFiles(fileList){
+  const files = [...fileList];
+  const sales = files.filter(f => /daily.creations/i.test(f.name) && f.name.endsWith('.csv'));
+  const avail = files.filter(f => /availability/i.test(f.name) && f.name.endsWith('.csv'));
+  const rp = files.find(f => /rate.plan/i.test(f.name));
+  const od = files.find(f => /offer.details/i.test(f.name));
+  if(!sales.length || !avail.length || !rp || !od){
+    msg('Need Daily Creations, Availability, Rate Plan and Offer Details.','err'); return;
+  }
+  msg('Reading '+files.length+' files…');
+  $('#prog').classList.remove('hidden');
+  const total = sales.length + avail.length + 2;
+  let done = 0;
+  const tick = () => { done++; $('#prog div').style.width = Math.round(done/total*100)+'%'; };
+  for(const f of sales){ S.sales.push(...await parseCSV(f)); tick(); }
+  for(const f of avail){ S.avail.push(...await parseCSV(f)); tick(); }
+  S.plans = await parseXLSX(rp, 'Contract ID'); tick();
+  S.offers = await parseXLSX(od, 'Contract ID'); tick();
+  msg(S.sales.length.toLocaleString()+' sales rows · '+S.avail.length.toLocaleString()+' availability rows · '+S.plans.length+' rate plans · '+S.offers.length+' offers');
+  buildFilters();
+  $('#dash').classList.remove('hidden');
+  render();
+}
+
+function parseCSV(file){
+  return new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = () => {
+      const lines = r.result.split(/\r?\n/);
+      const head = splitCSV(lines[0]);
+      const rows = [];
+      for(let i=1;i<lines.length;i++){
+        if(!lines[i]) continue;
+        const c = splitCSV(lines[i]);
+        const o = {};
+        head.forEach((h,j)=> o[h]=c[j]||'');
+        rows.push(o);
+      }
+      res(rows);
+    };
+    r.onerror = rej;
+    r.readAsText(file);
+  });
+}
+function splitCSV(line){
+  const out=[]; let cur='', q=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(q){ if(ch==='"'){ if(line[i+1]==='"'){ cur+='"'; i++; } else q=false; } else cur+=ch; }
+    else { if(ch==='"') q=true; else if(ch===','){ out.push(cur); cur=''; } else cur+=ch; }
+  }
+  out.push(cur); return out;
+}
+function parseXLSX(file, headerKey){
+  return new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = () => {
+      const wb = XLSX.read(r.result, {type:'binary'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      let hi = rows.findIndex(row => row.some(c => String(c).trim()===headerKey));
+      if(hi<0) hi=0;
+      const head = rows[hi].map(c=>String(c).trim());
+      const out = [];
+      for(let i=hi+1;i<rows.length;i++){
+        if(!rows[i].some(c=>c!=='')) continue;
+        const o={};
+        head.forEach((h,j)=>{ if(h) o[h]=rows[i][j]; });
+        out.push(o);
+      }
+      res(out);
+    };
+    r.onerror = rej;
+    r.readAsBinaryString(file);
+  });
+}
+function msg(t,k){ $('#msg').innerHTML = '<div class="msg'+(k==='err'?' err':'')+'">'+t+'</div>'; }
+
+function buildFilters(){
+  const countries = uniq(S.sales.map(r=>r.Country));
+  fill($('#f-country'), countries);
+  cascade();
+}
+function cascade(){
+  const f = S.filters;
+  const base = S.sales.filter(r => (!f.country||r.Country===f.country));
+  fill($('#f-master'), uniq(base.map(r=>r['Master City'])));
+  const b2 = base.filter(r => (!f.master||r['Master City']===f.master));
+  fill($('#f-city'), uniq(b2.map(r=>r.City)));
+  const b3 = b2.filter(r => (!f.city||r.City===f.city));
+  fill($('#f-prop'), uniq(b3.map(r=>r.Property)));
+}
+function fill(sel, vals){
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All</option>' + vals.filter(Boolean).sort().map(v=>'<option>'+esc(v)+'</option>').join('');
+  if(vals.includes(cur)) sel.value = cur;
+}
+function uniq(a){ return [...new Set(a)]; }
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&','<':'<','>':'>','"':'"'}[c])); }
+
+['f-country','f-master','f-city','f-prop'].forEach(id=>{
+  $('#'+id).onchange = () => {
+    S.filters.country = $('#f-country').value;
+    S.filters.master = $('#f-master').value;
+    S.filters.city = $('#f-city').value;
+    S.filters.prop = $('#f-prop').value;
+    if(id!=='f-prop') cascade();
+    $('#btn-audit').disabled = !S.filters.prop;
+    render();
+  };
+});
+$('#cmp-type').onchange = () => {
+  S.cmp.type = $('#cmp-type').value;
+  const sel = $('#cmp-val');
+  sel.disabled = !S.cmp.type;
+  if(!S.cmp.type){ sel.innerHTML='<option value="">Select…</option>'; S.cmp.val=''; render(); return; }
+  const key = S.cmp.type==='master'?'Master City':S.cmp.type==='city'?'City':'Property';
+  fill(sel, uniq(S.sales.map(r=>r[key])));
+  sel.querySelector('option').textContent = 'Select '+S.cmp.type+'…';
+};
+$('#cmp-val').onchange = () => { S.cmp.val = $('#cmp-val').value; render(); };
+
+function filtered(rows, key){
+  const f = S.filters;
+  return rows.filter(r =>
+    (!f.country || r.Country===f.country) &&
+    (!f.master || r['Master City']===f.master) &&
+    (!f.city || r.City===f.city) &&
+    (!f.prop || r.Property===f.prop)
+  );
+}
+function cmpRows(){
+  if(!S.cmp.type || !S.cmp.val) return null;
+  const key = S.cmp.type==='master'?'Master City':S.cmp.type==='city'?'City':'Property';
+  return S.sales.filter(r => r[key]===S.cmp.val);
+}
+function kpis(rows){
+  const bookings = new Map();
+  let rn=0, cost=0, cancelled=0, confirmed=0;
+  rows.forEach(r=>{
+    const id=r['Booking ID'];
+    if(!bookings.has(id)) bookings.set(id,0);
+    bookings.set(id, bookings.get(id)+1);
+    rn += Number(r.Nights)||0;
+    cost += Number(r.Cost)||0;
+    if(/cancel/i.test(r.Status)) cancelled++; else confirmed++;
+  });
+  const multi = [...bookings.values()].filter(n=>n>1).length;
+  const total = bookings.size;
+  return {rn, cost, adr: rn? cost/rn : 0, cancelPct: rows.length? cancelled/rows.length*100 : 0, multi, bookings: total, rows: rows.length};
+}
+function render(){
+  const rows = filtered(S.sales);
+  const cmp = cmpRows();
+  const a = kpis(rows);
+  const b = cmp ? kpis(cmp) : null;
+  const cards = [
+    ['Room nights', a.rn.toLocaleString(), b&&delta(a.rn,b.rn)],
+    ['Cost', '€'+Math.round(a.cost).toLocaleString(), b&&delta(a.cost,b.cost)],
+    ['ADR', '€'+a.adr.toFixed(0), b&&delta(a.adr,b.adr)],
+    ['Cancellation', a.cancelPct.toFixed(1)+'%', b&&delta(a.cancelPct,b.cancelPct,true)],
+    ['Multi-room', a.multi.toLocaleString()+' bookings', null],
+    ['Bookings', a.bookings.toLocaleString(), b&&delta(a.bookings,b.bookings)]
+  ];
+  $('#kpis').innerHTML = cards.map(([l,v,d])=>'<div class="kpi"><div class="l">'+l+'</div><div class="v">'+v+'</div>'+(d?'<div class="d '+d.cls+'">'+d.txt+'</div>':'')+'</div>').join('');
+  renderTabs(rows);
+}
+function delta(a,b,lowerBetter){
+  if(!b) return null;
+  const d = b ? (a-b)/b*100 : 0;
+  const good = lowerBetter ? d<0 : d>0;
+  return {txt:(d>0?'+':'')+d.toFixed(1)+'% vs compare', cls: good?'up':'down'};
+}
+function renderTabs(rows){
+  $('#tabs').innerHTML = TABS.map(t=>'<button class="tab'+(S.tab===t.toLowerCase()?' on':'')+'" data-t="'+t.toLowerCase()+'">'+t+'</button>').join('');
+  $('#tabs').onclick = e => { if(e.target.dataset.t){ S.tab=e.target.dataset.t; renderTabs(rows); } };
+  const body = $('#tab-body');
+  if(S.tab==='sales') body.innerHTML = salesTable(rows);
+  else if(S.tab==='pick-up') body.innerHTML = pickupTable(rows);
+  else if(S.tab==='distributions') body.innerHTML = distTable(rows);
+  else if(S.tab==='cancellations') body.innerHTML = cancelTable(rows);
+  else if(S.tab==='allotment') body.innerHTML = allotTable();
+  else if(S.tab==='weekday') body.innerHTML = weekdayTable(rows);
+  else if(S.tab==='city demand') body.innerHTML = demandTable(rows);
+  else body.innerHTML = offersTable();
+}
+function topN(rows, key, n=10){
+  const m = new Map();
+  rows.forEach(r=>{ const k=r[key]||'(blank)'; if(!m.has(k)) m.set(k,{k,rn:0,cost:0,n:0}); const o=m.get(k); o.rn+=Number(r.Nights)||0; o.cost+=Number(r.Cost)||0; o.n++; });
+  return [...m.values()].sort((a,b)=>b.rn-a.rn).slice(0,n);
+}
+function salesTable(rows){
+  const items = topN(rows, S.filters.prop?'Client Name':'Property', 15);
+  return '<table><tr><th>'+(S.filters.prop?'Client':'Property')+'</th><th>Room nights</th><th>Cost</th><th>Bookings</th></tr>'+
+    items.map(i=>'<tr><td>'+esc(i.k)+'</td><td>'+i.rn.toLocaleString()+'</td><td>€'+Math.round(i.cost).toLocaleString()+'</td><td>'+i.n+'</td></tr>').join('')+'</table>';
+}
+function pickupTable(rows){
+  const m = new Map();
+  rows.forEach(r=>{ const d=(r['Created (UTC)']||'').slice(0,7); if(!d) return; if(!m.has(d)) m.set(d,{rn:0,n:0}); const o=m.get(d); o.rn+=Number(r.Nights)||0; o.n++; });
+  const items=[...m.entries()].sort().slice(-12);
+  return '<table><tr><th>Created month</th><th>Room nights</th><th>Bookings</th></tr>'+items.map(([k,v])=>'<tr><td>'+k+'</td><td>'+v.rn.toLocaleString()+'</td><td>'+v.n+'</td></tr>').join('')+'</table>';
+}
+function distTable(rows){
+  return twoCol(topN(rows,'Source Market'), topN(rows,'Client Name'), 'Source Market', 'Client');
+}
+function cancelTable(rows){
+  const m = new Map();
+  rows.forEach(r=>{ const k=r['Source Market']||'(blank)'; if(!m.has(k)) m.set(k,{t:0,c:0}); const o=m.get(k); o.t++; if(/cancel/i.test(r.Status)) o.c++; });
+  const items=[...m.entries()].map(([k,v])=>({k,pct:v.t?v.c/v.t*100:0,t:v.t})).filter(i=>i.t>=5).sort((a,b)=>b.pct-a.pct).slice(0,10);
+  return '<table><tr><th>Source Market</th><th>Cancellation %</th><th>Rows</th></tr>'+items.map(i=>'<tr><td>'+esc(i.k)+'</td><td>'+i.pct.toFixed(1)+'%</td><td>'+i.t+'</td></tr>').join('')+'</table>';
+}
+function allotTable(){
+  const f=S.filters;
+  const rows=S.avail.filter(r=>(!f.country||r.Country===f.country)&&(!f.master||r['Master City']===f.master)&&(!f.city||r.City===f.city)&&(!f.prop||r.Property===f.prop));
+  let avail=0, sold=0, closed=0;
+  rows.forEach(r=>{ avail+=Number(r.Available)||0; sold+=Number(r.Sold)||0; if(/^y/i.test(r['Full Closure'])) closed++; });
+  return '<div class="kpis"><div class="kpi"><div class="l">Available</div><div class="v">'+avail.toLocaleString()+'</div></div><div class="kpi"><div class="l">Sold</div><div class="v">'+sold.toLocaleString()+'</div></div><div class="kpi"><div class="l">Full closure days</div><div class="v">'+closed+'</div></div></div>';
+}
+function weekdayTable(rows){
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const m=days.map(()=>({rn:0,n:0}));
+  rows.forEach(r=>{ const d=new Date(r['Check-In']); if(isNaN(d)) return; const o=m[d.getDay()]; o.rn+=Number(r.Nights)||0; o.n++; });
+  return '<table><tr><th>Arrival day</th><th>Room nights</th><th>Bookings</th></tr>'+m.map((o,i)=>'<tr><td>'+days[i]+'</td><td>'+o.rn.toLocaleString()+'</td><td>'+o.n+'</td></tr>').join('')+'</table>';
+}
+function demandTable(rows){
+  const los = bucket(rows, r=>Number(r.Nights)||0, [[1,1],[2,2],[3,3],[4,7],[8,14],[15,999]], ['1','2','3','4-7','8-14','15+']);
+  const bw = bucket(rows, r=>Number(r['Lead Time'])||0, [[0,7],[8,14],[15,30],[31,60],[61,90],[91,999]], ['0-7','8-14','15-30','31-60','61-90','90+']);
+  return twoCol(los.map(x=>({k:x.k,rn:x.n})), bw.map(x=>({k:x.k,rn:x.n})), 'LOS (nights)', 'Booking window (days)');
+}
+function bucket(rows, fn, ranges, labels){
+  const c=ranges.map(()=>0);
+  rows.forEach(r=>{ const v=fn(r); ranges.forEach((rg,i)=>{ if(v>=rg[0]&&v<=rg[1]) c[i]++; }); });
+  return labels.map((k,i)=>({k,n:c[i]}));
+}
+function twoCol(a,b,la,lb){
+  const n=Math.max(a.length,b.length);
+  let h='<table><tr><th>'+la+'</th><th>Room nights</th><th></th><th>'+lb+'</th><th>Count</th></tr>';
+  for(let i=0;i<n;i++){
+    const x=a[i]||{}, y=b[i]||{};
+    h+='<tr><td>'+esc(x.k||'')+'</td><td>'+(x.rn||'')+'</td><td></td><td>'+esc(y.k||'')+'</td><td>'+(y.rn||y.n||'')+'</td></tr>';
+  }
+  return h+'</table>';
+}
+function offersTable(){
+  const f=S.filters;
+  const rows=S.offers.filter(r=>(!f.country||r.Country===f.country)&&(!f.city||r.City===f.city)&&(!f.prop||r.Property===f.prop));
+  const items=rows.slice(0,20);
+  return '<table><tr><th>Property</th><th>Offer</th><th>Type</th><th>Book from</th><th>Travel from</th></tr>'+
+    items.map(r=>'<tr><td>'+esc(r.Property||'')+'</td><td>'+esc(r['Offer Name']||'')+'</td><td>'+esc(r['Offer Type']||'')+'</td><td>'+esc(r['Book From']||'')+'</td><td>'+esc(r['Travel From']||'')+'</td></tr>').join('')+'</table>'+
+    (rows.length>20?'<p style="color:var(--muted)">Showing 20 of '+rows.length+'</p>':'');
+}
+$('#btn-audit').onclick = () => {
+  if(!S.filters.prop) return;
+  sessionStorage.setItem('region-audit', JSON.stringify({property:S.filters.prop, city:S.filters.city, master:S.filters.master, country:S.filters.country}));
+  location.href = './index.html#excel';
+};
+</script>
+</body>
+</html>
