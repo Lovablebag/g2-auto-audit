@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Weekday values
+      - name: Compact upload
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793869621.4ee700d9e271cfb8/waAIJpHkYG5N/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793869897.430efc67bff0a949/wmAdJSHrzfB4/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'c-wd' not in page or 'fillText' not in page: raise SystemExit('missing')
+          if 'Nothing is stored' in page: raise SystemExit('text still there')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: values on weekday bars"
+          git diff --cached --quiet || git commit -m "Region: compact upload zone, remove nothing is stored"
           git push
