@@ -111,7 +111,7 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
 <script>
 const $ = s => document.querySelector(s);
 const S = {sales:[], avail:[], plans:[], offers:[], filters:{country:'',master:'',city:'',prop:'',status:'',contract:''}, cmp:{type:'',val:''}, tab:'sales'};
-const TABS = ['Sales','Pick-up','Distributions','Cancellations','Allotment','Weekday','Demand','Offers & Flags'];
+const TABS = ['Sales','Pick-up','Distributions','Cancellations','Allotment','Weekday','Demand','Offers'];
 
 $('#dark-toggle').onclick = () => document.body.classList.toggle('dark');
 $('#drop').onclick = () => $('#files').click();
@@ -312,14 +312,14 @@ function render(){
     ['Multi-room 2026', a26.multi.toLocaleString(), null],
     ['Bookings 2026', a26.bookings.toLocaleString(), delta(a26.bookings, aBase.bookings)]
   ];
-  $('#kpis').innerHTML = cards.map(([l,v,d])=>'<div class="kpi"><div class="l">'+l+'</div><div class="v">'+v+'</div>'+(d?'<div class="d '+d.cls+'">'+d.txt+' vs '+baseLabel+'</div>':'')+'</div>').join('');
+  $('#kpis').innerHTML = cards.map(([l,v,d])=>'<div class="kpi"><div class="l">'+l+'</div><div class="v">'+v+'</div>'+(d?'<div class="d '+d.cls+'">'+d.txt+'</div>':'')+'</div>').join('');
   renderTabs(rows);
 }
 function delta(a,b,lowerBetter){
   if(!b) return null;
   const d = b ? (a-b)/b*100 : 0;
   const good = lowerBetter ? d<0 : d>0;
-  return {txt:(d>0?'+':'')+d.toFixed(1)+'% vs compare', cls: good?'up':'down'};
+  return {txt:(d>0?'+':'')+d.toFixed(1)+'%', cls: good?'up':'down'};
 }
 function renderTabs(rows){
   $('#tabs').innerHTML = TABS.map(t=>'<button class="tab'+(S.tab===t.toLowerCase()?' on':'')+'" data-t="'+t.toLowerCase()+'">'+t+'</button>').join('');
@@ -332,7 +332,7 @@ function renderTabs(rows){
   else if(S.tab==='allotment') body.innerHTML = allotTable();
   else if(S.tab==='weekday') weekdayView(rows);
   else if(S.tab==='demand') demandView(rows);
-  else body.innerHTML = offersTable();
+  else offersView();
 }
 const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function byYearMonth(rows, dateKey){
@@ -668,13 +668,24 @@ function xlDate(v){
   }
   return String(v).slice(0,10);
 }
-function offersTable(){
+function offersView(){
   const f=S.filters;
   const rows=S.offers.filter(r=>(!f.country||r.Country===f.country)&&(!f.city||r.City===f.city)&&(!f.prop||r.Property===f.prop));
-  const items=rows.slice(0,20);
-  return '<table><tr><th>Property</th><th>Offer</th><th>Type</th><th>Book from</th><th>Travel from</th></tr>'+
-    items.map(r=>'<tr><td>'+esc(r.Property||'')+'</td><td>'+esc(r['Offer Name']||'')+'</td><td>'+esc(r['Offer Type']||'')+'</td><td>'+xlDate(r['Book From'])+'</td><td>'+xlDate(r['Travel From'])+'</td></tr>').join('')+'</table>'+
-    (rows.length>20?'<p style="color:var(--muted)">Showing 20 of '+rows.length+'</p>':'');
+  // room nights per offer name from sales
+  const rnMap=new Map();
+  filtered(S.sales).forEach(r=>{
+    const o=r.Offer||'';
+    if(!o) return;
+    rnMap.set(o, (rnMap.get(o)||0)+(Number(r.Nights)||0));
+  });
+  const items=rows.slice(0,30);
+  $('#tab-body').innerHTML='<table><tr><th>Property</th><th>Offer</th><th>Type</th><th>Book to</th><th>Room nights</th></tr>'+
+    items.map(r=>{
+      const name=r['Offer Name']||'';
+      const rn=rnMap.get(name)||0;
+      return '<tr><td>'+esc(r.Property||'')+'</td><td>'+esc(name)+'</td><td>'+esc(r['Offer Type']||'')+'</td><td>'+xlDate(r['Book To'])+'</td><td>'+rn.toLocaleString()+'</td></tr>';
+    }).join('')+'</table>'+
+    (rows.length>30?'<p style="color:var(--muted)">Showing 30 of '+rows.length+'</p>':'');
 }
 
 $('#btn-reset').onclick = () => {
