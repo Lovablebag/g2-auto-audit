@@ -15,7 +15,7 @@ jobs:
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'split(":")' not in page: raise SystemExit('missing')
+          if "split(':')" not in page: raise SystemExit('missing')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
