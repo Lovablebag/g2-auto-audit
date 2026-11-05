@@ -439,14 +439,14 @@ $('#cmp-type').onchange = () => {
 };
 $('#cmp-val').onchange = () => { S.cmp.val = $('#cmp-val').value; render(); };
 
-function filtered(rows, key){
+function filtered(rows, key, skipStatus){
   const f = S.filters;
   return rows.filter(r =>
     (!f.country || r.Country===f.country) &&
     (!f.master || r['Master City']===f.master) &&
     (!f.city || r.City===f.city) &&
     (!f.prop || r.Property===f.prop) &&
-    (!f.status || r.Status===f.status) &&
+    (skipStatus || !f.status || r.Status===f.status) &&
     contractOk(r, f.contract)
   );
 }
@@ -491,7 +491,7 @@ function baseline(){
   return null;
 }
 function render(){
-  const rows = filtered(S.sales);
+  const rows = S.tab==='cancellations' ? filtered(S.sales, null, true) : filtered(S.sales);
   const y25 = rows.filter(r=>(r['Created (UTC)']||'').startsWith('2025'));
   const y26 = rows.filter(r=>(r['Created (UTC)']||'').startsWith('2026'));
   const a26 = kpis(y26);
