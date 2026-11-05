@@ -8,24 +8,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Region to Auto Audit hook
+      - name: Audit button debug
         run: |
-          curl -fsSL -o index.json "https://tmpfiles.org/dl/1793888154.7ca51a1c08f42138/wBACJg0yBEcM/index.json"
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793888155.2e62b49540d824d7/wFAwJr05BaJq/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793888512.da2cad4846352ee5/wPAxJe0qNOTT/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
-          index = json.loads(Path('index.json').read_text())['html']
-          region = json.loads(Path('region.json').read_text())['html']
-          if 'region-audit-data' not in index or 'region-audit-data' not in region: raise SystemExit('missing')
-          Path('index.html').write_text(index)
-          Path('region.html').write_text(region)
-          print('wrote', len(index), len(region))
+          page = json.loads(Path('region.json').read_text())['html']
+          if 'Select a property first' not in page: raise SystemExit('missing')
+          Path('region.html').write_text(page)
+          print('wrote', len(page))
           PY
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html region.html
-          git diff --cached --quiet || git commit -m "Region audit feeds Auto Audit for exact PPTX"
+          git add region.html
+          git diff --cached --quiet || git commit -m "Region: audit button shows panel with border"
           git push
