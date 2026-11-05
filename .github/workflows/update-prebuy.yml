@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fix offer matching
+      - name: Dedupe offers
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793879318.45e4d97072bb0b33/w2ApJxJaVab3/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793879656.0dd4b465d8cd502a/wwAVJYJRXppI/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if "split(':')" not in page: raise SystemExit('missing')
+          if 'seen.has' not in page: raise SystemExit('missing')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: match offer room nights on name after code"
+          git diff --cached --quiet || git commit -m "Region: dedupe offers on property offer and book to"
           git push
