@@ -8,24 +8,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Server-side rate filters
+      - name: Add region dashboard
         run: |
-          curl -fsSL -o rates.json "https://tmpfiles.org/dl/1793368069.999f432c700b060f/wdA0HSpdGYNJ/rates.json"
-          curl -fsSL -o proxy.json "https://tmpfiles.org/dl/1793368069.07b8fc94387debba/wnA4HIpkGgxp/proxy.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793865008.b95eec76d1ee76d5/wUA6JDVgbgGv/region.json"
           python3 - << 'PY'
-          import json
+          import json, re
           from pathlib import Path
-          page = json.loads(Path('rates.json').read_text())['html']
-          proxy = json.loads(Path('proxy.json').read_text())['js']
-          if 'refundableOnly' not in page or 'maxRatesPerHotel' not in proxy: raise SystemExit('missing')
-          Path('rates.html').write_text(page)
-          Path('api/liteapi-rates.js').write_text(proxy)
-          print('wrote', len(page), len(proxy))
+          page = json.loads(Path('region.json').read_text())['html']
+          if 'Region Dashboard' not in page: raise SystemExit('missing')
+          Path('region.html').write_text(page)
+          idx = Path('index.html').read_text()
+          if 'region.html' not in idx:
+              idx = idx.replace('href="./period.html">Period Compare</a>',
+                                'href="./period.html">Period Compare</a>\n    <a class="app-nav-link" href="./region.html">Region</a>')
+              Path('index.html').write_text(idx)
+          print('wrote', len(page))
           PY
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rates.html api/liteapi-rates.js
-          git diff --cached --quiet || git commit -m "Live Rates: request refundable rates and raise the rate limit"
+          git add region.html index.html
+          git diff --cached --quiet || git commit -m "Add Region dashboard"
           git push
