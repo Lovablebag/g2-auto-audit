@@ -476,10 +476,21 @@ function cancelView(rows){
 }
 function weekdayView(rows){
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const m=days.map(()=>0);
-  rows.forEach(r=>{ const d=new Date(r['Check-In']); if(isNaN(d)) return; m[d.getDay()]+=Number(r.Nights)||0; });
+  const count=(list)=>{
+    const m=days.map(()=>0);
+    list.forEach(r=>{ const d=new Date(r['Check-In']); if(isNaN(d)) return; m[d.getDay()]+=Number(r.Nights)||0; });
+    return m;
+  };
+  const y26=rows.filter(r=>(r['Created (UTC)']||'').startsWith('2026'));
+  const base=baseline();
+  const baseRows=base?base.rows:rows.filter(r=>(r['Created (UTC)']||'').startsWith('2025'));
+  const baseLabel=base?base.label:'2025';
+  const a=count(y26), b=count(baseRows);
   $('#tab-body').innerHTML = '<div style="font-weight:600;margin-bottom:4px">Room nights by arrival day</div><div class="chart-box"><canvas id="c-wd"></canvas></div>';
-  new Chart($('#c-wd'), {type:'bar', data:{labels:days, datasets:[{data:m, backgroundColor:'#1e6fd9'}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}});
+  new Chart($('#c-wd'), {type:'bar', data:{labels:days, datasets:[
+    {label:baseLabel, data:b, backgroundColor:'#94a3b8'},
+    {label:'2026 YTD', data:a, backgroundColor:'#1e6fd9'}
+  ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true}}}});
 }
 function distTable(rows){
   const sm = topN(rows,'Source Market', 8);
