@@ -293,7 +293,7 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
         <div class="field"><label>Contract</label><select id="f-contract"><option value="">All</option><option value="Static">Static</option><option value="Margin">Margin</option><option value="Dynamic">Dynamic</option><option value="Direct">Direct</option></select></div>
         <div class="field"><label>Compare vs</label><select id="cmp-type"><option value="">None</option><option value="master">Master City</option><option value="city">City</option><option value="prop">Property</option></select></div>
         <div class="field"><label>&nbsp;</label><select id="cmp-val" disabled><option value="">Select…</option></select></div>
-        <button class="btn btn-primary" id="btn-audit" disabled>Audit property</button>
+        <button class="btn btn-primary" id="btn-audit">Audit property</button>
         <button class="btn btn-secondary" id="btn-reset">Reset</button>
       </div>
     </div>
@@ -425,7 +425,7 @@ function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&','<':'<','>':'>
     S.filters.status = $('#f-status').value;
     S.filters.contract = $('#f-contract').value;
     if(id!=='f-prop' && id!=='f-status' && id!=='f-contract') cascade();
-    $('#btn-audit').disabled = !S.filters.prop;
+    
     render();
   };
 });
@@ -896,7 +896,7 @@ $('#btn-reset').onclick = () => {
   S.filters={country:'',master:'',city:'',prop:'',status:'',contract:''};
   S.cmp={type:'',val:''};
   $('#cmp-val').disabled=true;
-  $('#btn-audit').disabled=true;
+  
   cascade();
   render();
 };
