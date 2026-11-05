@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Always clickable
+      - name: Error catching
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793889559.b3adadfa01e0805b/waA0JO7eoRuT/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793889928.e43c6e41727975e4/wQA6JQ7QXcJe/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'btn-audit">' not in page: raise SystemExit('missing')
+          if 'Error:' not in page: raise SystemExit('missing')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: audit button always clickable"
+          git diff --cached --quiet || git commit -m "Region: catch audit errors"
           git push
