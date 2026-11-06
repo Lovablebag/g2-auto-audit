@@ -109,6 +109,8 @@ $('#btn-gen-audit').onclick=()=>{
   sessionStorage.setItem('region-audit-data', JSON.stringify(data));
   location.href='./index.html#excel';
 };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
 const PC=[];
 const CHK=[
   ['release','Release','0 Day Release'],
@@ -262,7 +264,6 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
         <div class="field"><label>&nbsp;</label><select id="cmp-val" disabled><option value="">Select…</option></select></div>
         <button class="btn btn-primary" id="btn-audit" disabled>Audit property</button>
         <button class="btn btn-secondary" id="btn-reset">Reset</button>
-        
       </div>
     </div>
     <div class="kpis" id="kpis"></div>
