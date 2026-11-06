@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Remove PDF
+      - name: Restore original
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793900923.5944f50c42a8692f/wNABJvb5DfnQ/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793949315.6462a01a45ccb146/wkACJwOXPCVz/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'downloadPDF' in page: raise SystemExit('still there')
+          if 'totalBk' not in page or 'chart.js' not in page: raise SystemExit('missing')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: remove broken PDF"
+          git diff --cached --quiet || git commit -m "Region: restore original with 1% filter"
           git push
