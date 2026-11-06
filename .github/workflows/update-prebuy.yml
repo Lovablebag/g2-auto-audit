@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Restore original
+      - name: Add Audit tab
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793949315.6462a01a45ccb146/wkACJwOXPCVz/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793950081.c2f19b2bc0128a5a/wjAFJBD3lQE3/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'totalBk' not in page or 'chart.js' not in page: raise SystemExit('missing')
+          if 'auditView' not in page: raise SystemExit('missing')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: restore original with 1% filter"
+          git diff --cached --quiet || git commit -m "Region: add Audit tab with Price Check and Checklist"
           git push
