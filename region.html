@@ -614,10 +614,10 @@ function salesView(rows){
       <div><div style="font-weight:600;margin-bottom:4px">Room nights by check-in date</div><div class="chart-box"><canvas id="c-ci"></canvas></div></div>
       <div><div style="font-weight:600;margin-bottom:4px">Room nights by booking date</div><div class="chart-box"><canvas id="c-bk"></canvas></div></div>
     </div>
-    <div style="font-weight:600;margin:8px 0 4px">${base ? base.label+' vs 2026 YTD' : '2025 vs 2026 YTD'}</div>
+    <div style="font-weight:600;margin:8px 0 4px">'2025 vs 2026 YTD'</div>
     <div class="chart-box"><canvas id="c-cmp"></canvas></div>`;
-  lineChart('c-ci', MN, base ? byYearMonth(base.rows,'Check-In').y26 : ci.y25, ci.y26, base?base.label:'2025');
-  lineChart('c-bk', MN, base ? byYearMonth(base.rows,'Created (UTC)').y26 : bk.y25, bk.y26, base?base.label:'2025');
+  lineChart('c-ci', MN, ci.y25, ci.y26, '2025');
+  lineChart('c-bk', MN, bk.y25, bk.y26, '2025');
   const bK = base ? kpis(base.rows) : k25;
   const bLabel = base ? base.label : '2025';
   new Chart($('#c-cmp'), {type:'bar', data:{labels:['Room nights','Bookings','Cost /100'], datasets:[
@@ -868,8 +868,26 @@ function demandView(rows){
     <div><div style="font-weight:600;margin-bottom:4px">Cancellation type</div><div class="chart-box tall"><canvas id="d-nrf"></canvas></div></div>
     <div><div style="font-weight:600;margin-bottom:4px">Meal plan</div><div class="chart-box tall"><canvas id="d-meal"></canvas></div></div>
     <div><div style="font-weight:600;margin-bottom:4px">Occupancy</div><div class="chart-box tall"><canvas id="d-occ"></canvas></div></div>
-  </div>`;
+  </div>
+  <div style="font-weight:600;margin:16px 0 4px">Trends vs Target</div>
+  <div class="grid2">
+    <div><div style="font-weight:600;margin-bottom:4px">Room nights by check-in date</div><div class="chart-box"><canvas id="d-ci"></canvas></div></div>
+    <div><div style="font-weight:600;margin-bottom:4px">Room nights by booking date</div><div class="chart-box"><canvas id="d-bk"></canvas></div></div>
+  </div>
+  <div style="font-weight:600;margin:8px 0 4px">${esc(name)} vs Target</div>
+  <div class="chart-box"><canvas id="d-cmp"></canvas></div>`;
   setTimeout(()=>{
+    const ci=byYearMonth(sub,'Check-In');
+    const ciT=byYearMonth(tgt,'Check-In');
+    const bk=byYearMonth(sub,'Created (UTC)');
+    const bkT=byYearMonth(tgt,'Created (UTC)');
+    lineChart('d-ci', MN, ciT.y26, ci.y26, 'Target');
+    lineChart('d-bk', MN, bkT.y26, bk.y26, 'Target');
+    const kSub=kpis(sub), kTgt=kpis(tgt);
+    new Chart($('#d-cmp'), {type:'bar', data:{labels:['Room nights','Bookings','Cost /100'], datasets:[
+      {label:'Target', data:[kTgt.rn, kTgt.bookings, kTgt.cost/100], backgroundColor:'#94a3b8'},
+      {label:name, data:[kSub.rn, kSub.bookings, kSub.cost/100], backgroundColor:'#1e6fd9'}
+    ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{datalabels:{anchor:'end',align:'end',formatter:v=>v.toLocaleString(),font:{size:10}}}}});
     cmpPct('d-los', los.map(x=>x.k), pct(los.map(x=>x.n)), pct(losT.map(x=>x.n)), name);
     cmpPct('d-bw', bw.map(x=>x.k), pct(bw.map(x=>x.n)), pct(bwT.map(x=>x.n)), name);
     cmpPctH('d-mk', tgtMk, pct(mkSub), pct(mkTgt), name);
