@@ -109,8 +109,6 @@ $('#btn-gen-audit').onclick=()=>{
   sessionStorage.setItem('region-audit-data', JSON.stringify(data));
   location.href='./index.html#excel';
 };
-</script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
 const PC=[];
 const CHK=[
   ['release','Release','0 Day Release'],
@@ -264,6 +262,7 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
         <div class="field"><label>&nbsp;</label><select id="cmp-val" disabled><option value="">Select…</option></select></div>
         <button class="btn btn-primary" id="btn-audit" disabled>Audit property</button>
         <button class="btn btn-secondary" id="btn-reset">Reset</button>
+        
       </div>
     </div>
     <div class="kpis" id="kpis"></div>
@@ -307,7 +306,7 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
 <script>
 const $ = s => document.querySelector(s);
 const S = {sales:[], avail:[], plans:[], offers:[], filters:{country:'',master:'',city:'',prop:'',status:'',contract:''}, cmp:{type:'',val:''}, tab:'sales'};
-const TABS = ['Sales','Pick-up','Distributions','Cancellations','Allotment','Weekday','Demand','Offers'];
+const TABS = ['Sales','Pick-up','Distributions','Cancellations','Allotment','Weekday','Demand','Offers','Audit'];
 
 $('#dark-toggle').onclick = () => document.body.classList.toggle('dark');
 $('#drop').onclick = () => $('#files').click();
@@ -490,6 +489,56 @@ function baseline(){
   }
   return null;
 }
+function auditView(){
+  const body=$('#tab-body');
+  body.innerHTML=`<div style="margin-bottom:16px">
+    <div style="font-weight:600;margin-bottom:8px">Price Check</div>
+    <table class="tbl"><thead><tr><th>Check-in</th><th>Nts</th><th>Room</th><th>G2 NET</th><th>B2B</th><th>B2C</th><th>% B2B</th><th>% B2C</th><th>Meal</th><th>Cnx</th><th>Offer</th><th>Type</th></tr></thead>
+    <tbody id="pc-body"></tbody></table>
+    <button class="btn btn-secondary" style="margin-top:8px" onclick="addPC()">+ Add row</button>
+  </div>
+  <div>
+    <div style="font-weight:600;margin-bottom:8px">Audit Checklist</div>
+    <div id="chk-list"></div>
+  </div>`;
+  renderPC();
+  renderChk();
+}
+function renderPC(){
+  const tb=$('#pc-body');
+  if(!tb) return;
+  tb.innerHTML=PC.map((r,i)=>`<tr>
+    <td><input type="date" value="${r.cin}" onchange="PC[${i}].cin=this.value"></td>
+    <td><input type="number" value="${r.nts}" style="width:50px" onchange="PC[${i}].nts=this.value"></td>
+    <td><input value="${r.room}" onchange="PC[${i}].room=this.value"></td>
+    <td><input type="number" value="${r.g2}" style="width:70px" onchange="PC[${i}].g2=this.value;calcPC(${i})"></td>
+    <td><input type="number" value="${r.b2b}" style="width:70px" onchange="PC[${i}].b2b=this.value;calcPC(${i})"></td>
+    <td><input type="number" value="${r.b2c}" style="width:70px" onchange="PC[${i}].b2c=this.value;calcPC(${i})"></td>
+    <td id="pb${i}">${r.pb}</td><td id="pc${i}">${r.pc}</td>
+    <td><input value="${r.meal}" onchange="PC[${i}].meal=this.value"></td>
+    <td><input value="${r.cnx}" onchange="PC[${i}].cnx=this.value"></td>
+    <td><input value="${r.offer}" onchange="PC[${i}].offer=this.value"></td>
+    <td><input value="${r.type}" onchange="PC[${i}].type=this.value"></td>
+  </tr>`).join('');
+}
+function calcPC(i){
+  const r=PC[i];
+  r.pb=r.b2b?((r.g2-r.b2b)/r.b2b*100).toFixed(1)+'%':'';
+  r.pc=r.b2c?((r.g2-r.b2c)/r.b2c*100).toFixed(1)+'%':'';
+  const pb=$('#pb'+i), pc=$('#pc'+i);
+  if(pb) pb.textContent=r.pb;
+  if(pc) pc.textContent=r.pc;
+}
+function addPC(){ PC.push({cin:'',nts:1,room:'',g2:0,b2b:0,b2c:0,pb:'',pc:'',meal:'',cnx:'',offer:'',type:''}); renderPC(); }
+function renderChk(){
+  const el=$('#chk-list');
+  if(!el) return;
+  el.innerHTML=CHK.map(c=>`<div style="display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)">
+    <div style="flex:1"><strong>${c[1]}</strong><div style="font-size:11px;color:var(--muted)">${c[2]}</div></div>
+    <label><input type="radio" name="chk-${c[0]}" value="ok" ${chkState[c[0]]==='ok'?'checked':''} onchange="chkState['${c[0]}']='ok'"> No Issue</label>
+    <label><input type="radio" name="chk-${c[0]}" value="issue" ${chkState[c[0]]==='issue'?'checked':''} onchange="chkState['${c[0]}']='issue'"> Issue</label>
+  </div>`).join('');
+}
 function render(){
   const rows = filtered(S.sales);
   const y25 = rows.filter(r=>(r['Created (UTC)']||'').startsWith('2025'));
@@ -528,6 +577,7 @@ function renderTabs(rows){
   else if(S.tab==='allotment') body.innerHTML = allotTable();
   else if(S.tab==='weekday') weekdayView(rows);
   else if(S.tab==='demand') demandView(rows);
+  else if(S.tab==='audit') auditView();
   else offersView();
 }
 const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -564,10 +614,10 @@ function salesView(rows){
       <div><div style="font-weight:600;margin-bottom:4px">Room nights by check-in date</div><div class="chart-box"><canvas id="c-ci"></canvas></div></div>
       <div><div style="font-weight:600;margin-bottom:4px">Room nights by booking date</div><div class="chart-box"><canvas id="c-bk"></canvas></div></div>
     </div>
-    <div style="font-weight:600;margin:8px 0 4px">'2025 vs 2026 YTD'</div>
+    <div style="font-weight:600;margin:8px 0 4px">${base ? base.label+' vs 2026 YTD' : '2025 vs 2026 YTD'}</div>
     <div class="chart-box"><canvas id="c-cmp"></canvas></div>`;
-  lineChart('c-ci', MN, ci.y25, ci.y26, '2025');
-  lineChart('c-bk', MN, bk.y25, bk.y26, '2025');
+  lineChart('c-ci', MN, base ? byYearMonth(base.rows,'Check-In').y26 : ci.y25, ci.y26, base?base.label:'2025');
+  lineChart('c-bk', MN, base ? byYearMonth(base.rows,'Created (UTC)').y26 : bk.y25, bk.y26, base?base.label:'2025');
   const bK = base ? kpis(base.rows) : k25;
   const bLabel = base ? base.label : '2025';
   new Chart($('#c-cmp'), {type:'bar', data:{labels:['Room nights','Bookings','Cost /100'], datasets:[
@@ -818,26 +868,8 @@ function demandView(rows){
     <div><div style="font-weight:600;margin-bottom:4px">Cancellation type</div><div class="chart-box tall"><canvas id="d-nrf"></canvas></div></div>
     <div><div style="font-weight:600;margin-bottom:4px">Meal plan</div><div class="chart-box tall"><canvas id="d-meal"></canvas></div></div>
     <div><div style="font-weight:600;margin-bottom:4px">Occupancy</div><div class="chart-box tall"><canvas id="d-occ"></canvas></div></div>
-  </div>
-  <div style="font-weight:600;margin:16px 0 4px">Trends vs Target</div>
-  <div class="grid2">
-    <div><div style="font-weight:600;margin-bottom:4px">Room nights by check-in date</div><div class="chart-box"><canvas id="d-ci"></canvas></div></div>
-    <div><div style="font-weight:600;margin-bottom:4px">Room nights by booking date</div><div class="chart-box"><canvas id="d-bk"></canvas></div></div>
-  </div>
-  <div style="font-weight:600;margin:8px 0 4px">${esc(name)} vs Target</div>
-  <div class="chart-box"><canvas id="d-cmp"></canvas></div>`;
+  </div>`;
   setTimeout(()=>{
-    const ci=byYearMonth(sub,'Check-In');
-    const ciT=byYearMonth(tgt,'Check-In');
-    const bk=byYearMonth(sub,'Created (UTC)');
-    const bkT=byYearMonth(tgt,'Created (UTC)');
-    lineChart('d-ci', MN, ciT.y26, ci.y26, 'Target');
-    lineChart('d-bk', MN, bkT.y26, bk.y26, 'Target');
-    const kSub=kpis(sub), kTgt=kpis(tgt);
-    new Chart($('#d-cmp'), {type:'bar', data:{labels:['Room nights','Bookings','Cost /100'], datasets:[
-      {label:'Target', data:[kTgt.rn, kTgt.bookings, kTgt.cost/100], backgroundColor:'#94a3b8'},
-      {label:name, data:[kSub.rn, kSub.bookings, kSub.cost/100], backgroundColor:'#1e6fd9'}
-    ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{datalabels:{anchor:'end',align:'end',formatter:v=>v.toLocaleString(),font:{size:10}}}}});
     cmpPct('d-los', los.map(x=>x.k), pct(los.map(x=>x.n)), pct(losT.map(x=>x.n)), name);
     cmpPct('d-bw', bw.map(x=>x.k), pct(bw.map(x=>x.n)), pct(bwT.map(x=>x.n)), name);
     cmpPctH('d-mk', tgtMk, pct(mkSub), pct(mkTgt), name);
