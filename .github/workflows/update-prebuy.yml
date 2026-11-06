@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Final rebuild
+      - name: Weekday fix
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793951864.e73a25870ba5972b/wlA4JCDt1xgn/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793953336.da56e215f69309eb/wLAPJeDUx6cA/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if 'auditView' not in page or 'd-cmp' not in page: raise SystemExit('missing')
+          if 'd-wd' not in page: raise SystemExit('missing')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: final rebuild with Audit tab and charts"
+          git diff --cached --quiet || git commit -m "Region: Weekday shows 2025 vs 2026, added to Demand"
           git push
