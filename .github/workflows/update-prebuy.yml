@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fix Audit tab
+      - name: Rebuild clean
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793950961.7986eb7f4d203825/w9AJJhD6d27L/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793951528.12dfff3080dc3246/wpAoJGDzbyTg/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
           page = json.loads(Path('region.json').read_text())['html']
-          if "'Audit'" not in page or "S.tab==='audit'" not in page: raise SystemExit('missing')
+          if 'auditView' not in page or 'd-cmp' not in page: raise SystemExit('missing')
           Path('region.html').write_text(page)
           print('wrote', len(page))
           PY
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: fix Audit tab visibility"
+          git diff --cached --quiet || git commit -m "Region: clean rebuild with Audit tab and chart fixes"
           git push
