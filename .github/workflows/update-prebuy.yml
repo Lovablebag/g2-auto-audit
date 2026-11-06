@@ -8,9 +8,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Rebuild clean
+      - name: Final rebuild
         run: |
-          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793951528.12dfff3080dc3246/wpAoJGDzbyTg/region.json"
+          curl -fsSL -o region.json "https://tmpfiles.org/dl/1793951864.e73a25870ba5972b/wlA4JCDt1xgn/region.json"
           python3 - << 'PY'
           import json
           from pathlib import Path
@@ -24,5 +24,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add region.html
-          git diff --cached --quiet || git commit -m "Region: clean rebuild with Audit tab and chart fixes"
+          git diff --cached --quiet || git commit -m "Region: final rebuild with Audit tab and charts"
           git push
