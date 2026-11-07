@@ -665,6 +665,11 @@ const BG_DATA="image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwM
 let _D = null;
 const files = {};
 
+// The audit compares the CURRENT calendar year (YTD) with the PREVIOUS year (full year).
+// Every year in the analysis, dashboard and PPTX comes from here, so nothing needs editing each January.
+function auditYears(){ const cur = new Date().getFullYear(); return { cur: cur, prev: cur - 1 }; }
+function yrs(D){ const a = auditYears(); return { cur: (D && D.currentYear) || a.cur, prev: (D && D.prevYear) || a.prev }; }
+
 // ═══════════════════════════════════════════════════════════════════
 //  HOTEL SEARCH (LiteAPI) - inline widget on entry page
 // ═══════════════════════════════════════════════════════════════════
@@ -1871,7 +1876,7 @@ async function generateFromSources() {
     logB('Reading Demand data...','info');
     async function readSimple(k){if(!files[k])return{};const wb=await readFileXLSX(files[k]);const rows=sheetToRows(wb);const o={};rows.forEach(r=>{if(r[0]!==''&&r[1]!=='')o[String(r[0]).trim()]=parseFloat(r[1])||0;});return o;}
     async function readSM(k){if(!files[k])return[];const wb=await readFileXLSX(files[k]);const rows=sheetToRows(wb);const o=[];rows.forEach(r=>{if(r[1]&&r[2]!==''&&!['% of Total Room Nts along Source Market','RANK Room nights along Source Market'].includes(String(r[1]))){const p=parseFloat(r[2]);if(!isNaN(p))o.push([String(r[1]),p]);}});return o;}
-    async function readWD(k){if(!files[k])return Array(7).fill(0);const wb=await readFileXLSX(files[k]);const rows=sheetToRows(wb);for(const r of rows){if(r[0]&&String(r[0]).includes('2026'))return r.slice(1,8).map(v=>parseFloat(v)||0);}return Array(7).fill(0);}
+    async function readWD(k){if(!files[k])return Array(7).fill(0);const wb=await readFileXLSX(files[k]);const rows=sheetToRows(wb);const cy=String(auditYears().cur);let hit=rows.find(r=>r[0]&&String(r[0]).includes(cy));if(!hit){let best=0;rows.forEach(r=>{const m=r[0]&&String(r[0]).match(/(?<!\d)(20\d{2})(?!\d)/);if(m&&+m[1]>best){best=+m[1];hit=r;}});}return hit?hit.slice(1,8).map(v=>parseFloat(v)||0):Array(7).fill(0);}
     const hLOS=await readSimple('hlos'),hBW=await readSimple('hbw'),hSM=await readSM('hsm'),hWD=await readWD('hwd');
     const cLOS=await readSimple('clos'),cBW=await readSimple('cbw'),cSM=await readSM('csm'),cWD=await readWD('cwd');
     logB('Demand data loaded','ok');
@@ -1954,6 +1959,7 @@ function flg(type,text){
 }
 
 function analyze(raw){
+  const AY=auditYears();
   // ── S1 Hotel Info ──
   const sh1=raw["Hotel_Info"]||[];
   let prop="",city="",master="",chain="",ctype="",channel="",comm="",commRaw=null;
@@ -2093,17 +2099,17 @@ function analyze(raw){
   const cStatus=hd3.indexOf("Status");
   const cOffer3=hd3.indexOf("Offer");
   const cContract=hd3.indexOf("Contract");
-  const kpi={y25:{rn:0,bkgs:0,rev:0},y26:{rn:0,bkgs:0,rev:0}};
-  const kpi_bk={y25:{rn:0,bkgs:0,rev:0},y26:{rn:0,bkgs:0,rev:0}};
-  const monCI={m25:new Array(12).fill(0),m26:new Array(12).fill(0)};
-  const monBK={m25:new Array(12).fill(0),m26:new Array(12).fill(0)};
+  const kpi={yPrev:{rn:0,bkgs:0,rev:0},yCur:{rn:0,bkgs:0,rev:0}};
+  const kpi_bk={yPrev:{rn:0,bkgs:0,rev:0},yCur:{rn:0,bkgs:0,rev:0}};
+  const monCI={mPrev:new Array(12).fill(0),mCur:new Array(12).fill(0)};
+  const monBK={mPrev:new Array(12).fill(0),mCur:new Array(12).fill(0)};
   const wklyMap={},mlyMap={};
   const rateDist={NRF:0,Flexible:0},roomDist={},mealDist={},mktDist={},contractDist={};
   const offerDist={withOffer:0,noOffer:0},offerNames={};
   // Cancellation tracking
   const cancellation={total:0,cancelled:0,rnLost:0,revLost:0};
   const cancelByMonth=new Array(12).fill(0),cancelByMktTotal={},cancelByMktCancelled={};
-  let currentYear=2026;
+  const currentYear=AY.cur;
 
   if(cN>=0&&cCI>=0){
     for(let r=1;r<sh3.length;r++){
@@ -2119,8 +2125,8 @@ function analyze(raw){
       const n=parseFloat(row[cN])||0,cost=parseFloat(row[cC])||0;
       const sm=cSM>=0?String(row[cSM]||"").trim():"";
 
-      // Cancellation stats (2026 check-in only)
-      if(yr===2026){
+      // Cancellation stats (current-year check-in only)
+      if(yr===AY.cur){
         cancellation.total++;
         if(isCancelled){cancellation.cancelled++;cancellation.rnLost+=n;cancellation.revLost+=cost;cancelByMonth[ciDt.getMonth()]++;}
         if(sm){cancelByMktTotal[sm]=(cancelByMktTotal[sm]||0)+1;if(isCancelled)cancelByMktCancelled[sm]=(cancelByMktCancelled[sm]||0)+1;}
@@ -2129,11 +2135,11 @@ function analyze(raw){
       // Only Confirmed from here
       if(!isConfirmed)continue;
 
-      if(yr===2025){kpi.y25.rn+=n;kpi.y25.bkgs++;kpi.y25.rev+=cost;monCI.m25[ciDt.getMonth()]+=n;}
-      else if(yr===2026){kpi.y26.rn+=n;kpi.y26.bkgs++;kpi.y26.rev+=cost;monCI.m26[ciDt.getMonth()]+=n;currentYear=2026;}
+      if(yr===AY.prev){kpi.yPrev.rn+=n;kpi.yPrev.bkgs++;kpi.yPrev.rev+=cost;monCI.mPrev[ciDt.getMonth()]+=n;}
+      else if(yr===AY.cur){kpi.yCur.rn+=n;kpi.yCur.bkgs++;kpi.yCur.rev+=cost;monCI.mCur[ciDt.getMonth()]+=n;}
 
-      // Distributions for check-in year 2026
-      if(yr===2026){
+      // Distributions for the current check-in year
+      if(yr===AY.cur){
         if(cNRF>=0){if(String(row[cNRF]).trim()==="Yes")rateDist.NRF+=n;else rateDist.Flexible+=n;}
         if(cRC>=0){const k=String(row[cRC]).trim()||"Other";roomDist[k]=(roomDist[k]||0)+n;}
         if(cMB>=0){const k=String(row[cMB]).trim()||"Other";mealDist[k]=(mealDist[k]||0)+n;}
@@ -2158,9 +2164,9 @@ function analyze(raw){
         else if(typeof bk==="number")bkDt=xd(bk);
         if(bkDt&&!isNaN(bkDt)){
           const byr=bkDt.getFullYear();
-          if(byr===2025){kpi_bk.y25.rn+=n;kpi_bk.y25.bkgs++;kpi_bk.y25.rev+=cost;monBK.m25[bkDt.getMonth()]+=n;}
-          else if(byr===2026){
-            kpi_bk.y26.rn+=n;kpi_bk.y26.bkgs++;kpi_bk.y26.rev+=cost;monBK.m26[bkDt.getMonth()]+=n;
+          if(byr===AY.prev){kpi_bk.yPrev.rn+=n;kpi_bk.yPrev.bkgs++;kpi_bk.yPrev.rev+=cost;monBK.mPrev[bkDt.getMonth()]+=n;}
+          else if(byr===AY.cur){
+            kpi_bk.yCur.rn+=n;kpi_bk.yCur.bkgs++;kpi_bk.yCur.rev+=cost;monBK.mCur[bkDt.getMonth()]+=n;
             const wk="W"+String(getISOWeek(bkDt)).padStart(2,"0");
             const mk=MN[bkDt.getMonth()];
             if(!wklyMap[wk])wklyMap[wk]={rn:0,bkgs:0};
@@ -2207,9 +2213,9 @@ function analyze(raw){
   const wdLabels=(sh5[0]||[]).slice(1).map(h=>String(h).trim()).filter(h=>h&&!h.includes("SECTION"));
   const wdVals=wdLabels.map((_,i)=>{const v=parseFloat((sh5[1]||[])[i+1]);return isNaN(v)?0:Math.round(v*100);});
   const wdYr=(sh5[1]||[])[0]||"";
-  // Row 3 = 2025 data
-  const wdVals25=wdLabels.map((_,i)=>{const v=parseFloat((sh5[2]||[])[i+1]);return isNaN(v)?0:Math.round(v*100);});
-  const wdYr25=(sh5[2]||[])[0]||"";
+  // Row 3 = second series (city / target profile)
+  const wdVals2=wdLabels.map((_,i)=>{const v=parseFloat((sh5[2]||[])[i+1]);return isNaN(v)?0:Math.round(v*100);});
+  const wdYr2=(sh5[2]||[])[0]||"";
 
   // ── S6 City Demand ──
   const sh6=raw["City_Demand"]||[];
@@ -2308,20 +2314,20 @@ function analyze(raw){
   return{
     hotel:{prop,city,master,chain,ctype,channel,comm,commFlag},
     s2flags,s2rows,s2rowNotes,
-    kpi:{y25:{rn:Math.round(kpi.y25.rn),bkgs:kpi.y25.bkgs,rev:Math.round(kpi.y25.rev)},
-         y26:{rn:Math.round(kpi.y26.rn),bkgs:kpi.y26.bkgs,rev:Math.round(kpi.y26.rev)}},
-    kpi_bk:{y25:{rn:Math.round(kpi_bk.y25.rn),bkgs:kpi_bk.y25.bkgs,rev:Math.round(kpi_bk.y25.rev)},
-            y26:{rn:Math.round(kpi_bk.y26.rn),bkgs:kpi_bk.y26.bkgs,rev:Math.round(kpi_bk.y26.rev)}},
-    monCI:{m25:monCI.m25.map(Math.round),m26:monCI.m26.map(Math.round)},
-    monBK:{m25:monBK.m25.map(Math.round),m26:monBK.m26.map(Math.round)},
+    kpi:{yPrev:{rn:Math.round(kpi.yPrev.rn),bkgs:kpi.yPrev.bkgs,rev:Math.round(kpi.yPrev.rev)},
+         yCur:{rn:Math.round(kpi.yCur.rn),bkgs:kpi.yCur.bkgs,rev:Math.round(kpi.yCur.rev)}},
+    kpi_bk:{yPrev:{rn:Math.round(kpi_bk.yPrev.rn),bkgs:kpi_bk.yPrev.bkgs,rev:Math.round(kpi_bk.yPrev.rev)},
+            yCur:{rn:Math.round(kpi_bk.yCur.rn),bkgs:kpi_bk.yCur.bkgs,rev:Math.round(kpi_bk.yCur.rev)}},
+    monCI:{mPrev:monCI.mPrev.map(Math.round),mCur:monCI.mCur.map(Math.round)},
+    monBK:{mPrev:monBK.mPrev.map(Math.round),mCur:monBK.mCur.map(Math.round)},
     wklyArr,rolling,mlyPickupArr,
     rateDist:{NRF:Math.round(rateDist.NRF),Flexible:Math.round(rateDist.Flexible)},
     roomDist:Object.fromEntries(Object.entries(roomDist).map(([k,v])=>[k,Math.round(v)])),
     mealDist:Object.fromEntries(Object.entries(mealDist).map(([k,v])=>[k,Math.round(v)])),
     sourceMarket:smTop,
     allotment:{ss,so,ssGroups:groupByMonth(ss),soGroups:groupByMonth(so),total:ss.length+so.length,range:fd(today)+" to "+fd(lim)},
-    s6cats,s7issues,releaseDays,s2offerNotes,offersExpiring,hasOfferFile,currentYear,
-    weekday:{labels:wdLabels,vals:wdVals,yr:wdYr,vals25:wdVals25,yr25:wdYr25},
+    s6cats,s7issues,releaseDays,s2offerNotes,offersExpiring,hasOfferFile,currentYear,prevYear:AY.prev,
+    weekday:{labels:wdLabels,vals:wdVals,yr:wdYr,vals2:wdVals2,yr2:wdYr2},
     offerDist,offerNames,contractDist,
     cancellation,cancelByMonth,cancelRateByMkt,
     date:new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"})
@@ -2371,15 +2377,16 @@ function render(D){
 let _charts=[];
 function killCharts(){_charts.forEach(c=>{try{c.destroy();}catch(e){}});_charts=[];}
 function drawCharts(D){
+  const YR=yrs(D);
   if(typeof Chart==="undefined")return;
   const tc="rgba(0,0,0,0.45)",gc="rgba(0,0,0,0.06)";
   const MNS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   function mkLine(id,ds){const cv=document.getElementById(id);if(!cv)return;_charts.push(new Chart(cv,{type:"line",data:{labels:MNS,datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:12}}},scales:{x:{ticks:{color:tc,font:{size:9},autoSkip:false,maxRotation:0},grid:{display:false}},y:{ticks:{color:tc,font:{size:9}},grid:{color:gc}}}}}));}
   function mkBar(id,ds,opts){const cv=document.getElementById(id);if(!cv)return;_charts.push(new Chart(cv,{type:"bar",data:{labels:opts.labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,...(opts.horiz?{indexAxis:"y"}:{}),plugins:{legend:{position:opts.legendPos||"bottom",labels:{font:{size:10},boxWidth:12},display:opts.legend!==false}},scales:{x:{ticks:{color:tc,font:{size:opts.horiz?10:11},callback:opts.horiz?v=>v+"%":undefined},grid:{color:opts.horiz?gc:"rgba(0,0,0,0)"}},y:{ticks:{color:tc,font:{size:opts.horiz?10:9},callback:!opts.horiz&&opts.pct?v=>v+"%":undefined},grid:{color:opts.horiz?"rgba(0,0,0,0)":gc}}}}}));}
-  const ds2=(d25,d26)=>[{label:"2025",data:d25,borderColor:"#C0C8D8",backgroundColor:"rgba(192,200,216,0.07)",tension:0.3,pointRadius:3,borderWidth:2,fill:true},{label:"2026 YTD",data:d26,borderColor:"#1A7DC4",backgroundColor:"rgba(26,125,196,0.07)",tension:0.3,pointRadius:3,borderWidth:2,fill:true}];
-  if(D.monCI){mkLine("ch-s3a",ds2(D.monCI.m25,D.monCI.m26));}
-  if(D.monBK){mkLine("ch-s3b",ds2(D.monBK.m25,D.monBK.m26));}
-  if(D.kpi){mkBar("ch-kpi",[{label:"2025",data:[D.kpi.y25.bkgs,D.kpi.y25.rn,Math.round(D.kpi.y25.rev/100)],backgroundColor:"#C0C8D8",borderRadius:3,barPercentage:0.7},{label:"2026 YTD",data:[D.kpi.y26.bkgs,D.kpi.y26.rn,Math.round(D.kpi.y26.rev/100)],backgroundColor:"#0F5A91",borderRadius:3,barPercentage:0.7}],{labels:["Bookings","Room Nights","Revenue (÷100)"],legend:true});}
+  const ds2=(dPrev,dCur)=>[{label:String(YR.prev),data:dPrev,borderColor:"#C0C8D8",backgroundColor:"rgba(192,200,216,0.07)",tension:0.3,pointRadius:3,borderWidth:2,fill:true},{label:YR.cur+" YTD",data:dCur,borderColor:"#1A7DC4",backgroundColor:"rgba(26,125,196,0.07)",tension:0.3,pointRadius:3,borderWidth:2,fill:true}];
+  if(D.monCI){mkLine("ch-s3a",ds2(D.monCI.mPrev,D.monCI.mCur));}
+  if(D.monBK){mkLine("ch-s3b",ds2(D.monBK.mPrev,D.monBK.mCur));}
+  if(D.kpi){mkBar("ch-kpi",[{label:String(YR.prev),data:[D.kpi.yPrev.bkgs,D.kpi.yPrev.rn,Math.round(D.kpi.yPrev.rev/100)],backgroundColor:"#C0C8D8",borderRadius:3,barPercentage:0.7},{label:YR.cur+" YTD",data:[D.kpi.yCur.bkgs,D.kpi.yCur.rn,Math.round(D.kpi.yCur.rev/100)],backgroundColor:"#0F5A91",borderRadius:3,barPercentage:0.7}],{labels:["Bookings","Room Nights","Revenue (÷100)"],legend:true});}
   if(D.weekday){mkBar("ch-s5",[{label:"%",data:D.weekday.vals,backgroundColor:"#1A7DC4",borderRadius:3,barPercentage:0.6}],{labels:D.weekday.labels,legend:false,pct:true});}
   (D.s6cats||[]).forEach((cat,i)=>mkBar("ch-s6-"+i,[{label:"Hotel",data:cat.combined.map(c=>c.hotel),backgroundColor:"#1A7DC4",borderRadius:2,barPercentage:0.7},{label:"City",data:cat.combined.map(c=>c.city),backgroundColor:"#888780",borderRadius:2,barPercentage:0.7}],{labels:cat.combined.map(c=>c.label),horiz:true,legend:true,legendPos:"top"}));
   // Pick-up chart
@@ -2391,7 +2398,7 @@ function drawCharts(D){
   if(document.getElementById("ch-offdist")){const cv=document.getElementById("ch-offdist");if(cv&&D.offerDist){_charts.push(new Chart(cv,{type:"doughnut",data:{labels:["With offer","No offer"],datasets:[{data:[D.offerDist.withOffer,D.offerDist.noOffer],backgroundColor:["#0F5A91","#88BBDD"],borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:12}}}}}));}}
   if(document.getElementById("ch-offernames")){const cv=document.getElementById("ch-offernames");const ofNames=D.offerNames||{};const ofKeys=Object.keys(ofNames);if(cv&&ofKeys.length){_charts.push(new Chart(cv,{type:"doughnut",data:{labels:ofKeys,datasets:[{data:ofKeys.map(k=>ofNames[k]),backgroundColor:["#0F5A91","#1A7DC4","#55AACC","#88BBDD","#B8D4EE"],borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:12}}}}}));}}
   // Cancellation charts
-  if(document.getElementById("ch-cancmon")){const cv=document.getElementById("ch-cancmon");if(cv&&D.monCI){const MNS2=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];const cancelMon=D.cancelByMonth||new Array(12).fill(0);const monLabels=MNS2.filter((_,i)=>cancelMon[i]>0||(D.monCI&&D.monCI.m26[i]>0));const monIdxs=monLabels.map(l=>MNS2.indexOf(l));const monTotalVals=monIdxs.map(i=>D.monCI?D.monCI.m26[i]+cancelMon[i]:cancelMon[i]);const monRates=monIdxs.map((i,j)=>monTotalVals[j]>0?Math.round((cancelMon[i]/monTotalVals[j])*100):0);_charts.push(new Chart(cv,{type:"bar",data:{labels:monLabels,datasets:[{label:"Cancellation rate %",data:monRates,backgroundColor:"rgba(26,125,196,0.7)",borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc,font:{size:9}},grid:{display:false}},y:{ticks:{color:tc,font:{size:9},callback:v=>v+"%"},grid:{color:gc}}}}}));}}
+  if(document.getElementById("ch-cancmon")){const cv=document.getElementById("ch-cancmon");if(cv&&D.monCI){const MNS2=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];const cancelMon=D.cancelByMonth||new Array(12).fill(0);const monLabels=MNS2.filter((_,i)=>cancelMon[i]>0||(D.monCI&&D.monCI.mCur[i]>0));const monIdxs=monLabels.map(l=>MNS2.indexOf(l));const monTotalVals=monIdxs.map(i=>D.monCI?D.monCI.mCur[i]+cancelMon[i]:cancelMon[i]);const monRates=monIdxs.map((i,j)=>monTotalVals[j]>0?Math.round((cancelMon[i]/monTotalVals[j])*100):0);_charts.push(new Chart(cv,{type:"bar",data:{labels:monLabels,datasets:[{label:"Cancellation rate %",data:monRates,backgroundColor:"rgba(26,125,196,0.7)",borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc,font:{size:9}},grid:{display:false}},y:{ticks:{color:tc,font:{size:9},callback:v=>v+"%"},grid:{color:gc}}}}}));}}
   if(document.getElementById("ch-cancmkt")){const cv=document.getElementById("ch-cancmkt");const mktData=D.cancelRateByMkt||[];if(cv&&mktData.length){_charts.push(new Chart(cv,{type:"bar",data:{labels:mktData.map(m=>m.mkt),datasets:[{label:"Rate %",data:mktData.map(m=>m.rate),backgroundColor:"rgba(26,125,196,0.7)",borderRadius:2}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc,font:{size:9},callback:v=>v+"%"},grid:{color:gc}},y:{ticks:{color:tc,font:{size:10}},grid:{display:false}}}}}));}}
   // Demand Capture Radar
   if(document.getElementById("ch-radar")){
@@ -2444,16 +2451,16 @@ function vS2(D){
   </div>`;
 }
 function vS3(D){
-  const y25=D.kpi.y25,y26=D.kpi.y26;
+  const yPrev=D.kpi.yPrev,yCur=D.kpi.yCur,YR=yrs(D);
   setTimeout(()=>drawCharts(D),80);
   return`<div class="sc"><div class="stitle">Section 3 &nbsp;·&nbsp; Sales overview</div>
-    <div class="mgrid">${[["Room nights 2025",y25.rn.toLocaleString()],["Room nights 2026 YTD",y26.rn.toLocaleString()],["Bookings 2025",y25.bkgs.toLocaleString()],["Bookings 2026 YTD",y26.bkgs.toLocaleString()],["Revenue 2025","EUR "+y25.rev.toLocaleString()],["Revenue 2026 YTD","EUR "+y26.rev.toLocaleString()]].map(([l,v])=>`<div class="mcard"><div class="mlabel">${l}</div><div class="mvalue">${v}</div></div>`).join("")}</div>
+    <div class="mgrid">${[["Room nights "+YR.prev,yPrev.rn.toLocaleString()],["Room nights "+YR.cur+" YTD",yCur.rn.toLocaleString()],["Bookings "+YR.prev,yPrev.bkgs.toLocaleString()],["Bookings "+YR.cur+" YTD",yCur.bkgs.toLocaleString()],["Revenue "+YR.prev,"EUR "+yPrev.rev.toLocaleString()],["Revenue "+YR.cur+" YTD","EUR "+yCur.rev.toLocaleString()]].map(([l,v])=>`<div class="mcard"><div class="mlabel">${l}</div><div class="mvalue">${v}</div></div>`).join("")}</div>
     <p class="section-note" style="margin-bottom:.75rem">NRF: ${D.rateDist.NRF.toLocaleString()} RN &nbsp;|&nbsp; Flexible: ${D.rateDist.Flexible.toLocaleString()} RN</p>
     <p style="font-size:13px;font-weight:600;margin-bottom:5px">Room nights by check-in date</p>
     <div style="height:210px"><canvas id="ch-s3a"></canvas></div>
     <p style="font-size:13px;font-weight:600;margin:1rem 0 5px">Room nights by booking date</p>
     <div style="height:210px"><canvas id="ch-s3b"></canvas></div>
-    <p style="font-size:13px;font-weight:600;margin:1rem 0 5px">KPI comparison 2025 vs 2026</p>
+    <p style="font-size:13px;font-weight:600;margin:1rem 0 5px">KPI comparison ${YR.prev} vs ${YR.cur}</p>
     <div style="height:210px"><canvas id="ch-kpi"></canvas></div>
   </div>`;
 }
@@ -2518,7 +2525,7 @@ function vS3c(D){
   const mlyAgg={};
   mlyRaw.forEach(m=>{if(!mlyAgg[m.lbl])mlyAgg[m.lbl]={lbl:m.lbl,rn:0,bkgs:0,rev:0};mlyAgg[m.lbl].rn+=m.rn;mlyAgg[m.lbl].bkgs+=m.bkgs;mlyAgg[m.lbl].rev+=m.rev;});
   const mly=Object.values(mlyAgg);
-  const currentYear=D.currentYear||2026;
+  const currentYear=yrs(D).cur;
   let cards=[];
   if(mly.length>=4){
     const sorted=[...mly].sort((a,b)=>b.rn-a.rn);
@@ -2610,7 +2617,7 @@ function distEditorRows(field,dict){
 }
 function vS3d(D){
   setTimeout(()=>drawCharts(D),80);
-  const currentYear=D.currentYear||2026;
+  const currentYear=yrs(D).cur;
   D.rateDist=D.rateDist||{NRF:0,Flexible:0};
   D.offerDist=D.offerDist||{withOffer:0,noOffer:0};
   const contKeys=Object.keys(D.contractDist||{});
@@ -2682,7 +2689,7 @@ function vS3d(D){
 // ── Cancellation Analysis ──
 function vS3e(D){
   setTimeout(()=>drawCharts(D),80);
-  const currentYear=D.currentYear||2026;
+  const currentYear=yrs(D).cur;
   const canc=D.cancellation||{total:0,cancelled:0,rnLost:0,revLost:0};
   const cancRate=canc.total>0?Math.round((canc.cancelled/canc.total)*100):0;
   const kpis=[
@@ -2823,7 +2830,8 @@ async function generatePPTX(){
   progWrap.style.display="block";pfill.style.width="10%";
   try{
     const D=_D;
-    const currentYear=D.currentYear||2026;
+    const currentYear=yrs(D).cur;
+    const prevYear=yrs(D).prev;
     const C={
       blue:"1A7DC4",dkblue:"0F5A91",ltblue:"E8F3FB",midblue:"D0E8F5",
       white:"FFFFFF",dark:"1A1A2E",gray:"555566",lgray:"F4F6FA",mgray:"C0C8D8",
@@ -2980,15 +2988,15 @@ function bigKpi(slide, x, y, w, h, value, label, sub) {
 {
   const sl=pres.addSlide();
   chrome(sl,++slideNum,"Sales Overview: KPI Summary");
-  slideTitle(sl,"Sales Performance 2026 YTD vs 2025 Full Year","Room nights by check-in date");
-  const rnChg=D.kpi.y26.rn-D.kpi.y25.rn, bChg=D.kpi.y26.bkgs-D.kpi.y25.bkgs, revChg=D.kpi.y26.rev-D.kpi.y25.rev;
+  slideTitle(sl,"Sales Performance "+currentYear+" YTD vs "+prevYear+" Full Year","Room nights by check-in date");
+  const rnChg=D.kpi.yCur.rn-D.kpi.yPrev.rn, bChg=D.kpi.yCur.bkgs-D.kpi.yPrev.bkgs, revChg=D.kpi.yCur.rev-D.kpi.yPrev.rev;
   const kw=4.05;
-  bigKpi(sl,0.35,1.5,kw,1.5,String(D.kpi.y26.bkgs),"Bookings 2026 YTD",(bChg>0?"+":"")+bChg+" vs full-year 2025");
-  bigKpi(sl,0.35+kw+0.18,1.5,kw,1.5,String(D.kpi.y26.rn),"Room Nights 2026 YTD",(rnChg>0?"+":"")+rnChg+" vs full-year 2025");
-  bigKpi(sl,0.35+(kw+0.18)*2,1.5,kw,1.5,"EUR "+Math.round(D.kpi.y26.rev/1000)+"k","Revenue 2026 YTD",(revChg>0?"+":"")+"EUR "+Math.abs(Math.round(revChg/1000))+"k vs full-year 2025");
+  bigKpi(sl,0.35,1.5,kw,1.5,String(D.kpi.yCur.bkgs),"Bookings "+currentYear+" YTD",(bChg>0?"+":"")+bChg+" vs full-year "+prevYear);
+  bigKpi(sl,0.35+kw+0.18,1.5,kw,1.5,String(D.kpi.yCur.rn),"Room Nights "+currentYear+" YTD",(rnChg>0?"+":"")+rnChg+" vs full-year "+prevYear);
+  bigKpi(sl,0.35+(kw+0.18)*2,1.5,kw,1.5,"EUR "+Math.round(D.kpi.yCur.rev/1000)+"k","Revenue "+currentYear+" YTD",(revChg>0?"+":"")+"EUR "+Math.abs(Math.round(revChg/1000))+"k vs full-year "+prevYear);
   sl.addChart(pres.charts.BAR,[
-    {name:"2025 Full Year",labels:["Bookings","Room Nights","Revenue (div 100)"],values:[D.kpi.y25.bkgs,D.kpi.y25.rn,Math.round(D.kpi.y25.rev/100)]},
-    {name:"2026 YTD",labels:["Bookings","Room Nights","Revenue (div 100)"],values:[D.kpi.y26.bkgs,D.kpi.y26.rn,Math.round(D.kpi.y26.rev/100)]},
+    {name:prevYear+" Full Year",labels:["Bookings","Room Nights","Revenue (div 100)"],values:[D.kpi.yPrev.bkgs,D.kpi.yPrev.rn,Math.round(D.kpi.yPrev.rev/100)]},
+    {name:currentYear+" YTD",labels:["Bookings","Room Nights","Revenue (div 100)"],values:[D.kpi.yCur.bkgs,D.kpi.yCur.rn,Math.round(D.kpi.yCur.rev/100)]},
   ],{x:0.35,y:3.15,w:12.5,h:3.55,barDir:"col",barGrouping:"clustered",chartColors:["B8D0E8",C.dkblue],chartArea:{fill:{color:C.white}},catAxisLabelColor:C.gray,valAxisLabelColor:C.gray,valGridLine:{color:"E8ECF4",size:0.5},catGridLine:{style:"none"},showLegend:true,legendPos:"b",legendFontSize:10,catAxisFontSize:12,valAxisFontSize:9,showValue:true,dataLabelFontSize:9,dataLabelColor:C.dark});
 }
 
@@ -2996,12 +3004,12 @@ function bigKpi(slide, x, y, w, h, value, label, sub) {
 {
   const sl=pres.addSlide();
   chrome(sl,++slideNum,"Sales Overview: Monthly Trend");
-  slideTitle(sl,"Room Nights by Check-in Month","2025 full year vs 2026 YTD");
+  slideTitle(sl,"Room Nights by Check-in Month",prevYear+" full year vs "+currentYear+" YTD");
   sl.addChart(pres.charts.LINE,[
-    {name:"2025",labels:MN,values:D.monCI.m25},
-    {name:"2026 YTD",labels:MN,values:D.monCI.m26},
+    {name:String(prevYear),labels:MN,values:D.monCI.mPrev},
+    {name:currentYear+" YTD",labels:MN,values:D.monCI.mCur},
   ],{x:0.35,y:1.5,w:12.5,h:3.9,lineSize:2,lineSmooth:false,chartColors:[C.mgray,C.blue],chartArea:{fill:{color:C.white}},catAxisLabelColor:C.gray,valAxisLabelColor:C.gray,valGridLine:{color:"E8ECF4",size:0.5},catGridLine:{style:"none"},showLegend:true,legendPos:"b",legendFontSize:10,catAxisFontSize:11});
-  const hds2=["Metric","2025 Full Year","2026 YTD","Change"];
+  const hds2=["Metric",prevYear+" Full Year",currentYear+" YTD","Change"];
   const tw2=[4.4,2.5,2.5,3.0]; let cx3=0.35;
   hds2.forEach((h,i)=>{
     sl.addShape(pres.shapes.RECTANGLE,{x:cx3,y:5.52,w:tw2[i],h:0.3,fill:{color:C.dkblue},line:{type:"none"}});
@@ -3009,9 +3017,9 @@ function bigKpi(slide, x, y, w, h, value, label, sub) {
     cx3+=tw2[i];
   });
   const rows2=[
-    ["Room nights",D.kpi.y25.rn.toLocaleString(),D.kpi.y26.rn.toLocaleString(),(D.kpi.y26.rn-D.kpi.y25.rn>0?"+":"")+((D.kpi.y26.rn-D.kpi.y25.rn)/D.kpi.y25.rn*100).toFixed(1)+"%"],
-    ["Bookings",D.kpi.y25.bkgs.toLocaleString(),D.kpi.y26.bkgs.toLocaleString(),(D.kpi.y26.bkgs-D.kpi.y25.bkgs>0?"+":"")+((D.kpi.y26.bkgs-D.kpi.y25.bkgs)/D.kpi.y25.bkgs*100).toFixed(1)+"%"],
-    ["Revenue","EUR "+D.kpi.y25.rev.toLocaleString(),"EUR "+D.kpi.y26.rev.toLocaleString(),(D.kpi.y26.rev-D.kpi.y25.rev>0?"+":"")+(((D.kpi.y26.rev-D.kpi.y25.rev)/D.kpi.y25.rev)*100).toFixed(1)+"%"],
+    ["Room nights",D.kpi.yPrev.rn.toLocaleString(),D.kpi.yCur.rn.toLocaleString(),(D.kpi.yCur.rn-D.kpi.yPrev.rn>0?"+":"")+((D.kpi.yCur.rn-D.kpi.yPrev.rn)/D.kpi.yPrev.rn*100).toFixed(1)+"%"],
+    ["Bookings",D.kpi.yPrev.bkgs.toLocaleString(),D.kpi.yCur.bkgs.toLocaleString(),(D.kpi.yCur.bkgs-D.kpi.yPrev.bkgs>0?"+":"")+((D.kpi.yCur.bkgs-D.kpi.yPrev.bkgs)/D.kpi.yPrev.bkgs*100).toFixed(1)+"%"],
+    ["Revenue","EUR "+D.kpi.yPrev.rev.toLocaleString(),"EUR "+D.kpi.yCur.rev.toLocaleString(),(D.kpi.yCur.rev-D.kpi.yPrev.rev>0?"+":"")+(((D.kpi.yCur.rev-D.kpi.yPrev.rev)/D.kpi.yPrev.rev)*100).toFixed(1)+"%"],
   ];
   rows2.forEach((row,ri)=>{
     const bgc=ri%2===0?C.white:C.lgray; let cx4=0.35;
@@ -3029,14 +3037,14 @@ function bigKpi(slide, x, y, w, h, value, label, sub) {
 {
   const sl=pres.addSlide();
   chrome(sl,++slideNum,"Sales Overview: Booking Date Trend");
-  slideTitle(sl,"Room Nights by Booking Date","2025 full year vs 2026 YTD (by date booking was created)");
-  const m25bk=D.monBK.m25;
-  const m26bk=D.monBK.m26;
+  slideTitle(sl,"Room Nights by Booking Date",prevYear+" full year vs "+currentYear+" YTD (by date booking was created)");
+  const mPrevBk=D.monBK.mPrev;
+  const mCurBk=D.monBK.mCur;
   sl.addChart(pres.charts.LINE,[
-    {name:"2025",labels:MN,values:m25bk},
-    {name:"2026 YTD",labels:MN,values:m26bk},
+    {name:String(prevYear),labels:MN,values:mPrevBk},
+    {name:currentYear+" YTD",labels:MN,values:mCurBk},
   ],{x:0.35,y:1.5,w:12.5,h:3.9,lineSize:2,lineSmooth:false,chartColors:[C.mgray,C.blue],chartArea:{fill:{color:C.white}},catAxisLabelColor:C.gray,valAxisLabelColor:C.gray,valGridLine:{color:"E8ECF4",size:0.5},catGridLine:{style:"none"},showLegend:true,legendPos:"b",legendFontSize:10,catAxisFontSize:11});
-  const hds2=["Metric","2025 Full Year","2026 YTD","Change"];
+  const hds2=["Metric",prevYear+" Full Year",currentYear+" YTD","Change"];
   const tw2=[4.4,2.5,2.5,3.0]; let cx3=0.35;
   hds2.forEach((h,i)=>{
     sl.addShape(pres.shapes.RECTANGLE,{x:cx3,y:5.52,w:tw2[i],h:0.3,fill:{color:C.dkblue},line:{type:"none"}});
@@ -3044,9 +3052,9 @@ function bigKpi(slide, x, y, w, h, value, label, sub) {
     cx3+=tw2[i];
   });
   const rows2=[
-    ["Room nights",D.kpi.y25.rn.toLocaleString(),D.kpi_bk.y26.rn.toLocaleString(),(D.kpi_bk.y26.rn-D.kpi.y25.rn>0?"+":"") + ((D.kpi_bk.y26.rn-D.kpi.y25.rn)/D.kpi.y25.rn*100).toFixed(1)+"%"],
-    ["Bookings",D.kpi.y25.bkgs.toLocaleString(),D.kpi_bk.y26.bkgs.toLocaleString(),(D.kpi_bk.y26.bkgs-D.kpi.y25.bkgs>0?"+":"")+((D.kpi_bk.y26.bkgs-D.kpi.y25.bkgs)/D.kpi.y25.bkgs*100).toFixed(1)+"%"],
-    ["Revenue","EUR "+D.kpi.y25.rev.toLocaleString(),"EUR "+D.kpi_bk.y26.rev.toLocaleString(),(D.kpi_bk.y26.rev-D.kpi.y25.rev>0?"+":"")+(((D.kpi_bk.y26.rev-D.kpi.y25.rev)/D.kpi.y25.rev)*100).toFixed(1)+"%"],
+    ["Room nights",D.kpi.yPrev.rn.toLocaleString(),D.kpi_bk.yCur.rn.toLocaleString(),(D.kpi_bk.yCur.rn-D.kpi.yPrev.rn>0?"+":"") + ((D.kpi_bk.yCur.rn-D.kpi.yPrev.rn)/D.kpi.yPrev.rn*100).toFixed(1)+"%"],
+    ["Bookings",D.kpi.yPrev.bkgs.toLocaleString(),D.kpi_bk.yCur.bkgs.toLocaleString(),(D.kpi_bk.yCur.bkgs-D.kpi.yPrev.bkgs>0?"+":"")+((D.kpi_bk.yCur.bkgs-D.kpi.yPrev.bkgs)/D.kpi.yPrev.bkgs*100).toFixed(1)+"%"],
+    ["Revenue","EUR "+D.kpi.yPrev.rev.toLocaleString(),"EUR "+D.kpi_bk.yCur.rev.toLocaleString(),(D.kpi_bk.yCur.rev-D.kpi.yPrev.rev>0?"+":"")+(((D.kpi_bk.yCur.rev-D.kpi.yPrev.rev)/D.kpi.yPrev.rev)*100).toFixed(1)+"%"],
   ];
   rows2.forEach((row,ri)=>{
     const bgc=ri%2===0?C.white:C.lgray; let cx4=0.35;
@@ -3105,15 +3113,15 @@ function bigKpi(slide, x, y, w, h, value, label, sub) {
 {
   const sl=pres.addSlide();
   chrome(sl,++slideNum,"Demand Alignment");
-  const hasY25=D.weekday.vals25&&D.weekday.vals25.some(v=>v>0);
+  const hasSeries2=D.weekday.vals2&&D.weekday.vals2.some(v=>v>0);
   const subTitle="Check-in demand by day of week: Hotel Performance vs Strategic Target Profile";
   slideTitle(sl,"Demand Alignment",subTitle);
   const relabelSeries=n=>String(n||"").replace(/^City\b/i,"Target Profile");
   const datasets=[];
-  if(hasY25)datasets.push({name:relabelSeries(D.weekday.yr25||"2025"),labels:D.weekday.labels,values:D.weekday.vals25});
-  datasets.push({name:relabelSeries(D.weekday.yr||"2026"),labels:D.weekday.labels,values:D.weekday.vals});
-  const colors=hasY25?["888780",C.blue]:[C.blue];
-  sl.addChart(pres.charts.BAR,datasets,{x:0.35,y:1.5,w:12.5,h:5.3,barDir:"col",barGrouping:"clustered",chartColors:colors,chartArea:{fill:{color:C.white}},catAxisLabelColor:C.gray,valAxisLabelColor:C.gray,valGridLine:{color:"E8ECF4",size:0.5},catGridLine:{style:"none"},showValue:true,dataLabelFontSize:9,dataLabelColor:C.dkblue,dataLabelPosition:"outEnd",showLegend:hasY25,legendPos:"b",legendFontSize:10,catAxisFontSize:11,valAxisFontSize:9,valAxisNumFmt:'0"%"',dataLabelFormatCode:'0"%"'});
+  if(hasSeries2)datasets.push({name:relabelSeries(D.weekday.yr2||String(prevYear)),labels:D.weekday.labels,values:D.weekday.vals2});
+  datasets.push({name:relabelSeries(D.weekday.yr||String(currentYear)),labels:D.weekday.labels,values:D.weekday.vals});
+  const colors=hasSeries2?["888780",C.blue]:[C.blue];
+  sl.addChart(pres.charts.BAR,datasets,{x:0.35,y:1.5,w:12.5,h:5.3,barDir:"col",barGrouping:"clustered",chartColors:colors,chartArea:{fill:{color:C.white}},catAxisLabelColor:C.gray,valAxisLabelColor:C.gray,valGridLine:{color:"E8ECF4",size:0.5},catGridLine:{style:"none"},showValue:true,dataLabelFontSize:9,dataLabelColor:C.dkblue,dataLabelPosition:"outEnd",showLegend:hasSeries2,legendPos:"b",legendFontSize:10,catAxisFontSize:11,valAxisFontSize:9,valAxisNumFmt:'0"%"',dataLabelFormatCode:'0"%"'});
 }
 
 // ── S6 DEMAND ALIGNMENT (LOS / Booking Window / Source Markets) ──────────────
@@ -3149,7 +3157,7 @@ D.s6cats.forEach((cat,ci)=>{
 {
   const sl=pres.addSlide();
   chrome(sl,++slideNum,"Offers");
-  slideTitle(sl,"Offers","Live offers expiring within 30 days  |  Booking distribution by offer (2026 YTD confirmed)");
+  slideTitle(sl,"Offers","Live offers expiring within 30 days  |  Booking distribution by offer ("+currentYear+" YTD confirmed)");
   const exp=D.offersExpiring||[];
   let fy=1.5;
   // Flag: no Offer Details file loaded
@@ -3322,9 +3330,9 @@ D.s6cats.forEach((cat,ci)=>{
   // Monthly cancellation trend bar chart
   const cancelMon=D.cancelByMonth||new Array(12).fill(0);
   const MNfull=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const monLabels=MNfull.filter((_,i)=>cancelMon[i]>0||(D.monCI&&D.monCI.m26[i]>0));
+  const monLabels=MNfull.filter((_,i)=>cancelMon[i]>0||(D.monCI&&D.monCI.mCur[i]>0));
   const monIdxs=monLabels.map(l=>MNfull.indexOf(l));
-  const monTotalVals=monIdxs.map(i=>D.monCI?D.monCI.m26[i]+cancelMon[i]:cancelMon[i]);
+  const monTotalVals=monIdxs.map(i=>D.monCI?D.monCI.mCur[i]+cancelMon[i]:cancelMon[i]);
   const monRates=monIdxs.map((i,j)=>monTotalVals[j]>0?Math.round((cancelMon[i]/monTotalVals[j])*100):0);
   sl.addChart(pres.charts.BAR,[
     {name:"Cancellation rate %",labels:monLabels,values:monRates},
