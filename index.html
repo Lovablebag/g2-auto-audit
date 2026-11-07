@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Auto Audit v4.4 - G2 Travel</title>
+<title>Auto Audit - G2 Travel</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
@@ -127,16 +127,7 @@ if(typeof PptxGenJS !== "undefined") window.PptxGenJS = PptxGenJS;
   --pc-th-bg:#0d1829;--pc-th-color:#c8d8f0;--pc-th-border:#1e3050;--pc-th-calc-bg:#0f2a4a;
   --pc-term-short:#5aaaf0;--pc-term-medium:#f0aa50;--pc-term-long:#50d080;
 }
-.dark-toggle{background:none;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .2s;display:flex;align-items:center;gap:6px;margin-left:auto}
-.dark-toggle:hover{background:rgba(255,255,255,.12);color:#fff}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-.header{background:var(--blue);padding:.75rem 2rem;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;border-bottom:3px solid var(--dkblue)}
-.logo-mark{font-size:11px;font-weight:700;color:#fff;letter-spacing:.12em;text-transform:uppercase;background:rgba(255,255,255,.18);padding:4px 11px;border-radius:5px}
-.header-title{font-size:15px;font-weight:600;color:#fff}
-.header-sub{font-size:11px;color:rgba(255,255,255,.6)}
-.header-badge{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.75);font-size:11px;padding:3px 9px;border-radius:20px;margin-left:auto;font-family:monospace}
-.dark-toggle{background:none;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .2s;display:flex;align-items:center;gap:6px;margin-left:8px}
-.dark-toggle:hover{background:rgba(255,255,255,.12);color:#fff}
 .main{max-width:1020px;margin:0 auto;padding:2rem 1.5rem 5rem}
 .page-title{font-size:24px;font-weight:700;color:var(--text);margin-bottom:4px}
 .page-sub{color:var(--muted);font-size:13px;margin-bottom:28px}
@@ -319,34 +310,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .btn-gen:disabled{opacity:.5;cursor:default}
 
 
-.app-nav{display:flex;align-items:center;gap:4px;margin-left:14px;flex-wrap:wrap;flex:1}
-.app-nav-link{color:rgba(255,255,255,.75);text-decoration:none;font-size:12px;font-weight:600;padding:6px 11px;border-radius:20px;border:1px solid transparent;white-space:nowrap;background:none;cursor:pointer;font-family:inherit}
-.app-nav-link:hover{background:rgba(255,255,255,.12);color:#fff}
-.app-nav-link.is-active{background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.2)}
 #phase-entry .entry-grid{display:none}
-@media(max-width:1100px){.app-nav-link{font-size:11px;padding:5px 9px}}
 </style>
+<link rel="stylesheet" href="./nav.css">
 </head>
 <body>
 
-<header class="header">
-  <div class="logo-mark">G2</div>
-  <div><div class="header-title">G2 Travel</div><div class="header-sub">Contract & Availability Tools</div></div>
-  <nav class="app-nav" aria-label="Tools">
-    <a class="app-nav-link" href="#files" data-nav="files">Auto Audit (Files)</a>
-    <a class="app-nav-link" href="#excel" data-nav="excel">Auto Audit (Excel)</a>
-    <a class="app-nav-link" href="#price" data-nav="price">Price Check</a>
-    <a class="app-nav-link" href="#search" data-nav="search">Hotel Search</a>
-    <a class="app-nav-link" href="./topup.html" data-nav="topup">Top-up Desk</a>
-    <a class="app-nav-link" href="./rates.html">Live Rates</a>
-    <a class="app-nav-link" href="./uuid.html">Property UUID</a>
-    <a class="app-nav-link" href="./prebuy.html" data-nav="prebuy">Pre-buy Price Check</a>
-    <a class="app-nav-link" href="./period.html">Period Compare</a>
-    <a class="app-nav-link" href="./region.html">Region</a>
-  </nav>
-  <div class="header-badge">v4.4</div>
-  <button class="dark-toggle" id="dark-toggle" title="Toggle dark mode">🌙 Dark</button>
-</header>
+<header class="header" id="g2-header" data-page="index"></header>
+<script src="./nav.js"></script>
 
 <div class="main">
 
@@ -358,11 +329,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
       <div class="entry-icon">📂</div>
       <div class="entry-title">Build from Source Files</div>
       <div class="entry-desc">Upload your raw CSV and XLSX files - hotel info auto-fills, Price Check is interactive, dashboard and PPTX generated in one click.</div>
-    </div>
-    <div class="entry-card" id="card-excel">
-      <div class="entry-icon">📊</div>
-      <div class="entry-title">Upload Existing Audit Excel</div>
-      <div class="entry-desc">Already have a generated AUTO_AUDIT .xlsx? Upload it directly to view the dashboard and generate the PPTX.</div>
     </div>
     <div class="entry-card" id="card-pricecheck">
       <div class="entry-icon">💲</div>
@@ -462,38 +428,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
   <div class="phase-nav">
     <button class="btn-secondary" id="btn-back-entry-pc2">← Back</button>
     <button class="btn-primary" id="btn-download-pc2">⬇️ Download Excel</button>
-  </div>
-</div>
-
-<!-- EXCEL UPLOAD -->
-<div id="phase-excel" class="phase">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
-    <button class="btn-secondary" id="btn-back-entry-excel">← Back</button>
-    <span style="font-size:14px;font-weight:600;color:var(--text)">Upload Audit Excel</span>
-  </div>
-  <div id="upload-area">
-    <div class="upload-card" id="dz">
-      <div class="upload-icon">📊</div>
-      <p style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:8px">Upload hotel audit Excel file</p>
-      <p style="font-size:13px;color:#888;margin-bottom:1.5rem">Drop your .xlsx file here or click to browse</p>
-      <p style="font-size:11px;color:#bbb;line-height:1.8">Required sheets: Hotel_Info · Price_Check · Sales_Overview<br>Allotment · Weekday · City_Demand · Audit_Flags</p>
-      <input type="file" id="fi" accept=".xlsx,.xls" style="display:none">
-    </div>
-  </div>
-  <div id="results" style="display:none">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-      <button class="btn-secondary" id="btn-reset-excel">← Load new file</button>
-    </div>
-    <div class="sbar" id="sbar"></div>
-    <div class="tabs" id="tabbar"></div>
-    <div id="tc"></div>
-    <div class="action-row">
-      <button class="btn-gen" id="genBtn">&#62;&nbsp; Generate PPTX</button>
-    </div>
-    <div class="status-box" id="status"></div>
-    <div class="progress-wrap" id="progWrap">
-      <div class="progress-track"><div class="progress-fill" id="pfill"></div></div>
-    </div>
   </div>
 </div>
 
@@ -861,7 +795,6 @@ function setAppNav(active) {
   });
 }
 function navKeyFromPhase(id) {
-  if (id === 'phase-excel') return 'excel';
   if (id === 'phase-pricecheck') return 'price';
   if (id === 'phase-entry') return 'search';
   if (id === 'phase-build1' || id === 'phase-build2' || id === 'phase-dashboard') return 'files';
@@ -870,7 +803,6 @@ function navKeyFromPhase(id) {
 function goAppNav(key) {
   if (key === 'topup') { window.location.href = './topup.html'; return; }
   if (key === 'files') showPhase('phase-build1');
-  else if (key === 'excel') showPhase('phase-excel');
   else if (key === 'price') { showPhase('phase-pricecheck'); if (typeof renderPCTablePC2 === 'function') renderPCTablePC2(); }
   else showPhase('phase-entry');
   if (history.replaceState) history.replaceState(null, '', '#' + (key || 'search'));
@@ -908,14 +840,14 @@ window.addEventListener('DOMContentLoaded', function() {
     if (hash === 'audit') {
       showPhase('phase-build2');
       try { const a=JSON.parse(sessionStorage.getItem('region-audit')||'{}'); if(a.property){ const f=id=>document.getElementById(id); if(f('f-property')) f('f-property').value=a.property; if(f('f-city')) f('f-city').value=a.city||''; if(f('f-mastercity')) f('f-mastercity').value=a.master||''; } } catch(e){}
-    } else if (hash === 'files' || hash === 'excel' || hash === 'price' || hash === 'search') goAppNav(hash);
+    } else if (hash === 'files' || hash === 'price' || hash === 'search') goAppNav(hash);
+    else if (hash === 'excel') goAppNav('files'); // Excel upload retired: old links go to the Files audit
     else setAppNav('search');
   }
   applyHash();
   window.addEventListener('hashchange', applyHash);
   // Entry cards
   document.getElementById('card-build').addEventListener('click', function() { showPhase('phase-build1'); });
-  document.getElementById('card-excel').addEventListener('click', function() { showPhase('phase-excel'); });
   document.getElementById('card-pricecheck').addEventListener('click', function() { showPhase('phase-pricecheck'); renderPCTablePC2(); });
   // Hotel Search widget (inline on entry page)
   (function(){
@@ -948,7 +880,6 @@ window.addEventListener('DOMContentLoaded', function() {
   document.getElementById('pc2-import-input').addEventListener('change', function(e) { if(e.target.files[0]) importPriceCheckExcelPC2(e.target.files[0]); e.target.value=''; });
   document.getElementById('btn-download-pc2').addEventListener('click',   function() { downloadPriceCheckExcel(); });
   // Back buttons
-  document.getElementById('btn-back-entry-excel').addEventListener('click', function() { showPhase('phase-entry'); });
   document.getElementById('btn-back-entry-b1').addEventListener('click',    function() { showPhase('phase-entry'); });
   document.getElementById('btn-back-b1').addEventListener('click',          function() { showPhase('phase-build1'); });
   document.getElementById('btn-back-b2').addEventListener('click',          function() { showPhase('phase-build2'); });
@@ -959,7 +890,6 @@ window.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-add-row').addEventListener('click',          function() { addPCRow(); });
   document.getElementById('btn-import-pc').addEventListener('click',        function() { document.getElementById('pc-import-input').click(); });
   document.getElementById('pc-import-input').addEventListener('change',    function(e) { if(e.target.files[0]) importPriceCheckExcel(e.target.files[0]); e.target.value=''; });
-  document.getElementById('btn-reset-excel').addEventListener('click',      function() { resetExcel(); });
   // Smart folder/file upload
   document.getElementById('smart-folder-input').addEventListener('change', function(e) {
     if (e.target.files.length) processFiles(e.target.files);
@@ -1002,14 +932,7 @@ window.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // Excel upload
-  document.getElementById('dz').addEventListener('click', function() { document.getElementById('fi').click(); });
-  document.getElementById('fi').addEventListener('change', function(e) { if(e.target.files[0]) loadExcel(e.target.files[0]); });
-  document.getElementById('dz').addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('drag'); });
-  document.getElementById('dz').addEventListener('dragleave', function() { this.classList.remove('drag'); });
-  document.getElementById('dz').addEventListener('drop', function(e) { e.preventDefault(); this.classList.remove('drag'); if(e.dataTransfer.files[0]) loadExcel(e.dataTransfer.files[0]); });
   // PPTX buttons
-  document.getElementById('genBtn').addEventListener('click',  function() { runPPTX('genBtn','status','progWrap','pfill'); });
   document.getElementById('genBtn2').addEventListener('click', function() { runPPTX('genBtn2','status2','progWrap2','pfill2'); });
   // Dark mode toggle
   (function(){
@@ -1032,32 +955,6 @@ window.addEventListener('DOMContentLoaded', function() {
   renderPCTable();
   renderS8Checklist();
 });
-
-// ═══════════════════════════════════════════════════════════════════
-//  EXCEL UPLOAD FLOW
-// ═══════════════════════════════════════════════════════════════════
-function resetExcel() {
-  _D = null;
-  document.getElementById('results').style.display = 'none';
-  document.getElementById('upload-area').style.display = 'block';
-  document.getElementById('fi').value = '';
-}
-
-function loadExcel(file) {
-  const r = new FileReader();
-  r.onload = function(e) {
-    try {
-      const wb = XLSX.read(e.target.result, {type:'array'});
-      const d = {};
-      wb.SheetNames.forEach(n => { d[n] = XLSX.utils.sheet_to_json(wb.Sheets[n], {header:1, defval:''}); });
-      _D = analyze(d);
-      document.getElementById('upload-area').style.display = 'none';
-      document.getElementById('results').style.display = 'block';
-      renderDashboard('sbar', 'tabbar', 'tc', _D);
-    } catch(err) { alert('Error reading file: ' + err.message); }
-  };
-  r.readAsArrayBuffer(file);
-}
 
 // ═══════════════════════════════════════════════════════════════════
 //  SHARED DASHBOARD RENDER
@@ -2334,44 +2231,6 @@ function analyze(raw){
   };
 }
 
-// ── Preview rendering ──
-function render(D){
-  document.getElementById("upload-area").style.display="none";
-  document.getElementById("results").style.display="block";
-  let red=0,yel=0,grn=0;
-  if(D.hotel.commFlag.type==="red")red++;else grn++;
-  D.s2flags.forEach(f=>f.type==="red"?red++:f.type==="yellow"?yel++:grn++);
-  if(D.allotment.ss.length>0)red++;if(D.allotment.so.length>0)red++;
-  D.s6cats.forEach(c=>{if(c.missed.length)red++;});
-  D.s7issues.forEach(()=>red++);
-  document.getElementById("sbar").innerHTML=
-    `<span style="font-size:13px;font-weight:600;color:#1a1a2e;margin-right:6px">${D.hotel.prop||"Hotel"} &nbsp;·&nbsp; ${D.hotel.city||""}</span>`+
-    `<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#666"><span class="dot dr"></span>${red} issue${red!==1?"s":""}</span>`+
-    `<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#666"><span class="dot dy"></span>${yel} mixed</span>`+
-    `<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#666"><span class="dot dg"></span>${grn} ok</span>`;
-  const secs=[
-    {label:"Hotel info",        fn:()=>vS1(D)},
-    {label:"Price check",       fn:()=>vS2(D)},
-    {label:"Sales",             fn:()=>vS3(D)},
-    {label:"Pick-up",           fn:()=>vS3c(D)},
-    {label:"Distributions",     fn:()=>vS3d(D)},
-    {label:"Cancellations",     fn:()=>vS3e(D)},
-    {label:"Allotment",         fn:()=>vS4(D)},
-    {label:"Weekday",           fn:()=>vS5(D)},
-    {label:"City demand",       fn:()=>vS6(D)},
-    {label:"Offers & Flags",    fn:()=>vS7(D)},
-    {label:"Observed Gaps",     fn:()=>vS8gaps(D)},
-  ];
-  const tb=document.getElementById("tabbar");tb.innerHTML="";
-  secs.forEach((s,i)=>{
-    const b=document.createElement("button");
-    b.className="tab"+(i===0?" active":"");
-    b.textContent=s.label;
-    b.onclick=()=>{document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));b.classList.add("active");killCharts();document.getElementById("tc").innerHTML=s.fn();};
-    tb.appendChild(b);
-  });
-  document.getElementById("tc").innerHTML=secs[0].fn();
-}
 
 
 let _charts=[];
