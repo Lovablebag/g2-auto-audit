@@ -170,19 +170,10 @@ $('#btn-gen-audit').onclick=()=>{
 };
 </script>
 <style>
-:root{--blue:#1e6fd9;--navy:#0f2c5b;--bg:#f4f6f9;--card:#fff;--text:#1a1a2e;--muted:#6b7280;--line:#e5e7eb;--ok:#16a34a;--bad:#dc2626;--radius:10px}
+:root{--blue:#1A7DC4;--navy:#0f2c5b;--bg:#f4f6f9;--card:#fff;--text:#1a1a2e;--muted:#6b7280;--line:#e5e7eb;--ok:#16a34a;--bad:#dc2626;--radius:10px}
 body.dark{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--line:#334155}
 *{box-sizing:border-box}
 body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
-.header{display:flex;align-items:center;gap:16px;background:var(--blue);color:#fff;padding:10px 20px;flex-wrap:wrap}
-.logo-mark{background:#fff;color:var(--blue);font-weight:700;padding:4px 8px;border-radius:6px}
-.header-title{font-weight:700;font-size:15px}
-.header-sub{font-size:11px;opacity:.8}
-.app-nav{display:flex;gap:6px;flex-wrap:wrap;margin-left:12px}
-.app-nav-link{color:#fff;text-decoration:none;padding:6px 10px;border-radius:6px;font-size:13px;opacity:.85}
-.app-nav-link:hover,.app-nav-link.active{background:rgba(255,255,255,.15);opacity:1}
-.header-badge{margin-left:auto;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:12px;font-size:12px}
-.dark-toggle{background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer}
 .main{max-width:1280px;margin:0 auto;padding:20px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:16px}
 .upload-zone{border:2px dashed var(--line);border-radius:var(--radius);padding:12px 16px;text-align:center;cursor:pointer}
@@ -217,25 +208,11 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
 .progress{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:8px 0}
 .progress>div{height:100%;background:var(--blue);width:0;transition:width .2s}
 </style>
+<link rel="stylesheet" href="./nav.css">
 </head>
 <body>
-<header class="header">
-  <div class="logo-mark">G2</div>
-  <div><div class="header-title">G2 Travel</div><div class="header-sub">Contract & Availability Tools</div></div>
-  <nav class="app-nav">
-    <a class="app-nav-link" href="./index.html#files">Auto Audit (Files)</a>
-    <a class="app-nav-link" href="./index.html#price">Price Check</a>
-    <a class="app-nav-link" href="./index.html#search">Hotel Search</a>
-    <a class="app-nav-link" href="./topup.html">Top-up Desk</a>
-    <a class="app-nav-link" href="./rates.html">Live Rates</a>
-    <a class="app-nav-link" href="./uuid.html">Property UUID</a>
-    <a class="app-nav-link" href="./prebuy.html">Pre-buy Price Check</a>
-    <a class="app-nav-link" href="./period.html">Period Compare</a>
-    <a class="app-nav-link active" href="./region.html">Region</a>
-  </nav>
-  <div class="header-badge">v4.4</div>
-  <button class="dark-toggle" id="dark-toggle">🌙 Dark</button>
-</header>
+<header class="header" id="g2-header" data-page="region"></header>
+<script src="./nav.js"></script>
 <div class="main">
   <div id="upload-card" class="card">
     <h2 style="margin:0 0 8px">Region Dashboard</h2>
@@ -307,7 +284,7 @@ const $ = s => document.querySelector(s);
 const S = {sales:[], avail:[], plans:[], offers:[], filters:{country:'',master:'',city:'',prop:'',status:'',contract:''}, cmp:{type:'',val:''}, tab:'sales'};
 const TABS = ['Sales','Pick-up','Distributions','Cancellations','Allotment','Weekday','Demand','Offers','Audit'];
 
-$('#dark-toggle').onclick = () => document.body.classList.toggle('dark');
+$('#dark-toggle').onclick = () => { const d = document.body.classList.toggle('dark'); $('#dark-toggle').textContent = d ? '\u2600\uFE0F Light' : '\uD83C\uDF19 Dark'; };
 $('#drop').onclick = () => $('#files').click();
 $('#drop').ondragover = e => { e.preventDefault(); };
 $('#drop').ondrop = e => { e.preventDefault(); handleFiles(e.dataTransfer.files); };
