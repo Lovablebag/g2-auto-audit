@@ -4,171 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Region Dashboard · G2 Travel</title>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">
-const PC=[];
-const CHK=[
-  ['release','Release','0 Day Release'],
-  ['stopsales','Stop-sales','Stop-sales or full closures'],
-  ['rateplans','Rate Plans','All rate plan mix loaded'],
-  ['roomtypes','Room Types','All available room types loaded'],
-  ['restrictions','Restrictions','Booking or stay restrictions'],
-  ['status','Status','Contract status active'],
-  ['offers','Active Offers','Tactical offers loaded'],
-  ['opaque','Opaque','Opaque rate plan loaded']
-];
-const chkState={};
-CHK.forEach(c=>chkState[c[0]]='ok');
-function openAudit(){
-  const prop=S.filters.prop;
-  const rows=filtered(S.sales);
-  const first=rows[0]||{};
-  $('#audit-prop').textContent=prop;
-  $('#ai-prop').value=prop;
-  $('#ai-city').value=S.filters.city||first.City||'';
-  $('#ai-master').value=S.filters.master||first['Master City']||'';
-  $('#ai-chain').value=first.Chain||'';
-  $('#ai-contract').value=first.Contract||'';
-  $('#ai-owner').value=first['Contract Owner']||'';
-  if(!PC.length) PC.push({cin:'',nts:1,room:'',meal:'',cnx:'',g2:'',b2b:'',b2c:''});
-  renderPC();
-  renderChk();
-  $('#audit-step1').style.display='block';
-  $('#audit-step2').style.display='none';
-  $('#audit-flow').style.display='block';
-  $('#audit-flow').scrollIntoView({behavior:'smooth'});
-}
-function renderPC(){
-  $('#pc-body').innerHTML=PC.map((r,i)=>`<tr>
-    <td><input type="date" value="${r.cin}" onchange="PC[${i}].cin=this.value"></td>
-    <td><input type="number" value="${r.nts}" style="width:50px" onchange="PC[${i}].nts=this.value"></td>
-    <td><input value="${r.room}" onchange="PC[${i}].room=this.value"></td>
-    <td><input value="${r.meal}" onchange="PC[${i}].meal=this.value"></td>
-    <td><input value="${r.cnx}" onchange="PC[${i}].cnx=this.value"></td>
-    <td><input type="number" value="${r.g2}" style="width:70px" onchange="PC[${i}].g2=this.value;renderPC()"></td>
-    <td><input type="number" value="${r.b2b}" style="width:70px" onchange="PC[${i}].b2b=this.value;renderPC()"></td>
-    <td><input type="number" value="${r.b2c}" style="width:70px" onchange="PC[${i}].b2c=this.value;renderPC()"></td>
-    <td>${r.b2c?(Number(r.b2c)*0.85).toFixed(2):'-'}</td>
-    <td>${r.g2&&r.b2b?((Number(r.b2b)-Number(r.g2))/Number(r.g2)*100).toFixed(1)+'%':'-'}</td>
-  </tr>`).join('');
-}
-function renderChk(){
-  $('#chk-grid').innerHTML=CHK.map(c=>`<div style="border:1px solid var(--line);border-radius:8px;padding:8px">
-    <div style="font-weight:600">${c[1]}</div>
-    <div style="font-size:11px;color:var(--muted)">${c[2]}</div>
-    <label><input type="radio" name="chk-${c[0]}" value="ok" ${chkState[c[0]]==='ok'?'checked':''} onchange="chkState['${c[0]}']='ok'"> No Issue</label>
-    <label><input type="radio" name="chk-${c[0]}" value="issue" ${chkState[c[0]]==='issue'?'checked':''} onchange="chkState['${c[0]}']='issue'"> Issue</label>
-  </div>`).join('');
-}
-function auditDash(){
-  const rows=filtered(S.sales);
-  const y25=rows.filter(r=>(r['Created (UTC)']||'').startsWith('2025'));
-  const y26=rows.filter(r=>(r['Created (UTC)']||'').startsWith('2026'));
-  const a25=kpis(y25), a26=kpis(y26);
-  const ci=byYearMonth(rows,'Check-In'), bk=byYearMonth(rows,'Created (UTC)');
-  $('#audit-dash').innerHTML=`<div class="kpis" style="margin-bottom:12px">
-    <div class="kpi"><div class="l">Room nights 2025</div><div class="v">${a25.rn.toLocaleString()}</div></div>
-    <div class="kpi"><div class="l">Room nights 2026 YTD</div><div class="v">${a26.rn.toLocaleString()}</div></div>
-    <div class="kpi"><div class="l">Cost 2025</div><div class="v">€${Math.round(a25.cost).toLocaleString()}</div></div>
-    <div class="kpi"><div class="l">Cost 2026 YTD</div><div class="v">€${Math.round(a26.cost).toLocaleString()}</div></div>
-  </div>
-  <div class="grid2">
-    <div><div style="font-weight:600;margin-bottom:4px">Room nights by check-in</div><div class="chart-box"><canvas id="a-ci"></canvas></div></div>
-    <div><div style="font-weight:600;margin-bottom:4px">Room nights by booking date</div><div class="chart-box"><canvas id="a-bk"></canvas></div></div>
-  </div>`;
-  setTimeout(()=>{
-    lineChart('a-ci', MN, ci.y25, ci.y26);
-    lineChart('a-bk', MN, bk.y25, bk.y26);
-  }, 50);
-}
-$('#btn-close-audit').onclick=()=>$('#audit-flow').style.display='none';
-$('#btn-add-pc').onclick=()=>{PC.push({cin:'',nts:1,room:'',meal:'',cnx:'',g2:'',b2b:'',b2c:''});renderPC();};
-$('#btn-to-dash').onclick=()=>{
-  $('#audit-step1').style.display='none';
-  $('#audit-step2').style.display='block';
-  auditDash();
-};
-$('#btn-back-step1').onclick=()=>{
-  $('#audit-step2').style.display='none';
-  $('#audit-step1').style.display='block';
-};
-$('#btn-gen-audit').onclick=()=>{
-  const rows=filtered(S.sales);
-  const y25=rows.filter(r=>(r['Created (UTC)']||'').startsWith('2025'));
-  const y26=rows.filter(r=>(r['Created (UTC)']||'').startsWith('2026'));
-  const a25=kpis(y25), a26=kpis(y26);
-  const data={
-    Hotel_Info:[['Property:',$('#ai-prop').value],['City:',$('#ai-city').value],['Master City:',$('#ai-master').value],['Chain',$('#ai-chain').value],['Contract Type:',$('#ai-contract').value],['Contract Owner:',$('#ai-owner').value]],
-    Price_Check:[['Check-in','Nts','Room','Meal','Cnx','G2','B2B','B2C']].concat(PC.map(r=>[r.cin,r.nts,r.room,r.meal,r.cnx,r.g2,r.b2b,r.b2c])),
-    Sales_Overview:[['Metric','2025','2026'],['Room nights',a25.rn,a26.rn],['Cost',a25.cost,a26.cost],['Bookings',a25.bookings,a26.bookings]],
-    Allotment:[],
-    Weekday:[],
-    City_Demand:[],
-    Offers:[],
-    Audit_Flags:CHK.map(c=>[c[1],'','',c[2],'',chkState[c[0]]==='issue'?'TRUE':'FALSE',''])
-  };
-  sessionStorage.setItem('region-audit-data', JSON.stringify(data));
-  location.href='./index.html#excel';
-};
-const PC=[];
-const CHK=[
-  ['release','Release','0 Day Release'],
-  ['stopsales','Stop-sales','Stop-sales or full closures'],
-  ['rateplans','Rate Plans','All rate plan mix loaded'],
-  ['roomtypes','Room Types','All available room types loaded'],
-  ['restrictions','Restrictions','Booking or stay restrictions'],
-  ['status','Status','Contract status active'],
-  ['offers','Active Offers','Tactical offers loaded'],
-  ['opaque','Opaque','Opaque rate plan loaded']
-];
-const chkState={};
-CHK.forEach(c=>chkState[c[0]]='ok');
-function openAudit(){
-  $('#audit-prop').textContent=S.filters.prop;
-  if(!PC.length) PC.push({cin:'',nts:1,room:'',meal:'',cnx:'',g2:'',b2b:'',b2c:''});
-  renderPC();
-  renderChk();
-  $('#audit-panel').style.display='block';
-  $('#audit-panel').scrollIntoView({behavior:'smooth'});
-}
-function renderPC(){
-  $('#pc-body').innerHTML=PC.map((r,i)=>`<tr>
-    <td><input type="date" value="${r.cin}" onchange="PC[${i}].cin=this.value"></td>
-    <td><input type="number" value="${r.nts}" style="width:50px" onchange="PC[${i}].nts=this.value"></td>
-    <td><input value="${r.room}" onchange="PC[${i}].room=this.value"></td>
-    <td><input value="${r.meal}" onchange="PC[${i}].meal=this.value"></td>
-    <td><input value="${r.cnx}" onchange="PC[${i}].cnx=this.value"></td>
-    <td><input type="number" value="${r.g2}" style="width:70px" onchange="PC[${i}].g2=this.value;renderPC()"></td>
-    <td><input type="number" value="${r.b2b}" style="width:70px" onchange="PC[${i}].b2b=this.value;renderPC()"></td>
-    <td><input type="number" value="${r.b2c}" style="width:70px" onchange="PC[${i}].b2c=this.value;renderPC()"></td>
-    <td>${r.b2c?(Number(r.b2c)*0.85).toFixed(2):'-'}</td>
-    <td>${r.g2&&r.b2b?((Number(r.b2b)-Number(r.g2))/Number(r.g2)*100).toFixed(1)+'%':'-'}</td>
-  </tr>`).join('');
-}
-function renderChk(){
-  $('#chk-grid').innerHTML=CHK.map(c=>`<div style="border:1px solid var(--line);border-radius:8px;padding:8px">
-    <div style="font-weight:600">${c[1]}</div>
-    <div style="font-size:11px;color:var(--muted)">${c[2]}</div>
-    <label><input type="radio" name="chk-${c[0]}" value="ok" ${chkState[c[0]]==='ok'?'checked':''} onchange="chkState['${c[0]}']='ok'"> No Issue</label>
-    <label><input type="radio" name="chk-${c[0]}" value="issue" ${chkState[c[0]]==='issue'?'checked':''} onchange="chkState['${c[0]}']='issue'"> Issue</label>
-  </div>`).join('');
-}
-$('#btn-close-audit').onclick=()=>$('#audit-panel').style.display='none';
-$('#btn-add-pc').onclick=()=>{PC.push({cin:'',nts:1,room:'',meal:'',cnx:'',g2:'',b2b:'',b2c:''});renderPC();};
-$('#btn-gen-audit').onclick=()=>{
-  const rows=[['Property',S.filters.prop],['City',S.filters.city],['Master City',S.filters.master],[],['Price Check'],['Check-in','Nts','Room','Meal','Cnx','G2','B2B','B2C','B2C NET','%']];
-  PC.forEach(r=>{
-    const net=r.b2c?(Number(r.b2c)*0.85).toFixed(2):'';
-    const pct=r.g2&&r.b2b?((Number(r.b2b)-Number(r.g2))/Number(r.g2)*100).toFixed(1):'';
-    rows.push([r.cin,r.nts,r.room,r.meal,r.cnx,r.g2,r.b2b,r.b2c,net,pct]);
-  });
-  rows.push([],['Checklist']);
-  CHK.forEach(c=>rows.push([c[1],chkState[c[0]]]));
-  const ws=XLSX.utils.aoa_to_sheet(rows);
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Audit');
-  XLSX.writeFile(wb,(S.filters.prop||'audit')+'-audit.xlsx');
-};
-</script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root{--blue:#1e6fd9;--navy:#0f2c5b;--bg:#f4f6f9;--card:#fff;--text:#1a1a2e;--muted:#6b7280;--line:#e5e7eb;--ok:#16a34a;--bad:#dc2626;--radius:10px}
 body.dark{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--line:#334155}
@@ -272,36 +109,6 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
     </div>
   </div>
 </div>
-<div id="audit-flow" class="card" style="display:none;margin-top:14px">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-    <div style="font-weight:700">Audit — <span id="audit-prop"></span></div>
-    <button class="btn btn-secondary" id="btn-close-audit">Close</button>
-  </div>
-  <div id="audit-step1">
-    <div style="font-weight:600;margin-bottom:6px">Hotel Info</div>
-    <div class="filters" style="margin-bottom:12px">
-      <div class="f"><label>Property</label><input id="ai-prop"></div>
-      <div class="f"><label>City</label><input id="ai-city"></div>
-      <div class="f"><label>Master City</label><input id="ai-master"></div>
-      <div class="f"><label>Chain</label><input id="ai-chain"></div>
-      <div class="f"><label>Contract Type</label><input id="ai-contract"></div>
-      <div class="f"><label>Owner</label><input id="ai-owner"></div>
-    </div>
-    <div style="font-weight:600;margin-bottom:6px">Price Check</div>
-    <div style="overflow-x:auto"><table id="pc-table"><thead><tr>
-      <th>Check-in</th><th>Nts</th><th>Room</th><th>Meal</th><th>Cnx</th><th>G2 €</th><th>B2B €</th><th>B2C €</th><th>B2C NET</th><th>%</th>
-    </tr></thead><tbody id="pc-body"></tbody></table></div>
-    <button class="btn btn-secondary" id="btn-add-pc" style="margin:8px 0">+ Add row</button>
-    <div style="font-weight:600;margin:12px 0 6px">Audit Checklist</div>
-    <div id="chk-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
-    <div style="margin-top:14px"><button class="btn btn-primary" id="btn-to-dash">Continue to dashboard</button></div>
-  </div>
-  <div id="audit-step2" style="display:none">
-    <button class="btn btn-secondary" id="btn-back-step1">← Edit Price Check</button>
-    <div id="audit-dash" style="margin-top:12px"></div>
-    <div style="margin-top:14px"><button class="btn btn-primary" id="btn-gen-audit">Generate PPTX</button></div>
-  </div>
-</div>
 </div>
 <script>
 const $ = s => document.querySelector(s);
@@ -326,17 +133,23 @@ async function handleFiles(fileList){
   if(!sales.length || !avail.length || !rp || !od){
     msg('Need Daily Creations, Availability, Rate Plan and Offer Details.','err'); return;
   }
+  S.sales=[]; S.avail=[]; S.plans=[]; S.offers=[];
+  S.filters={country:'',master:'',city:'',prop:'',status:'',contract:''}; S.cmp={type:'',val:''};
+  ['f-country','f-master','f-city','f-prop','f-status','f-contract','cmp-type','cmp-val'].forEach(id=>{ const el=$('#'+id); if(el) el.value=''; });
   msg('Reading '+files.length+' files…');
   $('#prog').classList.remove('hidden');
   const total = sales.length + avail.length + 2;
   let done = 0;
   const tick = () => { done++; $('#prog div').style.width = Math.round(done/total*100)+'%'; };
-  for(const f of sales){ S.sales.push(...await parseCSV(f)); tick(); }
-  for(const f of avail){ S.avail.push(...await parseCSV(f)); tick(); }
+  for(const f of sales){ for(const r of await parseCSV(f)) S.sales.push(r); tick(); }
+  for(const f of avail){ for(const r of await parseCSV(f)) S.avail.push(r); tick(); }
   S.plans = await parseXLSX(rp, 'Contract ID'); tick();
   S.offers = await parseXLSX(od, 'Contract ID'); tick();
   msg(S.sales.length.toLocaleString()+' sales rows · '+S.avail.length.toLocaleString()+' availability rows · '+S.plans.length+' rate plans · '+S.offers.length+' offers');
+  const badDates = S.sales.filter(r=>!/^\d{4}-\d{2}-\d{2}/.test(r['Created (UTC)']||'')).length;
+  if(badDates) msg($('#msg').textContent+' — ⚠ '+badDates.toLocaleString()+' rows have an unreadable creation date and are excluded from the year figures.','err');
   buildFilters();
+  $('#files').value='';
   $('#dash').classList.remove('hidden');
   render();
 }
@@ -346,7 +159,7 @@ function parseCSV(file){
     const r = new FileReader();
     r.onload = () => {
       const lines = r.result.split(/\r?\n/);
-      const head = splitCSV(lines[0]);
+      const head = splitCSV(lines[0]).map((h,i)=>i?h:h.replace(/^\uFEFF/,''));
       const rows = [];
       for(let i=1;i<lines.length;i++){
         if(!lines[i]) continue;
@@ -355,10 +168,23 @@ function parseCSV(file){
         head.forEach((h,j)=> o[h]=c[j]||'');
         rows.push(o);
       }
+      normDates(rows);
       res(rows);
     };
     r.onerror = rej;
     r.readAsText(file);
+  });
+}
+const DATE_COLS=['Created (UTC)','Check-In','Check-Out','Date'];
+// Accept dd/mm/yyyy, dd.mm.yyyy, dd-mm-yyyy or mm/dd/yyyy (auto-detected per file; dd/mm if ambiguous) and convert to ISO.
+function normDates(rows){
+  const re=/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})(.*)$/;
+  DATE_COLS.forEach(col=>{
+    let mdy=false;
+    for(const r of rows){ const m=re.exec(r[col]||''); if(m){ if(+m[1]>12){ mdy=false; break; } if(+m[2]>12){ mdy=true; break; } } }
+    for(const r of rows){ const m=re.exec(r[col]||''); if(!m) continue;
+      const d=mdy?m[2]:m[1], mo=mdy?m[1]:m[2];
+      r[col]=m[3]+'-'+mo.padStart(2,'0')+'-'+d.padStart(2,'0')+m[4]; }
   });
 }
 function splitCSV(line){
@@ -415,7 +241,7 @@ function fill(sel, vals){
   if(vals.includes(cur)) sel.value = cur;
 }
 function uniq(a){ return [...new Set(a)]; }
-function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&','<':'<','>':'>','"':'"'}[c])); }
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 ['f-country','f-master','f-city','f-prop','f-status','f-contract'].forEach(id=>{
   $('#'+id).onchange = () => {
@@ -556,7 +382,7 @@ function render(){
     ['Cost '+baseLabel, '€'+Math.round(aBase.cost).toLocaleString(), null],
     ['Cost '+CUR_YEAR+' YTD', '€'+Math.round(aCur.cost).toLocaleString(), delta(aCur.cost, aBase.cost)],
     ['ADR '+CUR_YEAR, '€'+aCur.adr.toFixed(0), delta(aCur.adr, aBase.adr)],
-    ['Cancel '+CUR_YEAR, aCur.cancelPct.toFixed(1)+'%', delta(aCur.cancelPct, aBase.cancelPct, true)],
+    ['Cancel rate '+CUR_YEAR+' (% of lines)', aCur.cancelPct.toFixed(1)+'%', delta(aCur.cancelPct, aBase.cancelPct, true)],
     ['Multi-room '+CUR_YEAR, aCur.multi.toLocaleString(), null],
     ['Bookings '+CUR_YEAR, aCur.bookings.toLocaleString(), delta(aCur.bookings, aBase.bookings)]
   ];
@@ -569,7 +395,9 @@ function delta(a,b,lowerBetter){
   const good = lowerBetter ? d<0 : d>0;
   return {txt:(d>0?'+':'')+d.toFixed(1)+'%', cls: good?'up':'down'};
 }
+function destroyCharts(){ if(window.Chart && Chart.instances) Object.values(Chart.instances).forEach(c=>c.destroy()); }
 function renderTabs(rows){
+  destroyCharts();
   $('#tabs').innerHTML = TABS.map(t=>'<button class="tab'+(S.tab===t.toLowerCase()?' on':'')+'" data-t="'+t.toLowerCase()+'">'+t+'</button>').join('');
   $('#tabs').onclick = e => { if(e.target.dataset.t){ S.tab=e.target.dataset.t; renderTabs(rows); } };
   const body = $('#tab-body');
@@ -612,12 +440,12 @@ function salesView(rows){
       <div class="kpi"><div class="l">Cost ${PREV_YEAR}</div><div class="v">€${Math.round(kPrev.cost).toLocaleString()}</div></div>
       <div class="kpi"><div class="l">Cost ${CUR_YEAR} YTD</div><div class="v">€${Math.round(kCur.cost).toLocaleString()}</div></div>
     </div>
-    <p style="color:var(--muted);font-size:12px">NRF: ${nrf.toLocaleString()} RN · Flexible: ${flex.toLocaleString()} RN</p>
+    <p style="color:var(--muted);font-size:12px">Room nights, cost and ADR include cancelled lines. NRF: ${nrf.toLocaleString()} RN · Flexible: ${flex.toLocaleString()} RN</p>
     <div class="grid2">
       <div><div style="font-weight:600;margin-bottom:4px">Room nights by check-in date</div><div class="chart-box"><canvas id="c-ci"></canvas></div></div>
       <div><div style="font-weight:600;margin-bottom:4px">Room nights by booking date</div><div class="chart-box"><canvas id="c-bk"></canvas></div></div>
     </div>
-    <div style="font-weight:600;margin:8px 0 4px">'${PREV_YEAR} vs ${CUR_YEAR} YTD'</div>
+    <div style="font-weight:600;margin:8px 0 4px">${PREV_YEAR} vs ${CUR_YEAR} YTD</div>
     <div class="chart-box"><canvas id="c-cmp"></canvas></div>`;
   lineChart('c-ci', MN, ci.yPrev, ci.yCur, PREV_S);
   lineChart('c-bk', MN, bk.yPrev, bk.yCur, PREV_S);
@@ -980,9 +808,9 @@ $('#btn-reset').onclick = () => {
   render();
 };
 $('#btn-audit').onclick = () => {
-  this.style.background='red';
-  if(!S.filters.prop){ alert('Select a property first'); return; }
-  try { openAudit(); } catch(e) { alert('Error: '+e.message); }
+  if(!S.filters.prop){ msg('Select a property first.','err'); return; }
+  S.tab='audit'; render();
+  $('#tab-body').scrollIntoView({behavior:'smooth'});
 };
 
 const PC=[];
@@ -998,52 +826,6 @@ const CHK=[
 ];
 const chkState={};
 CHK.forEach(c=>chkState[c[0]]='ok');
-function openAudit(){
-  $('#audit-prop').textContent=S.filters.prop;
-  if(!PC.length) PC.push({cin:'',nts:1,room:'',meal:'',cnx:'',g2:'',b2b:'',b2c:''});
-  renderPC();
-  renderChk();
-  $('#audit-panel').style.display='block';
-  $('#audit-panel').scrollIntoView({behavior:'smooth'});
-}
-function renderPC(){
-  $('#pc-body').innerHTML=PC.map((r,i)=>`<tr>
-    <td><input type="date" value="${r.cin}" onchange="PC[${i}].cin=this.value"></td>
-    <td><input type="number" value="${r.nts}" style="width:50px" onchange="PC[${i}].nts=this.value"></td>
-    <td><input value="${r.room}" onchange="PC[${i}].room=this.value"></td>
-    <td><input value="${r.meal}" onchange="PC[${i}].meal=this.value"></td>
-    <td><input value="${r.cnx}" onchange="PC[${i}].cnx=this.value"></td>
-    <td><input type="number" value="${r.g2}" style="width:70px" onchange="PC[${i}].g2=this.value;renderPC()"></td>
-    <td><input type="number" value="${r.b2b}" style="width:70px" onchange="PC[${i}].b2b=this.value;renderPC()"></td>
-    <td><input type="number" value="${r.b2c}" style="width:70px" onchange="PC[${i}].b2c=this.value;renderPC()"></td>
-    <td>${r.b2c?(Number(r.b2c)*0.85).toFixed(2):'-'}</td>
-    <td>${r.g2&&r.b2b?((Number(r.b2b)-Number(r.g2))/Number(r.g2)*100).toFixed(1)+'%':'-'}</td>
-  </tr>`).join('');
-}
-function renderChk(){
-  $('#chk-grid').innerHTML=CHK.map(c=>`<div style="border:1px solid var(--line);border-radius:8px;padding:8px">
-    <div style="font-weight:600">${c[1]}</div>
-    <div style="font-size:11px;color:var(--muted)">${c[2]}</div>
-    <label><input type="radio" name="chk-${c[0]}" value="ok" ${chkState[c[0]]==='ok'?'checked':''} onchange="chkState['${c[0]}']='ok'"> No Issue</label>
-    <label><input type="radio" name="chk-${c[0]}" value="issue" ${chkState[c[0]]==='issue'?'checked':''} onchange="chkState['${c[0]}']='issue'"> Issue</label>
-  </div>`).join('');
-}
-$('#btn-close-audit').onclick=()=>$('#audit-panel').style.display='none';
-$('#btn-add-pc').onclick=()=>{PC.push({cin:'',nts:1,room:'',meal:'',cnx:'',g2:'',b2b:'',b2c:''});renderPC();};
-$('#btn-gen-audit').onclick=()=>{
-  const rows=[['Property',S.filters.prop],['City',S.filters.city],['Master City',S.filters.master],[],['Price Check'],['Check-in','Nts','Room','Meal','Cnx','G2','B2B','B2C','B2C NET','%']];
-  PC.forEach(r=>{
-    const net=r.b2c?(Number(r.b2c)*0.85).toFixed(2):'';
-    const pct=r.g2&&r.b2b?((Number(r.b2b)-Number(r.g2))/Number(r.g2)*100).toFixed(1):'';
-    rows.push([r.cin,r.nts,r.room,r.meal,r.cnx,r.g2,r.b2b,r.b2c,net,pct]);
-  });
-  rows.push([],['Checklist']);
-  CHK.forEach(c=>rows.push([c[1],chkState[c[0]]]));
-  const ws=XLSX.utils.aoa_to_sheet(rows);
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Audit');
-  XLSX.writeFile(wb,(S.filters.prop||'audit')+'-audit.xlsx');
-};
 </script>
 </body>
 </html>
