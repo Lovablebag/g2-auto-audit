@@ -78,6 +78,7 @@ table.rbt td:nth-child(3),table.rbt td:nth-child(4),table.rbt td:nth-child(6),ta
         <div class="field"><label>&nbsp;</label><select id="cmp-val" disabled><option value="">Select…</option></select></div>
         <button class="btn btn-primary" id="btn-audit" disabled>Audit property</button>
         <button class="btn btn-secondary" id="btn-reset">Reset</button>
+        <button class="btn btn-secondary" id="btn-report" title="PowerPoint with every tab for the current selection">⬇ Download report</button>
         
       </div>
     </div>
@@ -1009,6 +1010,137 @@ async function restoreSaved(){
   }catch(e){ S.restoring=false; console.error(e); msg('Could not restore saved data ('+(e.message||e)+'). Please drop the folder again.','err'); }
 }
 restoreSaved();
+
+// ───────────────────────── PPTX report (all tabs, current selection) ─────────────────────────
+function loadScript(src){ return new Promise((ok,ko)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=()=>ko(new Error('Could not load '+src)); document.head.appendChild(s); }); }
+async function downloadReport(){
+  const btn=$('#btn-report'); if(!S.sales.length || btn.disabled) return;
+  const label=btn.textContent; btn.disabled=true;
+  const keep={tab:S.tab, rb:S.rebookShow?{...S.rebookShow}:null, anim:Chart.defaults.animation, y:window.scrollY};
+  const tick=m=>{ btn.textContent=m; return new Promise(r=>setTimeout(r,30)); };
+  try{
+    await tick('Preparing…');
+    if(!window.PptxGenJS) await loadScript('./pptxgen.bundle.js');
+    Chart.defaults.animation=false;
+    const C={blue:'1A7DC4',dk:'0F5A91',lt:'E8F3FB',mid:'D0E8F5',ink:'1A1A2E',gray:'555566',lg:'F4F6FA',mg:'C0C8D8',white:'FFFFFF',red:'C0392B',green:'1A7A3C'};
+    const pres=new PptxGenJS(); pres.layout='LAYOUT_WIDE'; // 13.33 x 7.5 in
+    const sel=id=>{ const e=$(id); return e && e.value ? e.selectedOptions[0].textContent.trim() : ''; };
+    const scopeParts=[sel('#f-prop'),sel('#f-city'),sel('#f-master'),sel('#f-country')].filter(Boolean);
+    const scope=scopeParts[0]||'All properties';
+    const fl=[['Country',sel('#f-country')],['Master city',sel('#f-master')],['City',sel('#f-city')],['Property',sel('#f-prop')],['Status',sel('#f-status')],['Contract',sel('#f-contract')]].filter(x=>x[1]).map(x=>x[0]+': '+x[1]);
+    const cmpTxt=S.cmp&&S.cmp.type&&S.cmp.val ? 'Compared with '+S.cmp.val : 'Compared with previous year';
+    const today=new Date(); const dstr=today.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+    pres.title='Overview '+scope;
+    const chrome=(sl,n,sec)=>{
+      sl.addShape(pres.shapes.RECTANGLE,{x:0.35,y:0.18,w:0.32,h:0.32,fill:{color:C.blue},line:{type:'none'}});
+      sl.addText(String(n),{x:0.35,y:0.18,w:0.32,h:0.32,fontSize:10,bold:true,color:C.white,align:'center',valign:'middle',fontFace:'Calibri',margin:0});
+      sl.addText(sec,{x:0.77,y:0.18,w:8,h:0.32,fontSize:11,color:C.blue,fontFace:'Calibri',valign:'middle',margin:0});
+      sl.addText(scope+' · '+dstr,{x:7.5,y:0.18,w:5.5,h:0.32,fontSize:9,color:C.gray,fontFace:'Calibri',align:'right',valign:'middle',margin:0});
+    };
+    const title=(sl,t,sub)=>{ sl.addText(t,{x:0.35,y:0.58,w:12.6,h:0.5,fontSize:22,bold:true,color:C.ink,fontFace:'Calibri',margin:0}); if(sub) sl.addText(sub,{x:0.35,y:1.08,w:12.6,h:0.26,fontSize:10,color:C.gray,fontFace:'Calibri',margin:0}); };
+    const kpiCards=(sl,list,y,perRow)=>{
+      const n=Math.min(list.length,perRow), gap=0.12, w=(12.63-gap*(n-1))/n, h=0.95;
+      list.slice(0,perRow*2).forEach((k,i)=>{
+        const x=0.35+(i%perRow)*(w+gap), yy=y+Math.floor(i/perRow)*(h+0.1);
+        sl.addShape(pres.shapes.RECTANGLE,{x,y:yy,w,h,fill:{color:C.lt},line:{color:C.mid,width:1}});
+        sl.addShape(pres.shapes.RECTANGLE,{x,y:yy,w,h:0.05,fill:{color:C.blue},line:{type:'none'}});
+        sl.addText(k.l,{x:x+0.1,y:yy+0.09,w:w-0.2,h:0.24,fontSize:9,color:C.gray,fontFace:'Calibri',margin:0});
+        sl.addText(k.v,{x:x+0.1,y:yy+0.33,w:w-0.2,h:0.36,fontSize:k.v.length>9?15:18,bold:true,color:C.dk,fontFace:'Calibri',margin:0});
+        if(k.d) sl.addText(k.d,{x:x+0.1,y:yy+0.68,w:w-0.2,h:0.2,fontSize:9,bold:true,color:/^-|−/.test(k.d)?C.red:C.green,fontFace:'Calibri',margin:0});
+      });
+      return y+(Math.ceil(Math.min(list.length,perRow*2)/perRow))*(h+0.1);
+    };
+    const readKpis=root=>[...root.querySelectorAll('.kpi')].filter(e=>e.offsetParent).map(e=>({l:(e.querySelector('.l')||{}).textContent||'',v:(e.querySelector('.v')||{}).textContent||'',d:((e.querySelector('.d')||{}).textContent||'').trim()}));
+    const flat=s=>String(s).replace(/\s*\n\s*/g,' ').replace(/\s+/g,' ').trim();
+    // heading text for a chart or table
+    const headFor=(el,fallback)=>{
+      let n=el.closest('.chart-box')||el.closest('div[style*="overflow-x"]')||el;
+      for(let hops=0;n && n.id!=='tab-body' && hops<5;hops++){
+        const p=n.previousElementSibling;
+        if(p && !p.querySelector('canvas,table') && p.textContent.trim() && p.textContent.length<200){ const c=p.cloneNode(true); c.querySelectorAll('button').forEach(b=>b.remove()); const t=flat(c.textContent); if(t) return t.replace(/\s*\(.*$/,'').slice(0,90); }
+        n=n.parentElement;
+      }
+      return fallback;
+    };
+    let secNo=0;
+    // cover
+    { const sl=pres.addSlide();
+      sl.addShape(pres.shapes.RECTANGLE,{x:0,y:0,w:13.33,h:2.9,fill:{color:C.blue},line:{type:'none'}});
+      sl.addText('Overview report',{x:0.6,y:0.55,w:12,h:0.6,fontSize:34,bold:true,color:C.white,fontFace:'Calibri',margin:0});
+      sl.addText(scope,{x:0.6,y:1.3,w:12,h:0.5,fontSize:20,color:'CADCFC',fontFace:'Calibri',margin:0});
+      sl.addText([cmpTxt,'G2 Travel · '+dstr].join('   ·   '),{x:0.6,y:2.1,w:12,h:0.4,fontSize:12,color:'CADCFC',fontFace:'Calibri',margin:0});
+      const yy=kpiCards(sl,readKpis($('#kpis')),3.3,4);
+      sl.addText('Selection',{x:0.6,y:yy+0.1,w:4,h:0.3,fontSize:12,bold:true,color:C.dk,fontFace:'Calibri',margin:0});
+      sl.addText(fl.length?fl.join('   ·   '):'All data (no filters)',{x:0.6,y:yy+0.42,w:12,h:0.35,fontSize:11,color:C.gray,fontFace:'Calibri',margin:0});
+      sl.addText('Year-to-date figures compare '+CUR_YEAR+' with the comparison base. Cancelled = any status other than Confirmed.',{x:0.6,y:yy+0.8,w:12,h:0.3,fontSize:9,color:C.gray,fontFace:'Calibri',margin:0});
+    }
+    const NOTES={rebook:'Rebooking = same property, check-in, check-out, passengers and guest name; earlier bookings cancelled and the latest cheaper than the first. Ignores status/contract filters and the comparison.'};
+    const imgOf=cv=>{ const o=document.createElement('canvas'); o.width=cv.width; o.height=cv.height; const g=o.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,o.width,o.height); g.drawImage(cv,0,0); return {data:o.toDataURL('image/png'),w:o.width,h:o.height}; };
+    const MAXROWS=16, MAXTBL=2; // rows per slide / slides per table
+    const rowsNow=filtered(S.sales);
+    for(let ti=0;ti<TABS.length;ti++){
+      const tName=TABS[ti], tKey=tName.toLowerCase();
+      await tick('Tab '+(ti+1)+' of '+TABS.length+'…');
+      S.tab=tKey; if(tKey==='rebook') S.rebookShow={charts:true,clients:true};
+      renderTabs(rowsNow);
+      await new Promise(r=>setTimeout(r,80));
+      const body=$('#tab-body'); secNo++;
+      const kp=readKpis(body);
+      const charts=[...body.querySelectorAll('canvas')].filter(c=>c.offsetParent && c.width>0).map(c=>({t:headFor(c,tName),img:imgOf(c)}));
+      const tables=[...body.querySelectorAll('table')].filter(t=>t.offsetParent).map(t=>{
+        const trs=[...t.rows]; if(trs.length<2) return null;
+        const data=trs.map(r=>[...r.cells].map(c=>flat(c.innerText)));
+        return {t:headFor(t,tName),head:data[0],rows:data.slice(1),mono:t.rows[0].cells.length};
+      }).filter(Boolean);
+      // slide 1: KPIs + first charts
+      let first=true;
+      const newSlide=(sub)=>{ const sl=pres.addSlide(); chrome(sl,secNo,tName); title(sl,tName,sub||NOTES[tKey]||''); return sl; };
+      let sl=null, y0=1.5;
+      if(kp.length){ sl=newSlide(); y0=kpiCards(sl,kp,1.5,Math.min(kp.length,6))+0.05; }
+      // charts: up to 4 per slide (2x2)
+      for(let i=0;i<charts.length;i+=4){
+        if(!sl) { sl=newSlide(); y0=1.5; }
+        const grp=charts.slice(i,i+4), per=2, gx=0.2, gy=0.15, bw=(12.63-gx)/2;
+        const rowsN=Math.ceil(grp.length/per), avail=7.25-y0, bh=Math.min(3.1,(avail-gy*(rowsN-1))/rowsN);
+        grp.forEach((c,k)=>{
+          const x=0.35+(k%per)*(bw+gx), y=y0+Math.floor(k/per)*(bh+gy);
+          sl.addShape(pres.shapes.RECTANGLE,{x,y,w:bw,h:bh,fill:{color:C.white},line:{color:C.mg,width:0.5}});
+          sl.addText(c.t,{x:x+0.1,y:y+0.04,w:bw-0.2,h:0.26,fontSize:10,bold:true,color:C.ink,fontFace:'Calibri',margin:0});
+          const iw=bw-0.2, ih=bh-0.38, ar=c.img.w/c.img.h; let w=iw,h=w/ar; if(h>ih){h=ih;w=h*ar;}
+          sl.addImage({data:c.img.data,x:x+0.1+(iw-w)/2,y:y+0.32+(ih-h)/2,w,h});
+        });
+        sl=null;
+      }
+      // tables
+      for(const tb of tables){
+        const nCols=tb.head.length, total=tb.rows.length;
+        const wts=tb.head.map((h,c)=>Math.max(4,Math.min(26,Math.max(h.length,...tb.rows.slice(0,40).map(r=>(r[c]||'').length)))));
+        const sum=wts.reduce((a,b)=>a+b,0), colW=wts.map(w=>12.63*w/sum);
+        const fs=nCols>11?8:nCols>8?9:10;
+        const pages=Math.min(MAXTBL,Math.ceil(total/MAXROWS))||1;
+        for(let p=0;p<pages;p++){
+          const part=tb.rows.slice(p*MAXROWS,(p+1)*MAXROWS); if(!part.length && p>0) break;
+          const s2=pres.addSlide(); chrome(s2,secNo,tName); title(s2,tb.t, total>pages*MAXROWS?'Showing '+Math.min(total,pages*MAXROWS)+' of '+total.toLocaleString()+' rows':(total.toLocaleString()+' rows'));
+          const hdr=tb.head.map(h=>({text:h,options:{bold:true,color:C.white,fill:{color:C.blue},fontSize:fs,fontFace:'Calibri',valign:'middle'}}));
+          const body2=part.map((r,ri)=>r.map(v=>({text:v,options:{fontSize:fs,color:C.ink,fontFace:'Calibri',fill:{color:ri%2?C.lg:C.white},valign:'middle'}})));
+          s2.addTable([hdr,...body2],{x:0.35,y:1.5,w:12.63,colW,border:{type:'solid',pt:0.5,color:C.mg},margin:[0.03,0.05,0.03,0.05],autoPage:false});
+        }
+      }
+      if(!kp.length && !charts.length && !tables.length){ const s3=newSlide(); s3.addText('No data for this selection.',{x:0.6,y:2.2,w:10,h:0.5,fontSize:14,color:C.gray,fontFace:'Calibri'}); }
+    }
+    await tick('Saving…');
+    const stamp=today.toISOString().slice(0,10);
+    const safe=scope.replace(/[^\w\-]+/g,'_').slice(0,40);
+    await pres.writeFile({fileName:'Overview_'+safe+'_'+stamp+'.pptx'});
+  }catch(e){ console.error(e); alert('Could not build the report: '+(e.message||e)); }
+  finally{
+    Chart.defaults.animation=keep.anim; S.tab=keep.tab; S.rebookShow=keep.rb||S.rebookShow;
+    if(keep.rb===null) delete S.rebookShow;
+    render(); window.scrollTo(0,keep.y);
+    btn.textContent=label; btn.disabled=false;
+  }
+}
+$('#btn-report').onclick=downloadReport;
 </script>
 </body>
 </html>
