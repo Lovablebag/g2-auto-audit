@@ -443,6 +443,8 @@ function cancelView(rows){
   const cancelled=rows.filter(r=>isCancelled(r));
   const rate=total? cancelled.length/total*100 : 0;
   const rnLost=cancelled.reduce((s,r)=>s+(Number(r.Nights)||0),0);
+  const rnTotal=rows.reduce((s,r)=>s+(Number(r.Nights)||0),0);
+  const rnRate=rnTotal? rnLost/rnTotal*100 : 0;
   const costLost=cancelled.reduce((s,r)=>s+(Number(r.Cost)||0),0);
   const byM=Array(12).fill(0), byMT=Array(12).fill(0);
   rows.forEach(r=>{ const d=new Date(r['Created (UTC)']); if(isNaN(d)||d.getFullYear()!==CUR_YEAR) return; byMT[d.getMonth()]++; if(isCancelled(r)) byM[d.getMonth()]++; });
@@ -476,8 +478,9 @@ function cancelView(rows){
   heatHtml+='</table><p style="font-size:11px;color:var(--muted)">Cell = cancellation % for that lead time and length of stay. Darker = higher rate.</p>';
   $('#tab-body').innerHTML = `
     <div class="kpis" style="margin-bottom:12px">
-      <div class="kpi"><div class="l">Cancellation rate</div><div class="v">${rate.toFixed(0)}%</div></div>
+      <div class="kpi"><div class="l">Cancellation rate (bookings)</div><div class="v">${rate.toFixed(0)}%</div></div>
       <div class="kpi"><div class="l">Cancelled bookings</div><div class="v">${cancelled.length.toLocaleString()}</div><div class="d">of ${total.toLocaleString()}</div></div>
+      <div class="kpi"><div class="l">Cancellation rate (room nights)</div><div class="v">${rnRate.toFixed(0)}%</div><div class="d">of ${rnTotal.toLocaleString()} nights</div></div>
       <div class="kpi"><div class="l">Room nights lost</div><div class="v">${rnLost.toLocaleString()}</div><div class="d">€${Math.round(costLost).toLocaleString()}</div></div>
     </div>
     <div class="grid2">
