@@ -1021,7 +1021,8 @@ async function downloadReport(){
   try{
     await tick('Preparing…');
     if(!window.PptxGenJS) await loadScript('./pptxgen.bundle.js');
-    Chart.defaults.animation=false;
+    Chart.defaults.animation=false; keep.font=Chart.defaults.font.size; Chart.defaults.font.size=14;
+    const st=document.createElement('style'); st.id='rpt-style'; st.textContent='.chart-box,.chart-box.tall{height:420px!important}'; document.head.appendChild(st);
     const C={blue:'1A7DC4',dk:'0F5A91',lt:'E8F3FB',mid:'D0E8F5',ink:'1A1A2E',gray:'555566',lg:'F4F6FA',mg:'C0C8D8',white:'FFFFFF',red:'C0392B',green:'1A7A3C'};
     const pres=new PptxGenJS(); pres.layout='LAYOUT_WIDE'; // 13.33 x 7.5 in
     const sel=id=>{ const e=$(id); return e && e.value ? e.selectedOptions[0].textContent.trim() : ''; };
@@ -1097,17 +1098,19 @@ async function downloadReport(){
       const newSlide=(sub)=>{ const sl=pres.addSlide(); chrome(sl,secNo,tName); title(sl,tName,sub||NOTES[tKey]||''); return sl; };
       let sl=null, y0=1.5;
       if(kp.length){ sl=newSlide(); y0=kpiCards(sl,kp,1.5,Math.min(kp.length,6))+0.05; }
-      // charts: up to 4 per slide (2x2)
-      for(let i=0;i<charts.length;i+=4){
-        if(!sl) { sl=newSlide(); y0=1.5; }
-        const grp=charts.slice(i,i+4), per=2, gx=0.2, gy=0.15, bw=(12.63-gx)/2;
-        const rowsN=Math.ceil(grp.length/per), avail=7.25-y0, bh=Math.min(3.1,(avail-gy*(rowsN-1))/rowsN);
+      // charts: wide ones get a full-width slide area, narrow ones go two side by side; each fills the space
+      for(let i=0;i<charts.length;){
+        const wide=c=>c.img.w/c.img.h>2;
+        const grp=wide(charts[i])?[charts[i]]:charts.slice(i,i+2).filter((c,k)=>k===0||!wide(c));
+        i+=grp.length;
+        if(!sl){ sl=newSlide(); y0=1.5; }
+        const gx=0.2, bw=(12.63-gx*(grp.length-1))/grp.length, bh=7.25-y0;
         grp.forEach((c,k)=>{
-          const x=0.35+(k%per)*(bw+gx), y=y0+Math.floor(k/per)*(bh+gy);
+          const x=0.35+k*(bw+gx), y=y0;
           sl.addShape(pres.shapes.RECTANGLE,{x,y,w:bw,h:bh,fill:{color:C.white},line:{color:C.mg,width:0.5}});
-          sl.addText(c.t,{x:x+0.1,y:y+0.04,w:bw-0.2,h:0.26,fontSize:10,bold:true,color:C.ink,fontFace:'Calibri',margin:0});
-          const iw=bw-0.2, ih=bh-0.38, ar=c.img.w/c.img.h; let w=iw,h=w/ar; if(h>ih){h=ih;w=h*ar;}
-          sl.addImage({data:c.img.data,x:x+0.1+(iw-w)/2,y:y+0.32+(ih-h)/2,w,h});
+          sl.addText(c.t,{x:x+0.12,y:y+0.06,w:bw-0.24,h:0.3,fontSize:12,bold:true,color:C.ink,fontFace:'Calibri',margin:0});
+          const iw=bw-0.24, ih=bh-0.5, ar=c.img.w/c.img.h; let w=iw,h=w/ar; if(h>ih){h=ih;w=h*ar;}
+          sl.addImage({data:c.img.data,x:x+0.12+(iw-w)/2,y:y+0.42+(ih-h)/2,w,h});
         });
         sl=null;
       }
@@ -1134,7 +1137,7 @@ async function downloadReport(){
     await pres.writeFile({fileName:'Overview_'+safe+'_'+stamp+'.pptx'});
   }catch(e){ console.error(e); alert('Could not build the report: '+(e.message||e)); }
   finally{
-    Chart.defaults.animation=keep.anim; S.tab=keep.tab; S.rebookShow=keep.rb||S.rebookShow;
+    Chart.defaults.animation=keep.anim; if(keep.font) Chart.defaults.font.size=keep.font; const st0=$('#rpt-style'); if(st0) st0.remove(); S.tab=keep.tab; S.rebookShow=keep.rb||S.rebookShow;
     if(keep.rb===null) delete S.rebookShow;
     render(); window.scrollTo(0,keep.y);
     btn.textContent=label; btn.disabled=false;
