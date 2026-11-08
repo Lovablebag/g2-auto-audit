@@ -2,6 +2,7 @@
    Each page contains <header class="header" id="g2-header" data-page="KEY"></header> followed by this script. */
 (function () {
   var TOOLS = [
+    { key: 'region', label: 'Overview',            href: './region.html' },
     { key: 'audit',  label: 'Auto Audit',          home: 'files'  },
     { key: 'price',  label: 'Price Check',         home: 'price'  },
     { key: 'search', label: 'Hotel Search',        home: 'search' },
@@ -9,8 +10,7 @@
     { key: 'rates',  label: 'Live Rates',          href: './rates.html'  },
     { key: 'uuid',   label: 'Property UUID',       href: './uuid.html'   },
     { key: 'prebuy', label: 'Pre-buy Price Check', href: './prebuy.html' },
-    { key: 'period', label: 'Period Compare',      href: './period.html' },
-    { key: 'region', label: 'Region',              href: './region.html' }
+    { key: 'period', label: 'Period Compare',      href: './period.html' }
   ];
   var header = document.getElementById('g2-header');
   if (!header) return;
