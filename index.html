@@ -853,8 +853,8 @@ window.addEventListener('DOMContentLoaded', function() {
           const c=payload.counts||{};
           const b=document.createElement('div');
           b.style.cssText='margin:0 0 14px;padding:10px 14px;border:1px solid #1A7DC4;border-radius:8px;background:#EAF3FB;color:#1a1a2e;font-size:.9rem';
-          b.innerHTML='<strong>Loaded from Region:</strong> '+payload.property.replace(/</g,'&lt;')+' · compared with '+String(payload.compare||'').replace(/</g,'&lt;')+
-            '<br><span style="color:#6b7a99">'+(c.sales||0).toLocaleString()+' sales rows, '+(c.avail||0).toLocaleString()+' availability rows. Length of stay, booking window, source markets and arrival days are <b>estimated from Region sales data</b> (current-year bookings, cancelled excluded), not taken from the G2 demand reports.</span>';
+          b.innerHTML='<strong>Loaded from Overview:</strong> '+payload.property.replace(/</g,'&lt;')+' · compared with '+String(payload.compare||'').replace(/</g,'&lt;')+
+            '<br><span style="color:#6b7a99">'+(c.sales||0).toLocaleString()+' sales rows, '+(c.avail||0).toLocaleString()+' availability rows. Length of stay, booking window, source markets and arrival days are <b>estimated from Overview sales data</b> (current-year bookings, cancelled excluded), not taken from the G2 demand reports.</span>';
           const host=document.getElementById('phase-build1'); host.insertBefore(b, host.firstChild);
         }catch(e){ console.error('region hand-off', e); }
       };
