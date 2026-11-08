@@ -342,7 +342,7 @@ function renderTabs(rows){
   if(S.tab==='sales') salesView(rows);
   else if(S.tab==='pick-up') pickupView(rows);
   else if(S.tab==='distributions') body.innerHTML = distTable(rows);
-  else if(S.tab==='cancellations'){ cancelView(S.filters.status ? filtered(S.sales,null,true) : rows); if(S.filters.status) body.insertAdjacentHTML('afterbegin','<div style="font-size:12px;color:var(--muted);margin-bottom:8px">The Status filter ('+esc(S.filters.status)+') is ignored here, because cancellations need all statuses.</div>'); }
+  else if(S.tab==='cancellations'){ cancelView((S.filters.status ? filtered(S.sales,null,true) : rows).filter(r=>String(r['Created (UTC)']||'').startsWith(CUR_S))); body.insertAdjacentHTML('afterbegin','<div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+CUR_YEAR+' bookings only.'+(S.filters.status?' The Status filter ('+esc(S.filters.status)+') is ignored here, because cancellations need all statuses.':'')+'</div>'); }
   else if(S.tab==='allotment') body.innerHTML = allotTable();
   else if(S.tab==='weekday') weekdayView(rows);
   else if(S.tab==='demand') demandView(rows);
@@ -1089,7 +1089,7 @@ async function downloadReport(){
       S.tab=tKey; if(tKey==='rebook') S.rebookShow={charts:true,clients:true};
       // Cancellations are meaningless once rows are limited to one status, so that section ignores the Status filter
       const ignoreSt = tKey==='cancellations' && keep.status;
-      if(ignoreSt){ S.filters.status=''; NOTES.cancellations='The Status filter ('+keep.status+') is ignored in this section, because cancellations need all statuses.'; } else delete NOTES.cancellations;
+      if(ignoreSt){ S.filters.status=''; NOTES.cancellations=CUR_YEAR+' bookings only. The Status filter ('+keep.status+') is ignored in this section, because cancellations need all statuses.'; } else NOTES.cancellations=CUR_YEAR+' bookings only.';
       renderTabs(ignoreSt?filtered(S.sales):rowsNow);
       await new Promise(r=>setTimeout(r,80));
       S.filters.status=keep.status;
