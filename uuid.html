@@ -133,7 +133,7 @@ function drawOne(){
   const country = document.getElementById('cc').value;
   oneRows = q ? search(q, country).map(x=>x.r) : [];
   document.getElementById('one').innerHTML = oneRows.length ? oneRows.map(r=>`<tr>
-    <td><b>${esc(r.name)}</b></td><td>${esc(cityOf(r))}</td><td>${esc(r.chain||'—')}</td><td>${esc(r.country)}</td>
+    <td><b>${esc(r.name)}</b></td><td>${esc(cityOf(r))}</td><td>${esc(r.chain||'-')}</td><td>${esc(r.country)}</td>
     ${uuidCell(r.uuid)}</tr>`).join('') : `<tr><td colspan="6" class="hint">${q?'No property with that name.':'Type a name to search.'}</td></tr>`;
   document.getElementById('one-status').textContent = q ? oneRows.length+' match'+(oneRows.length===1?'':'es')+' · '+DATA.length+' properties' : DATA.length+' properties loaded.';
 }

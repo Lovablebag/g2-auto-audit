@@ -1,4 +1,4 @@
-# Auto Audit — G2 Travel
+# Auto Audit - G2 Travel
 
 Hotel contract audit app for G2 Travel.
 

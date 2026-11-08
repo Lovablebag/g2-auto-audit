@@ -56,7 +56,7 @@ const plus = n => iso(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMont
 const S = {q:'', country:'NL', city:'', checkin:plus(21), nights:1, currency:'EUR', nat:'IT', adults:2, board:'', cancel:'', rateType:'', hotel:null, hits:[], more:false, rates:[], msg:'', msgk:'', busy:false};
 
 function addDays(iso,n){ const d=new Date(iso+"T00:00:00Z"); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); }
-function money(n, c){ if(n==null || n==='') return '—'; return Number(n).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+c; }
+function money(n, c){ if(n==null || n==='') return '-'; return Number(n).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+c; }
 
 async function api(body){
   const res = await fetch('/api/liteapi-rates', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
@@ -171,8 +171,8 @@ function render(){
         <th>Room</th><th>Board</th><th>Rate type</th><th>Cancellation</th><th class="num">Stay total</th><th>Extra taxes</th>
       </tr></thead><tbody>${rows.length?rows.map(r=>`<tr>
         <td>${esc(r.room)}</td>
-        <td>${esc(r.board||'—')} ${r.boardName?`<span class="hint">${esc(r.boardName)}</span>`:''}</td>
-        <td>${esc(r.rateType||'—')}</td>
+        <td>${esc(r.board||'-')} ${r.boardName?`<span class="hint">${esc(r.boardName)}</span>`:''}</td>
+        <td>${esc(r.rateType||'-')}</td>
         <td>${r.refundable?'<span class="tag ok">Flexible</span>':'<span class="tag bad">Non-refundable</span>'}</td>
         <td class="num"><b>${money(r.total, r.currency)}</b></td>
         <td class="hint">${r.taxes&&r.taxes.length?r.taxes.map(t=>esc((t.description||'Tax')+' '+money(t.amount,t.currency||r.currency))).join(' · '):'Included or not listed'}</td>
