@@ -714,12 +714,14 @@ function rebookGroups(){
   for(const r of S.sales){
     if((f.country&&r.Country!==f.country)||(f.master&&r['Master City']!==f.master)||(f.city&&r.City!==f.city)||(f.prop&&r.Property!==f.prop)) continue;
     const id=r['Booking ID']; let b=bookings.get(id);
-    if(!b){ b={id, prop:r.Property||'', ci:String(r['Check-In']||'').slice(0,10), co:String(r['Check-Out']||'').slice(0,10), pax:String(r.Passengers||'').trim(), guest:r['Lead Name']||'', created:r['Created (UTC)']||'', cost:0, rn:0, active:false, lines:0};
+    if(!b){ b={id, prop:r.Property||'', ci:String(r['Check-In']||'').slice(0,10), co:String(r['Check-Out']||'').slice(0,10), pax:String(r.Passengers||'').trim(), guest:r['Lead Name']||'', created:r['Created (UTC)']||'', client:(r['Client Name']||'').trim()||'(blank)', cost:0, rn:0, active:false, lines:0};
       bookings.set(id,b); }
     b.cost+=Number(r.Cost)||0; b.rn+=Number(r.Nights)||0; b.lines++;
     if(!isCancelled(r)) b.active=true;
     if((r['Created (UTC)']||'')<b.created) b.created=r['Created (UTC)'];
   }
+  const clientTotals=new Map();
+  for(const b of bookings.values()) clientTotals.set(b.client,(clientTotals.get(b.client)||0)+1);
   const groups=new Map();
   for(const b of bookings.values()){
     const g=normGuest(b.guest); if(!g||!b.ci||!b.co) continue;
@@ -735,18 +737,50 @@ function rebookGroups(){
     out.push({first,last,all:arr,saving:first.cost-last.cost,pct:first.cost?(first.cost-last.cost)/first.cost*100:0});
   }
   out.sort((a,b)=>a.last.created<b.last.created?1:-1);
+  out.clientTotals=clientTotals;
   _rebookCache={key,groups:out};
   return out;
 }
+function rebookBucket(v,edges,labels){ for(let i=0;i<edges.length;i++) if(v<edges[i]) return i; return edges.length; }
+function drawRebookCharts(list){
+  const mk=(id,labels,data,color,horizontal)=>{ const el=$('#'+id); if(!el) return;
+    new Chart(el,{type:'bar',data:{labels,datasets:[{data,backgroundColor:color}]},options:{indexAxis:horizontal?'y':'x',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}}); };
+  const byMonth=new Map(); list.forEach(g=>{ const m=String(g.last.created).slice(0,7); byMonth.set(m,(byMonth.get(m)||0)+g.saving); });
+  const months=[...byMonth.keys()].sort();
+  mk('rb-c-month',months,months.map(m=>Math.round(byMonth.get(m))),'#ef4444');
+  const dl=['<5%','5–10%','10–20%','20–30%','30%+'], dd=Array(5).fill(0);
+  list.forEach(g=>dd[rebookBucket(g.pct,[5,10,20,30])]++);
+  mk('rb-c-drop',dl,dd,'#f59e0b');
+  const gl=['Same day','1–3 days','4–7 days','8–14 days','15–30 days','30+ days'], gd=Array(6).fill(0);
+  list.forEach(g=>{ const d=Math.round((isoDay(g.last.created)-isoDay(g.first.created))/864e5); gd[rebookBucket(d,[1,4,8,15,31])]++; });
+  mk('rb-c-gap',gl,gd,'#1e6fd9');
+  const ll=['0–1 days','2–7 days','8–14 days','15–30 days','31–60 days','60+ days'], ld=Array(6).fill(0);
+  list.forEach(g=>{ const d=Math.round((isoDay(g.last.ci)-isoDay(g.last.created))/864e5); if(!isNaN(d)) ld[rebookBucket(d,[2,8,15,31,61])]++; });
+  mk('rb-c-lead',ll,ld,'#8b5cf6');
+  const byProp=new Map(); list.forEach(g=>byProp.set(g.first.prop,(byProp.get(g.first.prop)||0)+g.saving));
+  const tp=[...byProp.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8);
+  mk('rb-c-prop',tp.map(x=>x[0].slice(0,24)),tp.map(x=>Math.round(x[1])),'#ef4444',true);
+  const conf=list.filter(g=>g.last.active).length;
+  if($('#rb-c-status')) new Chart($('#rb-c-status'),{type:'doughnut',data:{labels:['Latest still confirmed','Latest cancelled'],datasets:[{data:[conf,list.length-conf],backgroundColor:['#10b981','#6b7280']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}});
+}
+function rebookClients(list,all){
+  const m=new Map();
+  list.forEach(g=>{ const c=g.last.client; let o=m.get(c); if(!o){o={c,n:0,lost:0,pct:0,conf:0,switched:0};m.set(c,o);} o.n++; o.lost+=g.saving; o.pct+=g.pct; if(g.last.active) o.conf++; if(g.first.client!==g.last.client) o.switched++; });
+  return [...m.values()].map(o=>({...o,avg:o.pct/o.n,total:all.clientTotals.get(o.c)||0})).sort((a,b)=>b.lost-a.lost);
+}
 function rebookView(){
+  destroyCharts();
   const all=rebookGroups();
   const mode=S.rebookMode||'all';
+  const show=S.rebookShow||(S.rebookShow={charts:false,clients:false});
   const list=all.filter(g=>mode==='all'||(mode==='confirmed'?g.last.active:!g.last.active));
   const saving=list.reduce((t,g)=>t+g.saving,0), bk=list.reduce((t,g)=>t+g.all.length,0);
   const avg=list.length?list.reduce((t,g)=>t+g.pct,0)/list.length:0;
   const money=v=>'€'+Math.round(v).toLocaleString();
   const day=v=>String(v||'').slice(0,10);
   const LIM=1000, shown=list.slice(0,LIM);
+  const clients=show.clients?rebookClients(list,all):[];
+  const box=(id,t)=>`<div><div style="font-weight:600;margin-bottom:4px">${t}</div><div class="chart-box"><canvas id="${id}"></canvas></div></div>`;
   $('#tab-body').innerHTML=`
     <div class="kpis" style="margin-bottom:12px">
       <div class="kpi"><div class="l">Rebooked stays</div><div class="v">${list.length.toLocaleString()}</div></div>
@@ -757,26 +791,43 @@ function rebookView(){
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
       <label style="font-size:12px;color:var(--muted)">Latest booking is</label>
       <select id="rb-mode"><option value="all">Any status</option><option value="confirmed">Still confirmed</option><option value="cancelled">Cancelled</option></select>
+      <button class="btn btn-secondary" id="rb-charts">${show.charts?'Hide charts':'Show charts'}</button>
+      <button class="btn btn-secondary" id="rb-clients">${show.clients?'Hide clients':'Show clients'}</button>
       <button class="btn btn-secondary" id="rb-csv">Export CSV</button>
       <span style="font-size:11px;color:var(--muted)">Same property, check-in, check-out, passengers and guest name · latest cheaper than first · earlier bookings cancelled · ignores status/contract filters and compare.${list.length>LIM?' Showing the latest '+LIM+'.':''}</span>
     </div>
-    <div style="overflow-x:auto"><table><tr><th>Property</th><th>Guest</th><th>Check-in</th><th>Check-out</th><th>Pax</th><th>Bookings</th><th>First booking</th><th>First cost</th><th>Latest booking</th><th>Latest cost</th><th>Latest status</th><th>Price drop</th></tr>`+
-    (shown.map(g=>`<tr title="${esc(g.all.map(b=>b.id+' · '+day(b.created)+' · '+money(b.cost)+' · '+(b.active?'confirmed':'cancelled')).join('\n'))}">
+    ${show.charts?`<div class="grid2" style="margin-bottom:14px">
+      ${box('rb-c-month','Revenue lost by month (when the cheaper booking was made)')}
+      ${box('rb-c-drop','Size of the price drop')}
+      ${box('rb-c-gap','Time between first and latest booking')}
+      ${box('rb-c-lead','Days before arrival when the latest booking was made')}
+      ${box('rb-c-prop','Top properties by revenue lost')}
+      ${box('rb-c-status','Latest booking status')}
+    </div>`:''}
+    ${show.clients?`<div style="margin-bottom:14px"><div style="font-weight:600;margin-bottom:4px">Clients behind the rebookings <span style="font-weight:400;color:var(--muted);font-size:11px">(client of the latest, cheaper booking · rebook rate = rebooked stays ÷ that client's bookings in this selection)</span></div>
+      <div style="overflow-x:auto"><table><tr><th>Client</th><th>Rebooked stays</th><th>Revenue lost</th><th>Avg. drop</th><th>Latest still confirmed</th><th>Changed client vs first</th><th>Client bookings</th><th>Rebook rate</th></tr>`+
+      (clients.slice(0,25).map(c=>`<tr><td>${esc(c.c)}</td><td>${c.n.toLocaleString()}</td><td style="color:var(--bad);font-weight:600">−${money(c.lost)}</td><td>${c.avg.toFixed(1)}%</td><td>${c.conf.toLocaleString()}</td><td>${c.switched.toLocaleString()}</td><td>${c.total.toLocaleString()}</td><td>${c.total?(c.n/c.total*100).toFixed(1)+'%':'–'}</td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--muted)">No clients.</td></tr>')+
+      `</table></div>${clients.length>25?'<div style="font-size:11px;color:var(--muted);margin-top:4px">Top 25 of '+clients.length+' clients by revenue lost.</div>':''}</div>`:''}
+    <div style="overflow-x:auto"><table><tr><th>Property</th><th>Guest</th><th>Check-in</th><th>Check-out</th><th>Pax</th><th>Bookings</th><th>First booking</th><th>First cost</th><th>Latest booking</th><th>Latest cost</th><th>Latest status</th><th>Client</th><th>Price drop</th></tr>`+
+    (shown.map(g=>`<tr title="${esc(g.all.map(b=>b.id+' · '+day(b.created)+' · '+money(b.cost)+' · '+b.client+' · '+(b.active?'confirmed':'cancelled')).join('\n'))}">
       <td>${esc(g.first.prop)}</td><td>${esc(g.first.guest)}</td><td>${g.first.ci}</td><td>${g.first.co}</td><td>${esc(g.first.pax)}</td><td>${g.all.length}</td>
       <td>${esc(g.first.id)}<br><span style="color:var(--muted);font-size:11px">${day(g.first.created)}</span></td><td>${money(g.first.cost)}</td>
       <td>${esc(g.last.id)}<br><span style="color:var(--muted);font-size:11px">${day(g.last.created)}</span></td><td>${money(g.last.cost)}</td>
-      <td>${g.last.active?'Confirmed':'Cancelled'}</td><td style="color:var(--bad);font-weight:600">−${money(g.saving)} (−${g.pct.toFixed(0)}%)</td></tr>`).join('')||'<tr><td colspan="12" style="text-align:center;color:var(--muted)">No rebookings found for this selection.</td></tr>')+
+      <td>${g.last.active?'Confirmed':'Cancelled'}</td><td>${esc(g.last.client)}${g.first.client!==g.last.client?'<br><span style="color:var(--muted);font-size:11px">first: '+esc(g.first.client)+'</span>':''}</td>
+      <td style="color:var(--bad);font-weight:600">−${money(g.saving)} (−${g.pct.toFixed(0)}%)</td></tr>`).join('')||'<tr><td colspan="13" style="text-align:center;color:var(--muted)">No rebookings found for this selection.</td></tr>')+
     `</table></div>`;
   $('#rb-mode').value=mode;
   $('#rb-mode').onchange=e=>{ S.rebookMode=e.target.value; rebookView(); };
+  $('#rb-charts').onclick=()=>{ show.charts=!show.charts; rebookView(); };
+  $('#rb-clients').onclick=()=>{ show.clients=!show.clients; rebookView(); };
+  if(show.charts) drawRebookCharts(list);
   $('#rb-csv').onclick=()=>{
     const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
-    const head=['Property','Guest','Check-in','Check-out','Pax','Bookings','First booking ID','First created','First cost','Latest booking ID','Latest created','Latest cost','Latest status','Revenue lost','Revenue lost %','All booking IDs'];
-    const lines=[head.map(q).join(',')].concat(list.map(g=>[g.first.prop,g.first.guest,g.first.ci,g.first.co,g.first.pax,g.all.length,g.first.id,day(g.first.created),g.first.cost.toFixed(2),g.last.id,day(g.last.created),g.last.cost.toFixed(2),g.last.active?'Confirmed':'Cancelled',g.saving.toFixed(2),g.pct.toFixed(1),g.all.map(b=>b.id).join(' ')].map(q).join(',')));
+    const head=['Property','Guest','Check-in','Check-out','Pax','Bookings','First booking ID','First created','First client','First cost','Latest booking ID','Latest created','Latest client','Latest cost','Latest status','Revenue lost','Revenue lost %','All booking IDs'];
+    const lines=[head.map(q).join(',')].concat(list.map(g=>[g.first.prop,g.first.guest,g.first.ci,g.first.co,g.first.pax,g.all.length,g.first.id,day(g.first.created),g.first.client,g.first.cost.toFixed(2),g.last.id,day(g.last.created),g.last.client,g.last.cost.toFixed(2),g.last.active?'Confirmed':'Cancelled',g.saving.toFixed(2),g.pct.toFixed(1),g.all.map(b=>b.id).join(' ')].map(q).join(',')));
     const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+lines.join('\n')],{type:'text/csv'})); a.download='rebook-'+(S.filters.prop||S.filters.city||S.filters.master||S.filters.country||'all')+'.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
   };
 }
-
 function offersView(){
   const f=S.filters;
   const rows=S.offers.filter(r=>(!f.country||r.Country===f.country)&&(!f.city||r.City===f.city)&&(!f.prop||r.Property===f.prop));
