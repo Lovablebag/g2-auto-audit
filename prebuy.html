@@ -64,8 +64,8 @@ const iso = t => new Date(t).toISOString().slice(0,10);
 const dowMon = t => (new Date(t).getUTCDay()+6)%7;
 const num = v => { if(v===''||v==null) return null; const n=typeof v==='number'?v:parseFloat(String(v).replace(',','.')); return isFinite(n)?n:null; };
 const fmt = (n,c) => n==null?'':new Intl.NumberFormat(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
-const fmtMoney = (n,c) => n==null?'—':new Intl.NumberFormat(undefined,{style:'currency',currency:c||'EUR',maximumFractionDigits:0}).format(n);
-const fmtN = (n,c) => n==null?'—':new Intl.NumberFormat(undefined,{style:'currency',currency:c||'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
+const fmtMoney = (n,c) => n==null?'-':new Intl.NumberFormat(undefined,{style:'currency',currency:c||'EUR',maximumFractionDigits:0}).format(n);
+const fmtN = (n,c) => n==null?'-':new Intl.NumberFormat(undefined,{style:'currency',currency:c||'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const pretty = s => { const t=D(s); if(t==null) return s||''; return DOW[dowMon(t)]+' '+new Date(t).getUTCDate()+' '+MON[new Date(t).getUTCMonth()]+' '+new Date(t).getUTCFullYear(); };
@@ -262,7 +262,7 @@ function downloadSheet(){
   const guaranteed=avg!=null && gRooms!=null && nights? avg*gRooms*nights : null;
   const range=(a,b)=>{
     const f=v=>{ const d=D(v); return d==null? (v||'') : new Date(d).toLocaleDateString('en-GB',{day:'2-digit', month:'short', year:'numeric', timeZone:'UTC'}); };
-    return f(a)+' – '+f(b);
+    return f(a)+' - '+f(b);
   };
   const rows=S.rows.map(r=>{
     const sg=suggestRow(r);
@@ -302,20 +302,20 @@ function buildPrebuyXlsx(b){
   [['AVG SUGGESTED NET',b.avg,'per room night',4],['DEAL GUARANTEED',b.guaranteed,b.gLabel,5],['DEAL POTENTIAL',b.potential,b.pLabel,6],['RATES CHECKED',b.nSug,'dates below',7]].forEach((k,i)=>{
     const starts=[0,2,5,8], ends=[1,4,7,9];
     add(4,starts[i],k[0],3); span(4,starts[i],ends[i]);
-    add(5,starts[i],k[1]==null?'—':k[1],k[3]); span(5,starts[i],ends[i]);
+    add(5,starts[i],k[1]==null?'-':k[1],k[3]); span(5,starts[i],ends[i]);
     add(6,starts[i],k[2],8); span(6,starts[i],ends[i]);
   });
   add(8,0,'CONTRACT',9); span(8,0,4);
   add(8,6,'PRICE PROTECTION',9); span(8,6,9);
-  [['Hotel',b.hotel],['Comparable hotel',b.comp||'—'],['Currency',b.cur],['Contract start',b.start||''],['Contract end',b.end||''],['Contract nights',b.nights],['Rooms per night',b.rooms],['Guaranteed rooms / night',b.gRooms===''?'—':b.gRooms]].forEach((row,i)=>{
+  [['Hotel',b.hotel],['Comparable hotel',b.comp||'-'],['Currency',b.cur],['Contract start',b.start||''],['Contract end',b.end||''],['Contract nights',b.nights],['Rooms per night',b.rooms],['Guaranteed rooms / night',b.gRooms===''?'-':b.gRooms]].forEach((row,i)=>{
     add(9+i,0,row[0],10); span(9+i,0,1); add(9+i,2,row[1],11); span(9+i,2,4);
   });
   [['vs B2B',b.pb],['vs B2C',b.pc],['vs Comparable hotel',b.pj]].forEach((row,i)=>{ add(9+i,6,row[0],10); span(9+i,6,8); add(9+i,9,row[1],12); });
   add(13,6,'LAST YEAR',9); span(13,6,9);
   [['Cost of sales',b.lyCOS],['Room nights',b.lyRN],['Incremental vs last year',b.incremental]].forEach((row,i)=>{
-    add(14+i,6,row[0],10); span(14+i,6,8); add(14+i,9,row[1]==null?'—':row[1], i===1?11:13);
+    add(14+i,6,row[0],10); span(14+i,6,8); add(14+i,9,row[1]==null?'-':row[1], i===1?11:13);
   });
-  add(18,0,'How the suggested net is built:  60% protected B2B  +  30% protected B2C  +  10% protected comparable.  The result is never below protected B2B — that rate is the floor (rows marked ✓ Floor).',14); span(18,0,9);
+  add(18,0,'How the suggested net is built:  60% protected B2B  +  30% protected B2C  +  10% protected comparable.  The result is never below protected B2B: that rate is the floor (rows marked ✓ Floor).',14); span(18,0,9);
   add(20,0,'DATE-BY-DATE PRICING',9); span(20,0,9);
   ['Date','Nights','B2C','B2B','Comparable','After prot. B2B','After prot. B2C','After prot. Comp.','Suggested net','Floor (vs B2B)'].forEach((h,i)=>add(21,i,h,15));
   b.rows.forEach((row,ri)=>{
@@ -518,9 +518,9 @@ function render(){
 
     <div class="kpis">
       <div class="kpi"><span>Suggested nights ready</span><b>${m.nSug} / ${S.rows.length||0}</b></div>
-      <div class="kpi"><span>Average suggested net</span><b>${m.avg==null?'—':fmtN(m.avg,c)}</b></div>
-      <div class="kpi"><span>Deal potential</span><b>${m.potential==null?'—':fmtMoney(m.potential,c)}</b><div class="hint">${m.avg==null?'Needs suggested nights':(m.rooms+' rooms × '+m.nights+' contract nights × avg of '+m.nSug+' sample nights')}</div></div>
-      <div class="kpi"><span>Incremental vs last year</span><b>${m.incremental==null?'—':fmtMoney(m.incremental,c)}</b><div class="hint">${m.lyADR==null?'Add last-year cost of sales and room nights':('LY ADR '+fmtN(m.lyADR,c)+(S.last.gtee==='yes'?' · guarantee':''))}</div></div>
+      <div class="kpi"><span>Average suggested net</span><b>${m.avg==null?'-':fmtN(m.avg,c)}</b></div>
+      <div class="kpi"><span>Deal potential</span><b>${m.potential==null?'-':fmtMoney(m.potential,c)}</b><div class="hint">${m.avg==null?'Needs suggested nights':(m.rooms+' rooms × '+m.nights+' contract nights × avg of '+m.nSug+' sample nights')}</div></div>
+      <div class="kpi"><span>Incremental vs last year</span><b>${m.incremental==null?'-':fmtMoney(m.incremental,c)}</b><div class="hint">${m.lyADR==null?'Add last-year cost of sales and room nights':('LY ADR '+fmtN(m.lyADR,c)+(S.last.gtee==='yes'?' · guarantee':''))}</div></div>
     </div>
 
     <div class="card" style="padding:0;overflow:hidden">

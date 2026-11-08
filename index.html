@@ -3320,7 +3320,7 @@ D.s6cats.forEach((cat,ci)=>{
   chrome(sl,++slideNum,"Demand Capture Radar");
   slideTitle(sl,"Demand Capture Radar","Hotel vs Strategic Target Profile  ·  Lower = Bigger Weakness / Opportunity Gap");
 
-  // Build radar scores (0–100) for 5 dimensions
+  // Build radar scores (0-100) for 5 dimensions
   // LOS: hotel score = how close to target across LOS buckets
   function radarScore(cat,keys){
     if(!cat||!cat.combined||!cat.combined.length)return 40;

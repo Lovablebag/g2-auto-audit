@@ -78,6 +78,7 @@ table.rbt td:nth-child(3),table.rbt td:nth-child(4),table.rbt td:nth-child(6),ta
         <div class="field"><label>&nbsp;</label><select id="cmp-val" disabled><option value="">Select…</option></select></div>
         <button class="btn btn-primary" id="btn-audit" disabled>Audit property</button>
         <button class="btn btn-secondary" id="btn-reset">Reset</button>
+        <button class="btn btn-secondary" id="btn-report" title="PowerPoint with every tab for the current selection">⬇ Download report</button>
         
       </div>
     </div>
@@ -127,7 +128,7 @@ async function handleFiles(fileList, opts){
   S.offers = await parseXLSX(od, 'Contract ID'); tick();
   msg(S.sales.length.toLocaleString()+' sales rows · '+S.avail.length.toLocaleString()+' availability rows · '+S.plans.length+' rate plans · '+S.offers.length+' offers');
   const badDates = S.sales.filter(r=>!/^\d{4}-\d{2}-\d{2}/.test(r['Created (UTC)']||'')).length;
-  if(badDates) msg($('#msg').textContent+' — ⚠ '+badDates.toLocaleString()+' rows have an unreadable creation date and are excluded from the year figures.','err');
+  if(badDates) msg($('#msg').textContent+' · ⚠ '+badDates.toLocaleString()+' rows have an unreadable creation date and are excluded from the year figures.','err');
   buildFilters();
   $('#files').value='';
   if(!opts.fromCache){ cacheSave(sales.concat(avail,[rp,od])).then(()=>noteMsg('Saved for today · <a href="#" onclick="clearSaved();return false">Clear</a>')).catch(e=>noteMsg('Could not save for later ('+(e&&e.name||e)+')')); }
@@ -479,7 +480,7 @@ function cancelView(rows){
       <div><div style="font-weight:600;margin-bottom:4px">Monthly cancellation rate % (${CUR_YEAR})</div><div class="chart-box"><canvas id="c-cm"></canvas></div></div>
       <div><div style="font-weight:600;margin-bottom:4px">Rate by source market</div><div class="chart-box"><canvas id="c-cs"></canvas></div></div>
     </div>
-    <div style="font-weight:600;margin:12px 0 4px">Where cancellations happen — lead time × length of stay</div>
+    <div style="font-weight:600;margin:12px 0 4px">Where cancellations happen: lead time × length of stay</div>
     ${heatHtml}`;
   new Chart($('#c-cm'), {type:'bar', data:{labels:MN, datasets:[{data:mRate, backgroundColor:'#60a5fa'}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,max:100}}}});
   new Chart($('#c-cs'), {type:'bar', data:{labels:top.map(t=>t.k), datasets:[{data:top.map(t=>t.pct), backgroundColor:'#1e6fd9'}]}, options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,max:100}}}});
@@ -753,13 +754,13 @@ function drawRebookCharts(list){
   const byMonth=new Map(); list.forEach(g=>{ const m=String(g.last.created).slice(0,7); byMonth.set(m,(byMonth.get(m)||0)+g.saving); });
   const months=[...byMonth.keys()].sort();
   mk('rb-c-month',months,months.map(m=>Math.round(byMonth.get(m))),'#ef4444');
-  const dl=['<5%','5–10%','10–20%','20–30%','30%+'], dd=Array(5).fill(0);
+  const dl=['<5%','5-10%','10-20%','20-30%','30%+'], dd=Array(5).fill(0);
   list.forEach(g=>dd[rebookBucket(g.pct,[5,10,20,30])]++);
   mk('rb-c-drop',dl,dd,'#f59e0b');
-  const gl=['Same day','1–3 days','4–7 days','8–14 days','15–30 days','30+ days'], gd=Array(6).fill(0);
+  const gl=['Same day','1-3 days','4-7 days','8-14 days','15-30 days','30+ days'], gd=Array(6).fill(0);
   list.forEach(g=>{ const d=Math.round((isoDay(g.last.created)-isoDay(g.first.created))/864e5); gd[rebookBucket(d,[1,4,8,15,31])]++; });
   mk('rb-c-gap',gl,gd,'#1e6fd9');
-  const ll=['0–1 days','2–7 days','8–14 days','15–30 days','31–60 days','60+ days'], ld=Array(6).fill(0);
+  const ll=['0-1 days','2-7 days','8-14 days','15-30 days','31-60 days','60+ days'], ld=Array(6).fill(0);
   list.forEach(g=>{ const d=Math.round((isoDay(g.last.ci)-isoDay(g.last.created))/864e5); if(!isNaN(d)) ld[rebookBucket(d,[2,8,15,31,61])]++; });
   mk('rb-c-lead',ll,ld,'#8b5cf6');
   const byProp=new Map(); list.forEach(g=>byProp.set(g.first.prop,(byProp.get(g.first.prop)||0)+g.saving));
@@ -811,7 +812,7 @@ function rebookView(){
     </div>`:''}
     ${show.clients?`<div style="margin-bottom:14px"><div style="font-weight:600;margin-bottom:4px">Clients behind the rebookings <span style="font-weight:400;color:var(--muted);font-size:11px">(client of the latest, cheaper booking · rebook rate = rebooked stays ÷ that client's bookings in this selection)</span></div>
       <div style="overflow-x:auto"><table><tr><th>Client</th><th>Rebooked stays</th><th>Revenue lost</th><th>Avg. drop</th><th>Latest still confirmed</th><th>Changed client vs first</th><th>Client bookings</th><th>Rebook rate</th></tr>`+
-      (clients.slice(0,25).map(c=>`<tr><td>${esc(c.c)}</td><td>${c.n.toLocaleString()}</td><td style="color:var(--bad);font-weight:600">−${money(c.lost)}</td><td>${c.avg.toFixed(1)}%</td><td>${c.conf.toLocaleString()}</td><td>${c.switched.toLocaleString()}</td><td>${c.total.toLocaleString()}</td><td>${c.total?(c.n/c.total*100).toFixed(1)+'%':'–'}</td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--muted)">No clients.</td></tr>')+
+      (clients.slice(0,25).map(c=>`<tr><td>${esc(c.c)}</td><td>${c.n.toLocaleString()}</td><td style="color:var(--bad);font-weight:600">−${money(c.lost)}</td><td>${c.avg.toFixed(1)}%</td><td>${c.conf.toLocaleString()}</td><td>${c.switched.toLocaleString()}</td><td>${c.total.toLocaleString()}</td><td>${c.total?(c.n/c.total*100).toFixed(1)+'%':'-'}</td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--muted)">No clients.</td></tr>')+
       `</table></div>${clients.length>25?'<div style="font-size:11px;color:var(--muted);margin-top:4px">Top 25 of '+clients.length+' clients by revenue lost.</div>':''}</div>`:''}
     <div style="overflow-x:auto"><table class="rbt"><tr><th>Property</th><th>Guest</th><th title="Check-in">In</th><th title="Check-out">Out</th><th>Pax</th><th title="Bookings in the group">#</th><th title="First booking">First</th><th title="First booking cost">First €</th><th title="Latest booking">Latest</th><th title="Latest booking cost">Latest €</th><th title="Latest booking status">Status</th><th>Client</th><th>Drop</th></tr>`+
     (shown.map(g=>`<tr title="${esc(g.all.map(b=>b.id+' · '+day(b.created)+' · '+money(b.cost)+' · '+b.client+' · '+(b.active?'confirmed':'cancelled')).join('\n'))}">
@@ -1009,6 +1010,140 @@ async function restoreSaved(){
   }catch(e){ S.restoring=false; console.error(e); msg('Could not restore saved data ('+(e.message||e)+'). Please drop the folder again.','err'); }
 }
 restoreSaved();
+
+// ───────────────────────── PPTX report (all tabs, current selection) ─────────────────────────
+function loadScript(src){ return new Promise((ok,ko)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=()=>ko(new Error('Could not load '+src)); document.head.appendChild(s); }); }
+async function downloadReport(){
+  const btn=$('#btn-report'); if(!S.sales.length || btn.disabled) return;
+  const label=btn.textContent; btn.disabled=true;
+  const keep={tab:S.tab, rb:S.rebookShow?{...S.rebookShow}:null, anim:Chart.defaults.animation, y:window.scrollY};
+  const tick=m=>{ btn.textContent=m; return new Promise(r=>setTimeout(r,30)); };
+  try{
+    await tick('Preparing…');
+    if(!window.PptxGenJS) await loadScript('./pptxgen.bundle.js');
+    Chart.defaults.animation=false; keep.font=Chart.defaults.font.size; Chart.defaults.font.size=14;
+    const st=document.createElement('style'); st.id='rpt-style'; st.textContent='.chart-box,.chart-box.tall{height:420px!important}'; document.head.appendChild(st);
+    const C={blue:'1A7DC4',dk:'0F5A91',lt:'E8F3FB',mid:'D0E8F5',ink:'1A1A2E',gray:'555566',lg:'F4F6FA',mg:'C0C8D8',white:'FFFFFF',red:'C0392B',green:'1A7A3C'};
+    const pres=new PptxGenJS(); pres.layout='LAYOUT_WIDE'; // 13.33 x 7.5 in
+    const sel=id=>{ const e=$(id); return e && e.value ? e.selectedOptions[0].textContent.trim() : ''; };
+    const scopeParts=[sel('#f-prop'),sel('#f-city'),sel('#f-master'),sel('#f-country')].filter(Boolean);
+    const scope=scopeParts[0]||'All properties';
+    const fl=[['Country',sel('#f-country')],['Master city',sel('#f-master')],['City',sel('#f-city')],['Property',sel('#f-prop')],['Status',sel('#f-status')],['Contract',sel('#f-contract')]].filter(x=>x[1]).map(x=>x[0]+': '+x[1]);
+    const cmpTxt=S.cmp&&S.cmp.type&&S.cmp.val ? 'Compared with '+S.cmp.val : 'Compared with previous year';
+    const today=new Date(); const dstr=today.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+    pres.title='Overview '+scope;
+    const chrome=(sl,n,sec)=>{
+      sl.addShape(pres.shapes.RECTANGLE,{x:0.35,y:0.18,w:0.32,h:0.32,fill:{color:C.blue},line:{type:'none'}});
+      sl.addText(String(n),{x:0.35,y:0.18,w:0.32,h:0.32,fontSize:10,bold:true,color:C.white,align:'center',valign:'middle',fontFace:'Calibri',margin:0});
+      sl.addText(sec,{x:0.77,y:0.18,w:8,h:0.32,fontSize:11,color:C.blue,fontFace:'Calibri',valign:'middle',margin:0});
+      sl.addText(scope+' · '+dstr,{x:7.5,y:0.18,w:5.5,h:0.32,fontSize:9,color:C.gray,fontFace:'Calibri',align:'right',valign:'middle',margin:0});
+    };
+    const title=(sl,t,sub)=>{ sl.addText(t,{x:0.35,y:0.58,w:12.6,h:0.5,fontSize:22,bold:true,color:C.ink,fontFace:'Calibri',margin:0}); if(sub) sl.addText(sub,{x:0.35,y:1.08,w:12.6,h:0.26,fontSize:10,color:C.gray,fontFace:'Calibri',margin:0}); };
+    const kpiCards=(sl,list,y,perRow)=>{
+      const n=Math.min(list.length,perRow), gap=0.12, w=(12.63-gap*(n-1))/n, h=0.95;
+      list.slice(0,perRow*2).forEach((k,i)=>{
+        const x=0.35+(i%perRow)*(w+gap), yy=y+Math.floor(i/perRow)*(h+0.1);
+        sl.addShape(pres.shapes.RECTANGLE,{x,y:yy,w,h,fill:{color:C.lt},line:{color:C.mid,width:1}});
+        sl.addShape(pres.shapes.RECTANGLE,{x,y:yy,w,h:0.05,fill:{color:C.blue},line:{type:'none'}});
+        sl.addText(k.l,{x:x+0.1,y:yy+0.09,w:w-0.2,h:0.24,fontSize:9,color:C.gray,fontFace:'Calibri',margin:0});
+        sl.addText(k.v,{x:x+0.1,y:yy+0.33,w:w-0.2,h:0.36,fontSize:k.v.length>9?15:18,bold:true,color:C.dk,fontFace:'Calibri',margin:0});
+        if(k.d) sl.addText(k.d,{x:x+0.1,y:yy+0.68,w:w-0.2,h:0.2,fontSize:9,bold:true,color:/^-|−/.test(k.d)?C.red:C.green,fontFace:'Calibri',margin:0});
+      });
+      return y+(Math.ceil(Math.min(list.length,perRow*2)/perRow))*(h+0.1);
+    };
+    const readKpis=root=>[...root.querySelectorAll('.kpi')].filter(e=>e.offsetParent).map(e=>({l:(e.querySelector('.l')||{}).textContent||'',v:(e.querySelector('.v')||{}).textContent||'',d:((e.querySelector('.d')||{}).textContent||'').trim()}));
+    const flat=s=>String(s).replace(/\s*\n\s*/g,' ').replace(/\s+/g,' ').trim();
+    // heading text for a chart or table
+    const headFor=(el,fallback)=>{
+      let n=el.closest('.chart-box')||el.closest('div[style*="overflow-x"]')||el;
+      for(let hops=0;n && n.id!=='tab-body' && hops<5;hops++){
+        const p=n.previousElementSibling;
+        if(p && !p.querySelector('canvas,table') && p.textContent.trim() && p.textContent.length<200){ const c=p.cloneNode(true); c.querySelectorAll('button').forEach(b=>b.remove()); const t=flat(c.textContent); if(t) return t.replace(/\s*\(.*$/,'').slice(0,90); }
+        n=n.parentElement;
+      }
+      return fallback;
+    };
+    let secNo=0;
+    // cover
+    { const sl=pres.addSlide();
+      sl.addShape(pres.shapes.RECTANGLE,{x:0,y:0,w:13.33,h:2.9,fill:{color:C.blue},line:{type:'none'}});
+      sl.addText('Overview report',{x:0.6,y:0.55,w:12,h:0.6,fontSize:34,bold:true,color:C.white,fontFace:'Calibri',margin:0});
+      sl.addText(scope,{x:0.6,y:1.3,w:12,h:0.5,fontSize:20,color:'CADCFC',fontFace:'Calibri',margin:0});
+      sl.addText([cmpTxt,'G2 Travel · '+dstr].join('   ·   '),{x:0.6,y:2.1,w:12,h:0.4,fontSize:12,color:'CADCFC',fontFace:'Calibri',margin:0});
+      const yy=kpiCards(sl,readKpis($('#kpis')),3.3,4);
+      sl.addText('Selection',{x:0.6,y:yy+0.1,w:4,h:0.3,fontSize:12,bold:true,color:C.dk,fontFace:'Calibri',margin:0});
+      sl.addText(fl.length?fl.join('   ·   '):'All data (no filters)',{x:0.6,y:yy+0.42,w:12,h:0.35,fontSize:11,color:C.gray,fontFace:'Calibri',margin:0});
+      sl.addText('Year-to-date figures compare '+CUR_YEAR+' with the comparison base. Cancelled = any status other than Confirmed.',{x:0.6,y:yy+0.8,w:12,h:0.3,fontSize:9,color:C.gray,fontFace:'Calibri',margin:0});
+    }
+    const NOTES={rebook:'Rebooking = same property, check-in, check-out, passengers and guest name; earlier bookings cancelled and the latest cheaper than the first. Ignores status/contract filters and the comparison.'};
+    const imgOf=cv=>{ const o=document.createElement('canvas'); o.width=cv.width; o.height=cv.height; const g=o.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,o.width,o.height); g.drawImage(cv,0,0); return {data:o.toDataURL('image/png'),w:o.width,h:o.height}; };
+    const MAXROWS=16, MAXTBL=2; // rows per slide / slides per table
+    const rowsNow=filtered(S.sales);
+    for(let ti=0;ti<TABS.length;ti++){
+      const tName=TABS[ti], tKey=tName.toLowerCase();
+      await tick('Tab '+(ti+1)+' of '+TABS.length+'…');
+      S.tab=tKey; if(tKey==='rebook') S.rebookShow={charts:true,clients:true};
+      renderTabs(rowsNow);
+      await new Promise(r=>setTimeout(r,80));
+      const body=$('#tab-body'); secNo++;
+      const kp=readKpis(body);
+      const charts=[...body.querySelectorAll('canvas')].filter(c=>c.offsetParent && c.width>0).map(c=>({t:headFor(c,tName),img:imgOf(c)}));
+      const tables=[...body.querySelectorAll('table')].filter(t=>t.offsetParent).map(t=>{
+        const trs=[...t.rows]; if(trs.length<2) return null;
+        const data=trs.map(r=>[...r.cells].map(c=>flat(c.innerText)));
+        return {t:headFor(t,tName),head:data[0],rows:data.slice(1),mono:t.rows[0].cells.length};
+      }).filter(Boolean);
+      // slide 1: KPIs + first charts
+      let first=true;
+      const newSlide=(sub)=>{ const sl=pres.addSlide(); chrome(sl,secNo,tName); title(sl,tName,sub||NOTES[tKey]||''); return sl; };
+      let sl=null, y0=1.5;
+      if(kp.length){ sl=newSlide(); y0=kpiCards(sl,kp,1.5,Math.min(kp.length,6))+0.05; }
+      // charts: wide ones get a full-width slide area, narrow ones go two side by side; each fills the space
+      for(let i=0;i<charts.length;){
+        const wide=c=>c.img.w/c.img.h>2;
+        const grp=wide(charts[i])?[charts[i]]:charts.slice(i,i+2).filter((c,k)=>k===0||!wide(c));
+        i+=grp.length;
+        if(!sl){ sl=newSlide(); y0=1.5; }
+        const gx=0.2, bw=(12.63-gx*(grp.length-1))/grp.length, bh=7.25-y0;
+        grp.forEach((c,k)=>{
+          const x=0.35+k*(bw+gx), y=y0;
+          sl.addShape(pres.shapes.RECTANGLE,{x,y,w:bw,h:bh,fill:{color:C.white},line:{color:C.mg,width:0.5}});
+          sl.addText(c.t,{x:x+0.12,y:y+0.06,w:bw-0.24,h:0.3,fontSize:12,bold:true,color:C.ink,fontFace:'Calibri',margin:0});
+          const iw=bw-0.24, ih=bh-0.5, ar=c.img.w/c.img.h; let w=iw,h=w/ar; if(h>ih){h=ih;w=h*ar;}
+          sl.addImage({data:c.img.data,x:x+0.12+(iw-w)/2,y:y+0.42+(ih-h)/2,w,h});
+        });
+        sl=null;
+      }
+      // tables
+      for(const tb of tables){
+        const nCols=tb.head.length, total=tb.rows.length;
+        const wts=tb.head.map((h,c)=>Math.max(4,Math.min(26,Math.max(h.length,...tb.rows.slice(0,40).map(r=>(r[c]||'').length)))));
+        const sum=wts.reduce((a,b)=>a+b,0), colW=wts.map(w=>12.63*w/sum);
+        const fs=nCols>11?8:nCols>8?9:10;
+        const pages=Math.min(MAXTBL,Math.ceil(total/MAXROWS))||1;
+        for(let p=0;p<pages;p++){
+          const part=tb.rows.slice(p*MAXROWS,(p+1)*MAXROWS); if(!part.length && p>0) break;
+          const s2=pres.addSlide(); chrome(s2,secNo,tName); title(s2,tb.t, total>pages*MAXROWS?'Showing '+Math.min(total,pages*MAXROWS)+' of '+total.toLocaleString()+' rows':(total.toLocaleString()+' rows'));
+          const hdr=tb.head.map(h=>({text:h,options:{bold:true,color:C.white,fill:{color:C.blue},fontSize:fs,fontFace:'Calibri',valign:'middle'}}));
+          const body2=part.map((r,ri)=>r.map(v=>({text:v,options:{fontSize:fs,color:C.ink,fontFace:'Calibri',fill:{color:ri%2?C.lg:C.white},valign:'middle'}})));
+          s2.addTable([hdr,...body2],{x:0.35,y:1.5,w:12.63,colW,border:{type:'solid',pt:0.5,color:C.mg},margin:[0.03,0.05,0.03,0.05],autoPage:false});
+        }
+      }
+      if(!kp.length && !charts.length && !tables.length){ const s3=newSlide(); s3.addText('No data for this selection.',{x:0.6,y:2.2,w:10,h:0.5,fontSize:14,color:C.gray,fontFace:'Calibri'}); }
+    }
+    await tick('Saving…');
+    const stamp=today.toISOString().slice(0,10);
+    const safe=scope.replace(/[^\w\-]+/g,'_').slice(0,40);
+    await pres.writeFile({fileName:'Overview_'+safe+'_'+stamp+'.pptx'});
+  }catch(e){ console.error(e); alert('Could not build the report: '+(e.message||e)); }
+  finally{
+    Chart.defaults.animation=keep.anim; if(keep.font) Chart.defaults.font.size=keep.font; const st0=$('#rpt-style'); if(st0) st0.remove(); S.tab=keep.tab; S.rebookShow=keep.rb||S.rebookShow;
+    if(keep.rb===null) delete S.rebookShow;
+    render(); window.scrollTo(0,keep.y);
+    btn.textContent=label; btn.disabled=false;
+  }
+}
+$('#btn-report').onclick=downloadReport;
 </script>
 </body>
 </html>
