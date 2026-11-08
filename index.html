@@ -816,18 +816,6 @@ function showPhase(id) {
 }
 
 window.addEventListener('DOMContentLoaded', function() {
-  // Region audit hook - only runs when Region passes data
-  try {
-    const rd=sessionStorage.getItem('region-audit-data');
-    if(rd){
-      sessionStorage.removeItem('region-audit-data');
-      const data=JSON.parse(rd);
-      _D=analyze(data);
-      showPhase('phase-dashboard');
-      setTimeout(function(){ renderDashboard('dsbar','dtabbar','dtc',_D); }, 80);
-    }
-  } catch(e){ console.error('region hook', e); }
-
   document.querySelectorAll('.app-nav-link[data-nav]').forEach(function(a) {
     a.addEventListener('click', function(ev) {
       if (a.getAttribute('data-nav') === 'topup' || a.getAttribute('data-nav') === 'prebuy') return;
@@ -845,6 +833,33 @@ window.addEventListener('DOMContentLoaded', function() {
     else setAppNav('search');
   }
   applyHash();
+  // Hand-off from Region: files for one property + estimated demand profiles, stored in IndexedDB by region.html
+  (function regionHandoff(){
+    if(!window.indexedDB) return;
+    const rq=indexedDB.open('g2-handoff',1);
+    rq.onupgradeneeded=function(){ rq.result.createObjectStore('kv'); };
+    rq.onerror=function(){};
+    rq.onsuccess=function(){
+      const db=rq.result; let payload=null;
+      const tx=db.transaction('kv','readwrite'), st=tx.objectStore('kv');
+      const g=st.get('region'); g.onsuccess=function(){ payload=g.result||null; if(payload) st.delete('region'); };
+      tx.oncomplete=function(){
+        db.close();
+        try{
+          if(!payload || Date.now()-payload.created>10*60*1000) return;
+          const list=payload.items.map(function(i){ return new File([i.blob], i.name, {type:i.blob.type}); });
+          showPhase('phase-build1');
+          processFiles(list);
+          const c=payload.counts||{};
+          const b=document.createElement('div');
+          b.style.cssText='margin:0 0 14px;padding:10px 14px;border:1px solid #1A7DC4;border-radius:8px;background:#EAF3FB;color:#1a1a2e;font-size:.9rem';
+          b.innerHTML='<strong>Loaded from Region:</strong> '+payload.property.replace(/</g,'&lt;')+' · compared with '+String(payload.compare||'').replace(/</g,'&lt;')+
+            '<br><span style="color:#6b7a99">'+(c.sales||0).toLocaleString()+' sales rows, '+(c.avail||0).toLocaleString()+' availability rows. Length of stay, booking window, source markets and arrival days are <b>estimated from Region sales data</b> (current-year bookings, cancelled excluded), not taken from the G2 demand reports.</span>';
+          const host=document.getElementById('phase-build1'); host.insertBefore(b, host.firstChild);
+        }catch(e){ console.error('region hand-off', e); }
+      };
+    };
+  })();
   window.addEventListener('hashchange', applyHash);
   // Entry cards
   document.getElementById('card-build').addEventListener('click', function() { showPhase('phase-build1'); });

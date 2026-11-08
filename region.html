@@ -92,7 +92,7 @@ const $ = s => document.querySelector(s);
 const CUR_YEAR = new Date().getFullYear(), PREV_YEAR = CUR_YEAR - 1;
 const CUR_S = String(CUR_YEAR), PREV_S = String(PREV_YEAR);
 const S = {sales:[], avail:[], plans:[], offers:[], filters:{country:'',master:'',city:'',prop:'',status:'',contract:''}, cmp:{type:'',val:''}, tab:'sales'};
-const TABS = ['Sales','Pick-up','Distributions','Cancellations','Allotment','Weekday','Demand','Offers','Audit'];
+const TABS = ['Sales','Pick-up','Distributions','Cancellations','Allotment','Weekday','Demand','Offers'];
 
 $('#dark-toggle').onclick = () => { const d = document.body.classList.toggle('dark'); $('#dark-toggle').textContent = d ? '\u2600\uFE0F Light' : '\uD83C\uDF19 Dark'; };
 $('#drop').onclick = () => $('#files').click();
@@ -294,56 +294,6 @@ function baseline(){
   }
   return null;
 }
-function auditView(){
-  const body=$('#tab-body');
-  body.innerHTML=`<div style="margin-bottom:16px">
-    <div style="font-weight:600;margin-bottom:8px">Price Check</div>
-    <table class="tbl"><thead><tr><th>Check-in</th><th>Nts</th><th>Room</th><th>G2 NET</th><th>B2B</th><th>B2C</th><th>% B2B</th><th>% B2C</th><th>Meal</th><th>Cnx</th><th>Offer</th><th>Type</th></tr></thead>
-    <tbody id="pc-body"></tbody></table>
-    <button class="btn btn-secondary" style="margin-top:8px" onclick="addPC()">+ Add row</button>
-  </div>
-  <div>
-    <div style="font-weight:600;margin-bottom:8px">Audit Checklist</div>
-    <div id="chk-list"></div>
-  </div>`;
-  renderPC();
-  renderChk();
-}
-function renderPC(){
-  const tb=$('#pc-body');
-  if(!tb) return;
-  tb.innerHTML=PC.map((r,i)=>`<tr>
-    <td><input type="date" value="${r.cin}" onchange="PC[${i}].cin=this.value"></td>
-    <td><input type="number" value="${r.nts}" style="width:50px" onchange="PC[${i}].nts=this.value"></td>
-    <td><input value="${r.room}" onchange="PC[${i}].room=this.value"></td>
-    <td><input type="number" value="${r.g2}" style="width:70px" onchange="PC[${i}].g2=this.value;calcPC(${i})"></td>
-    <td><input type="number" value="${r.b2b}" style="width:70px" onchange="PC[${i}].b2b=this.value;calcPC(${i})"></td>
-    <td><input type="number" value="${r.b2c}" style="width:70px" onchange="PC[${i}].b2c=this.value;calcPC(${i})"></td>
-    <td id="pb${i}">${r.pb}</td><td id="pc${i}">${r.pc}</td>
-    <td><input value="${r.meal}" onchange="PC[${i}].meal=this.value"></td>
-    <td><input value="${r.cnx}" onchange="PC[${i}].cnx=this.value"></td>
-    <td><input value="${r.offer}" onchange="PC[${i}].offer=this.value"></td>
-    <td><input value="${r.type}" onchange="PC[${i}].type=this.value"></td>
-  </tr>`).join('');
-}
-function calcPC(i){
-  const r=PC[i];
-  r.pb=r.b2b?((r.g2-r.b2b)/r.b2b*100).toFixed(1)+'%':'';
-  r.pc=r.b2c?((r.g2-r.b2c)/r.b2c*100).toFixed(1)+'%':'';
-  const pb=$('#pb'+i), pc=$('#pc'+i);
-  if(pb) pb.textContent=r.pb;
-  if(pc) pc.textContent=r.pc;
-}
-function addPC(){ PC.push({cin:'',nts:1,room:'',g2:0,b2b:0,b2c:0,pb:'',pc:'',meal:'',cnx:'',offer:'',type:''}); renderPC(); }
-function renderChk(){
-  const el=$('#chk-list');
-  if(!el) return;
-  el.innerHTML=CHK.map(c=>`<div style="display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)">
-    <div style="flex:1"><strong>${c[1]}</strong><div style="font-size:11px;color:var(--muted)">${c[2]}</div></div>
-    <label><input type="radio" name="chk-${c[0]}" value="ok" ${chkState[c[0]]==='ok'?'checked':''} onchange="chkState['${c[0]}']='ok'"> No Issue</label>
-    <label><input type="radio" name="chk-${c[0]}" value="issue" ${chkState[c[0]]==='issue'?'checked':''} onchange="chkState['${c[0]}']='issue'"> Issue</label>
-  </div>`).join('');
-}
 function render(){
   const rows = filtered(S.sales);
   const yPrev = rows.filter(r=>(r['Created (UTC)']||'').startsWith(PREV_S));
@@ -384,7 +334,6 @@ function renderTabs(rows){
   else if(S.tab==='allotment') body.innerHTML = allotTable();
   else if(S.tab==='weekday') weekdayView(rows);
   else if(S.tab==='demand') demandView(rows);
-  else if(S.tab==='audit') auditView();
   else offersView();
 }
 const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -783,25 +732,86 @@ $('#btn-reset').onclick = () => {
   cascade();
   render();
 };
-$('#btn-audit').onclick = () => {
-  if(!S.filters.prop){ msg('Select a property first.','err'); return; }
-  S.tab='audit'; render();
-  $('#tab-body').scrollIntoView({behavior:'smooth'});
+$('#btn-audit').onclick = async () => {
+  if(!S.filters.prop){ msg('Select a property first.','err'); window.scrollTo({top:0,behavior:'smooth'}); return; }
+  const btn=$('#btn-audit'), label=btn.textContent;
+  btn.disabled=true; btn.textContent='Preparing…';
+  try{
+    const payload = buildHandoff();
+    await idbPut(payload);
+    location.href='/#files';
+  }catch(e){
+    console.error(e); btn.disabled=false; btn.textContent=label;
+    msg('Could not open Auto Audit: '+(e.message||e),'err'); window.scrollTo({top:0,behavior:'smooth'});
+  }
 };
 
-const PC=[];
-const CHK=[
-  ['release','Release','0 Day Release'],
-  ['stopsales','Stop-sales','Stop-sales or full closures'],
-  ['rateplans','Rate Plans','All rate plan mix loaded'],
-  ['roomtypes','Room Types','All available room types loaded'],
-  ['restrictions','Restrictions','Booking or stay restrictions'],
-  ['status','Status','Contract status active'],
-  ['offers','Active Offers','Tactical offers loaded'],
-  ['opaque','Opaque','Opaque rate plan loaded']
-];
-const chkState={};
-CHK.forEach(c=>chkState[c[0]]='ok');
+// ───────── Hand-off to Auto Audit ─────────
+// Builds the files Auto Audit's "Files" flow expects, for ONE property (+ the compare subject as the "City" side),
+// and stores them in IndexedDB; index.html picks them up on load and maps them into its 13 slots.
+function idbPut(payload){
+  return new Promise((res,rej)=>{
+    if(!window.indexedDB) return rej(new Error('IndexedDB not available in this browser'));
+    const rq=indexedDB.open('g2-handoff',1);
+    rq.onupgradeneeded=()=>rq.result.createObjectStore('kv');
+    rq.onerror=()=>rej(rq.error);
+    rq.onsuccess=()=>{ const db=rq.result, tx=db.transaction('kv','readwrite'); tx.objectStore('kv').put(payload,'region');
+      tx.oncomplete=()=>{db.close();res();}; tx.onerror=()=>rej(tx.error); tx.onabort=()=>rej(tx.error); };
+  });
+}
+const XLSX_MIME='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+function wbBlob(ws){ const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Sheet1'); return new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})],{type:XLSX_MIME}); }
+function rowsBlob(rows, numify){
+  if(numify) rows=rows.map(r=>{ const o={}; for(const k in r){ const v=r[k]; o[k]=(!/id|code/i.test(k) && typeof v==='string' && /^-?\d+(\.\d+)?$/.test(v)) ? Number(v) : v; } return o; });
+  return wbBlob(XLSX.utils.json_to_sheet(rows));
+}
+const LOS_KEYS=['1','2','3','4','5','6','7','8-10','11-14','15+'];
+const BW_KEYS=['0','1-5','6-15','16-30','31-60','61-90','91-120','121-180','181-250','251+'];
+function losKey(n){ return n>=15?'15+':n>=11?'11-14':n>=8?'8-10':String(n); }
+function bwKey(d){ return d>=251?'251+':d>=181?'181-250':d>=121?'121-180':d>=91?'91-120':d>=61?'61-90':d>=31?'31-60':d>=16?'16-30':d>=6?'6-15':d>=1?'1-5':'0'; }
+function isoDay(v){ const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(v||''); return m?Date.UTC(+m[1],+m[2]-1,+m[3]):NaN; }
+// Demand profile estimated from sales rows: current-year creations, cancelled lines excluded.
+// LOS / booking window / arrival day = share of booking lines; source markets = share of room nights.
+function demandBlobs(rows, prefix){
+  const cur=rows.filter(r=>(r['Created (UTC)']||'').startsWith(CUR_S) && !/cancel/i.test(r.Status||''));
+  const los={}, bw={}, wd=Array(7).fill(0), sm={}; let nLos=0,nBw=0,nWd=0,rn=0;
+  LOS_KEYS.forEach(k=>los[k]=0); BW_KEYS.forEach(k=>bw[k]=0);
+  cur.forEach(r=>{
+    const n=Number(r.Nights)||0;
+    if(n>=1){ los[losKey(n)]++; nLos++; }
+    let lead=Number(r['Lead Time']);
+    if(r['Lead Time']===''||r['Lead Time']==null||isNaN(lead)){ const ci=isoDay(r['Check-In']), cr=isoDay(r['Created (UTC)']); lead=(isNaN(ci)||isNaN(cr))?NaN:Math.round((ci-cr)/864e5); }
+    if(!isNaN(lead)&&lead>=0){ bw[bwKey(lead)]++; nBw++; }
+    const ci=isoDay(r['Check-In']); if(!isNaN(ci)){ wd[(new Date(ci).getUTCDay()+6)%7]++; nWd++; }
+    const m=(r['Source Market']||'').trim()||'Other'; sm[m]=(sm[m]||0)+n; rn+=n;
+  });
+  const simple=(title,keys,map,tot)=>wbBlob(XLSX.utils.aoa_to_sheet([[title,'% of bookings'],...keys.map(k=>[k,tot?map[k]/tot:0])]));
+  const top=Object.entries(sm).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  return [
+    {name:prefix+'_Length_of_Stay.xlsx',        blob:simple('Length of Stay',LOS_KEYS,los,nLos)},
+    {name:prefix+'_Booking_Window.xlsx',        blob:simple('Booking Window',BW_KEYS,bw,nBw)},
+    {name:prefix+'_Top_10_Source_Markets.xlsx', blob:wbBlob(XLSX.utils.aoa_to_sheet([['','Source Market','% of Room Nights'],...top.map(([k,v])=>['',k,rn?v/rn:0])]))},
+    {name:prefix+'_Arrival_Days_of_Week.xlsx',  blob:wbBlob(XLSX.utils.aoa_to_sheet([['','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],[String(CUR_YEAR),...wd.map(v=>nWd?v/nWd:0)]]))}
+  ];
+}
+function buildHandoff(){
+  const prop=S.filters.prop;
+  const byProp=r=>r.Property===prop;
+  const sales=S.sales.filter(byProp);
+  if(!sales.length) throw new Error('No sales rows for '+prop);
+  const city=sales[0].City||'';
+  const cmp=cmpRows() || S.sales.filter(r=>r.City===city);
+  const cmpLabel=cmpRows()? S.cmp.val : city;
+  const items=[];
+  items.push({name:'Daily_Creations_Region.xlsx', blob:rowsBlob(sales,true)});
+  const av=S.avail.filter(byProp); if(av.length) items.push({name:'Availability_Report_Region.xlsx', blob:rowsBlob(av,true)});
+  const rp=S.plans.filter(byProp); if(!rp.length) throw new Error('No Rate Plan rows for '+prop+' in the Rate Plan report');
+  items.push({name:'Rate_Plan_Report_Region.xlsx', blob:rowsBlob(rp,false)});
+  const od=S.offers.filter(byProp); if(od.length) items.push({name:'Offer_Details_Region.xlsx', blob:rowsBlob(od,false)});
+  demandBlobs(sales,'Hotel').forEach(i=>items.push(i));
+  demandBlobs(cmp,'City').forEach(i=>items.push(i));
+  return {created:Date.now(), property:prop, city, compare:cmpLabel, counts:{sales:sales.length,compare:cmp.length,avail:av.length,plans:rp.length,offers:od.length}, items};
+}
 </script>
 </body>
 </html>
