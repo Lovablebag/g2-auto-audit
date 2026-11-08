@@ -31,6 +31,9 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--bg
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line)}
 th{font-size:11px;color:var(--muted);text-transform:uppercase}
+table.rbt{font-size:12px}
+table.rbt th,table.rbt td{padding:8px 5px}
+table.rbt td:nth-child(3),table.rbt td:nth-child(4),table.rbt td:nth-child(6),table.rbt td:nth-child(8),table.rbt td:nth-child(10),table.rbt td:nth-child(11),table.rbt td:last-child{white-space:nowrap}
 .btn{padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600}
 .btn-primary{background:var(--blue);color:#fff}
 .btn-primary:disabled{opacity:.4;cursor:not-allowed}
@@ -810,7 +813,7 @@ function rebookView(){
       <div style="overflow-x:auto"><table><tr><th>Client</th><th>Rebooked stays</th><th>Revenue lost</th><th>Avg. drop</th><th>Latest still confirmed</th><th>Changed client vs first</th><th>Client bookings</th><th>Rebook rate</th></tr>`+
       (clients.slice(0,25).map(c=>`<tr><td>${esc(c.c)}</td><td>${c.n.toLocaleString()}</td><td style="color:var(--bad);font-weight:600">−${money(c.lost)}</td><td>${c.avg.toFixed(1)}%</td><td>${c.conf.toLocaleString()}</td><td>${c.switched.toLocaleString()}</td><td>${c.total.toLocaleString()}</td><td>${c.total?(c.n/c.total*100).toFixed(1)+'%':'–'}</td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--muted)">No clients.</td></tr>')+
       `</table></div>${clients.length>25?'<div style="font-size:11px;color:var(--muted);margin-top:4px">Top 25 of '+clients.length+' clients by revenue lost.</div>':''}</div>`:''}
-    <div style="overflow-x:auto"><table><tr><th>Property</th><th>Guest</th><th>Check-in</th><th>Check-out</th><th>Pax</th><th>Bookings</th><th>First booking</th><th>First cost</th><th>Latest booking</th><th>Latest cost</th><th>Latest status</th><th>Client</th><th>Price drop</th></tr>`+
+    <div style="overflow-x:auto"><table class="rbt"><tr><th>Property</th><th>Guest</th><th title="Check-in">In</th><th title="Check-out">Out</th><th>Pax</th><th title="Bookings in the group">#</th><th title="First booking">First</th><th title="First booking cost">First €</th><th title="Latest booking">Latest</th><th title="Latest booking cost">Latest €</th><th title="Latest booking status">Status</th><th>Client</th><th>Drop</th></tr>`+
     (shown.map(g=>`<tr title="${esc(g.all.map(b=>b.id+' · '+day(b.created)+' · '+money(b.cost)+' · '+b.client+' · '+(b.active?'confirmed':'cancelled')).join('\n'))}">
       <td>${esc(g.first.prop)}</td><td>${esc(g.first.guest)}</td><td>${g.first.ci}</td><td>${g.first.co}</td><td>${esc(g.first.pax)}</td><td>${g.all.length}</td>
       <td>${esc(g.first.id)}<br><span style="color:var(--muted);font-size:11px">${day(g.first.created)}</span></td><td>${money(g.first.cost)}</td>
