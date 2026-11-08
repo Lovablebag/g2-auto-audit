@@ -1016,7 +1016,7 @@ function loadScript(src){ return new Promise((ok,ko)=>{ const s=document.createE
 async function downloadReport(){
   const btn=$('#btn-report'); if(!S.sales.length || btn.disabled) return;
   const label=btn.textContent; btn.disabled=true;
-  const keep={tab:S.tab, rb:S.rebookShow?{...S.rebookShow}:null, anim:Chart.defaults.animation, y:window.scrollY};
+  const keep={status:S.filters.status, tab:S.tab, rb:S.rebookShow?{...S.rebookShow}:null, anim:Chart.defaults.animation, y:window.scrollY};
   const tick=m=>{ btn.textContent=m; return new Promise(r=>setTimeout(r,30)); };
   try{
     await tick('Preparing…');
@@ -1083,8 +1083,12 @@ async function downloadReport(){
       const tName=TABS[ti], tKey=tName.toLowerCase();
       await tick('Tab '+(ti+1)+' of '+TABS.length+'…');
       S.tab=tKey; if(tKey==='rebook') S.rebookShow={charts:true,clients:true};
-      renderTabs(rowsNow);
+      // Cancellations are meaningless once rows are limited to one status, so that section ignores the Status filter
+      const ignoreSt = tKey==='cancellations' && keep.status;
+      if(ignoreSt){ S.filters.status=''; NOTES.cancellations='The Status filter ('+keep.status+') is ignored in this section, because cancellations need all statuses.'; } else delete NOTES.cancellations;
+      renderTabs(ignoreSt?filtered(S.sales):rowsNow);
       await new Promise(r=>setTimeout(r,80));
+      S.filters.status=keep.status;
       const body=$('#tab-body'); secNo++;
       const kp=readKpis(body);
       const charts=[...body.querySelectorAll('canvas')].filter(c=>c.offsetParent && c.width>0).map(c=>({t:headFor(c,tName),img:imgOf(c)}));
@@ -1137,7 +1141,7 @@ async function downloadReport(){
     await pres.writeFile({fileName:'Overview_'+safe+'_'+stamp+'.pptx'});
   }catch(e){ console.error(e); alert('Could not build the report: '+(e.message||e)); }
   finally{
-    Chart.defaults.animation=keep.anim; if(keep.font) Chart.defaults.font.size=keep.font; const st0=$('#rpt-style'); if(st0) st0.remove(); S.tab=keep.tab; S.rebookShow=keep.rb||S.rebookShow;
+    S.filters.status=keep.status; Chart.defaults.animation=keep.anim; if(keep.font) Chart.defaults.font.size=keep.font; const st0=$('#rpt-style'); if(st0) st0.remove(); S.tab=keep.tab; S.rebookShow=keep.rb||S.rebookShow;
     if(keep.rb===null) delete S.rebookShow;
     render(); window.scrollTo(0,keep.y);
     btn.textContent=label; btn.disabled=false;
