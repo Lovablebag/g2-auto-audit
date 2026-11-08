@@ -249,14 +249,14 @@ $('#cmp-type').onchange = () => {
 };
 $('#cmp-val').onchange = () => { S.cmp.val = $('#cmp-val').value; render(); };
 
-function filtered(rows, key){
+function filtered(rows, key, ignoreStatus){
   const f = S.filters;
   return rows.filter(r =>
     (!f.country || r.Country===f.country) &&
     (!f.master || r['Master City']===f.master) &&
     (!f.city || r.City===f.city) &&
     (!f.prop || r.Property===f.prop) &&
-    (!f.status || r.Status===f.status) &&
+    (ignoreStatus || !f.status || r.Status===f.status) &&
     contractOk(r, f.contract)
   );
 }
@@ -310,13 +310,17 @@ function render(){
   const base = baseline();
   const aBase = base ? kpis(base.rows) : kpis(yPrev);
   const baseLabel = base ? base.label : PREV_S;
+  // cancellations only make sense across all statuses, so the Status filter is ignored for the cancel rate
+  const rowsC = S.filters.status ? filtered(S.sales,null,true) : rows;
+  const aCurC = S.filters.status ? kpis(rowsC.filter(r=>(r['Created (UTC)']||'').startsWith(CUR_S))) : aCur;
+  const aBaseC = base ? aBase : (S.filters.status ? kpis(rowsC.filter(r=>(r['Created (UTC)']||'').startsWith(PREV_S))) : aBase);
   const cards = [
     ['Room nights '+baseLabel, aBase.rn.toLocaleString(), null],
     ['Room nights '+CUR_YEAR+' YTD', aCur.rn.toLocaleString(), delta(aCur.rn, aBase.rn)],
     ['Cost '+baseLabel, '€'+Math.round(aBase.cost).toLocaleString(), null],
     ['Cost '+CUR_YEAR+' YTD', '€'+Math.round(aCur.cost).toLocaleString(), delta(aCur.cost, aBase.cost)],
     ['ADR '+CUR_YEAR, '€'+aCur.adr.toFixed(0), delta(aCur.adr, aBase.adr)],
-    ['Cancel rate '+CUR_YEAR+' (% of lines)', aCur.cancelPct.toFixed(1)+'%', delta(aCur.cancelPct, aBase.cancelPct, true)],
+    ['Cancel rate '+CUR_YEAR+' (% of lines)', aCurC.cancelPct.toFixed(1)+'%', delta(aCurC.cancelPct, aBaseC.cancelPct, true)],
     ['Multi-room '+CUR_YEAR, aCur.multi.toLocaleString(), null],
     ['Bookings '+CUR_YEAR, aCur.bookings.toLocaleString(), delta(aCur.bookings, aBase.bookings)]
   ];
@@ -338,7 +342,7 @@ function renderTabs(rows){
   if(S.tab==='sales') salesView(rows);
   else if(S.tab==='pick-up') pickupView(rows);
   else if(S.tab==='distributions') body.innerHTML = distTable(rows);
-  else if(S.tab==='cancellations') cancelView(rows);
+  else if(S.tab==='cancellations'){ cancelView(S.filters.status ? filtered(S.sales,null,true) : rows); if(S.filters.status) body.insertAdjacentHTML('afterbegin','<div style="font-size:12px;color:var(--muted);margin-bottom:8px">The Status filter ('+esc(S.filters.status)+') is ignored here, because cancellations need all statuses.</div>'); }
   else if(S.tab==='allotment') body.innerHTML = allotTable();
   else if(S.tab==='weekday') weekdayView(rows);
   else if(S.tab==='demand') demandView(rows);
