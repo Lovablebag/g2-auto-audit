@@ -92,7 +92,7 @@ const $ = s => document.querySelector(s);
 const CUR_YEAR = new Date().getFullYear(), PREV_YEAR = CUR_YEAR - 1;
 const CUR_S = String(CUR_YEAR), PREV_S = String(PREV_YEAR);
 const S = {sales:[], avail:[], plans:[], offers:[], filters:{country:'',master:'',city:'',prop:'',status:'',contract:''}, cmp:{type:'',val:''}, tab:'sales'};
-const TABS = ['Sales','Pick-up','Distributions','Cancellations','Allotment','Weekday','Demand','Offers'];
+const TABS = ['Sales','Pick-up','Distributions','Cancellations','Allotment','Weekday','Demand','Offers','Rebook'];
 
 $('#dark-toggle').onclick = () => { const d = document.body.classList.toggle('dark'); $('#dark-toggle').textContent = d ? '\u2600\uFE0F Light' : '\uD83C\uDF19 Dark'; };
 $('#drop').onclick = () => $('#files').click();
@@ -336,6 +336,7 @@ function renderTabs(rows){
   else if(S.tab==='allotment') body.innerHTML = allotTable();
   else if(S.tab==='weekday') weekdayView(rows);
   else if(S.tab==='demand') demandView(rows);
+  else if(S.tab==='rebook') rebookView();
   else offersView();
 }
 const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -699,6 +700,83 @@ function xlDate(v){
   }
   return String(v).slice(0,10);
 }
+// ───────── Rebook tab ─────────
+// Rebooking = bookings (unique Booking ID) of the same property, check-in, check-out, passengers and guest (Lead Name).
+// Qualifies when the most recent booking is cheaper than the first, and every earlier booking is cancelled
+// (the latest may be confirmed or cancelled). Uses the SUBJECT filters only (country / master city / city / property):
+// status, contract and the compare term are ignored.
+let _rebookCache={key:'',groups:null};
+function normGuest(n){ return String(n||'').toLowerCase().replace(/[.,]/g,' ').replace(/\s+/g,' ').trim().replace(/^(mr|mrs|ms|miss|mx|dr|mstr)\s+/,''); }
+function rebookGroups(){
+  const f=S.filters, key=[f.country,f.master,f.city,f.prop,S.sales.length].join('|');
+  if(_rebookCache.key===key) return _rebookCache.groups;
+  const bookings=new Map();
+  for(const r of S.sales){
+    if((f.country&&r.Country!==f.country)||(f.master&&r['Master City']!==f.master)||(f.city&&r.City!==f.city)||(f.prop&&r.Property!==f.prop)) continue;
+    const id=r['Booking ID']; let b=bookings.get(id);
+    if(!b){ b={id, prop:r.Property||'', ci:String(r['Check-In']||'').slice(0,10), co:String(r['Check-Out']||'').slice(0,10), pax:String(r.Passengers||'').trim(), guest:r['Lead Name']||'', created:r['Created (UTC)']||'', cost:0, rn:0, active:false, lines:0};
+      bookings.set(id,b); }
+    b.cost+=Number(r.Cost)||0; b.rn+=Number(r.Nights)||0; b.lines++;
+    if(!isCancelled(r)) b.active=true;
+    if((r['Created (UTC)']||'')<b.created) b.created=r['Created (UTC)'];
+  }
+  const groups=new Map();
+  for(const b of bookings.values()){
+    const g=normGuest(b.guest); if(!g||!b.ci||!b.co) continue;
+    const k=[b.prop,b.ci,b.co,b.pax,g].join('|'); let arr=groups.get(k); if(!arr){arr=[];groups.set(k,arr);} arr.push(b);
+  }
+  const out=[];
+  for(const arr of groups.values()){
+    if(arr.length<2) continue;
+    arr.sort((a,b)=>a.created<b.created?-1:a.created>b.created?1:(a.id<b.id?-1:1));
+    const first=arr[0], last=arr[arr.length-1];
+    if(arr.slice(0,-1).some(b=>b.active)) continue;
+    if(!(last.cost<first.cost)) continue;
+    out.push({first,last,all:arr,saving:first.cost-last.cost,pct:first.cost?(first.cost-last.cost)/first.cost*100:0});
+  }
+  out.sort((a,b)=>a.last.created<b.last.created?1:-1);
+  _rebookCache={key,groups:out};
+  return out;
+}
+function rebookView(){
+  const all=rebookGroups();
+  const mode=S.rebookMode||'all';
+  const list=all.filter(g=>mode==='all'||(mode==='confirmed'?g.last.active:!g.last.active));
+  const saving=list.reduce((t,g)=>t+g.saving,0), bk=list.reduce((t,g)=>t+g.all.length,0);
+  const avg=list.length?list.reduce((t,g)=>t+g.pct,0)/list.length:0;
+  const money=v=>'€'+Math.round(v).toLocaleString();
+  const day=v=>String(v||'').slice(0,10);
+  const LIM=1000, shown=list.slice(0,LIM);
+  $('#tab-body').innerHTML=`
+    <div class="kpis" style="margin-bottom:12px">
+      <div class="kpi"><div class="l">Rebooked stays</div><div class="v">${list.length.toLocaleString()}</div></div>
+      <div class="kpi"><div class="l">Bookings involved</div><div class="v">${bk.toLocaleString()}</div></div>
+      <div class="kpi"><div class="l">Total saved vs first booking</div><div class="v">${money(saving)}</div></div>
+      <div class="kpi"><div class="l">Avg. saving</div><div class="v">${avg.toFixed(1)}%</div></div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+      <label style="font-size:12px;color:var(--muted)">Latest booking is</label>
+      <select id="rb-mode"><option value="all">Any status</option><option value="confirmed">Still confirmed</option><option value="cancelled">Cancelled</option></select>
+      <button class="btn btn-secondary" id="rb-csv">Export CSV</button>
+      <span style="font-size:11px;color:var(--muted)">Same property, check-in, check-out, passengers and guest name · latest cheaper than first · earlier bookings cancelled · ignores status/contract filters and compare.${list.length>LIM?' Showing the latest '+LIM+'.':''}</span>
+    </div>
+    <div style="overflow-x:auto"><table><tr><th>Property</th><th>Guest</th><th>Check-in</th><th>Check-out</th><th>Pax</th><th>Bookings</th><th>First booking</th><th>First cost</th><th>Latest booking</th><th>Latest cost</th><th>Latest status</th><th>Saved</th></tr>`+
+    (shown.map(g=>`<tr title="${esc(g.all.map(b=>b.id+' · '+day(b.created)+' · '+money(b.cost)+' · '+(b.active?'confirmed':'cancelled')).join('\n'))}">
+      <td>${esc(g.first.prop)}</td><td>${esc(g.first.guest)}</td><td>${g.first.ci}</td><td>${g.first.co}</td><td>${esc(g.first.pax)}</td><td>${g.all.length}</td>
+      <td>${esc(g.first.id)}<br><span style="color:var(--muted);font-size:11px">${day(g.first.created)}</span></td><td>${money(g.first.cost)}</td>
+      <td>${esc(g.last.id)}<br><span style="color:var(--muted);font-size:11px">${day(g.last.created)}</span></td><td>${money(g.last.cost)}</td>
+      <td>${g.last.active?'Confirmed':'Cancelled'}</td><td style="color:var(--ok);font-weight:600">${money(g.saving)} (${g.pct.toFixed(0)}%)</td></tr>`).join('')||'<tr><td colspan="12" style="text-align:center;color:var(--muted)">No rebookings found for this selection.</td></tr>')+
+    `</table></div>`;
+  $('#rb-mode').value=mode;
+  $('#rb-mode').onchange=e=>{ S.rebookMode=e.target.value; rebookView(); };
+  $('#rb-csv').onclick=()=>{
+    const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+    const head=['Property','Guest','Check-in','Check-out','Pax','Bookings','First booking ID','First created','First cost','Latest booking ID','Latest created','Latest cost','Latest status','Saved','Saved %','All booking IDs'];
+    const lines=[head.map(q).join(',')].concat(list.map(g=>[g.first.prop,g.first.guest,g.first.ci,g.first.co,g.first.pax,g.all.length,g.first.id,day(g.first.created),g.first.cost.toFixed(2),g.last.id,day(g.last.created),g.last.cost.toFixed(2),g.last.active?'Confirmed':'Cancelled',g.saving.toFixed(2),g.pct.toFixed(1),g.all.map(b=>b.id).join(' ')].map(q).join(',')));
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+lines.join('\n')],{type:'text/csv'})); a.download='rebook-'+(S.filters.prop||S.filters.city||S.filters.master||S.filters.country||'all')+'.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  };
+}
+
 function offersView(){
   const f=S.filters;
   const rows=S.offers.filter(r=>(!f.country||r.Country===f.country)&&(!f.city||r.City===f.city)&&(!f.prop||r.Property===f.prop));
