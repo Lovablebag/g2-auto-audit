@@ -751,8 +751,8 @@ function rebookView(){
     <div class="kpis" style="margin-bottom:12px">
       <div class="kpi"><div class="l">Rebooked stays</div><div class="v">${list.length.toLocaleString()}</div></div>
       <div class="kpi"><div class="l">Bookings involved</div><div class="v">${bk.toLocaleString()}</div></div>
-      <div class="kpi"><div class="l">Total saved vs first booking</div><div class="v">${money(saving)}</div></div>
-      <div class="kpi"><div class="l">Avg. saving</div><div class="v">${avg.toFixed(1)}%</div></div>
+      <div class="kpi"><div class="l">Revenue lost vs first booking</div><div class="v">${money(saving)}</div></div>
+      <div class="kpi"><div class="l">Avg. price drop</div><div class="v">${avg.toFixed(1)}%</div></div>
     </div>
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
       <label style="font-size:12px;color:var(--muted)">Latest booking is</label>
@@ -760,18 +760,18 @@ function rebookView(){
       <button class="btn btn-secondary" id="rb-csv">Export CSV</button>
       <span style="font-size:11px;color:var(--muted)">Same property, check-in, check-out, passengers and guest name · latest cheaper than first · earlier bookings cancelled · ignores status/contract filters and compare.${list.length>LIM?' Showing the latest '+LIM+'.':''}</span>
     </div>
-    <div style="overflow-x:auto"><table><tr><th>Property</th><th>Guest</th><th>Check-in</th><th>Check-out</th><th>Pax</th><th>Bookings</th><th>First booking</th><th>First cost</th><th>Latest booking</th><th>Latest cost</th><th>Latest status</th><th>Saved</th></tr>`+
+    <div style="overflow-x:auto"><table><tr><th>Property</th><th>Guest</th><th>Check-in</th><th>Check-out</th><th>Pax</th><th>Bookings</th><th>First booking</th><th>First cost</th><th>Latest booking</th><th>Latest cost</th><th>Latest status</th><th>Price drop</th></tr>`+
     (shown.map(g=>`<tr title="${esc(g.all.map(b=>b.id+' · '+day(b.created)+' · '+money(b.cost)+' · '+(b.active?'confirmed':'cancelled')).join('\n'))}">
       <td>${esc(g.first.prop)}</td><td>${esc(g.first.guest)}</td><td>${g.first.ci}</td><td>${g.first.co}</td><td>${esc(g.first.pax)}</td><td>${g.all.length}</td>
       <td>${esc(g.first.id)}<br><span style="color:var(--muted);font-size:11px">${day(g.first.created)}</span></td><td>${money(g.first.cost)}</td>
       <td>${esc(g.last.id)}<br><span style="color:var(--muted);font-size:11px">${day(g.last.created)}</span></td><td>${money(g.last.cost)}</td>
-      <td>${g.last.active?'Confirmed':'Cancelled'}</td><td style="color:var(--ok);font-weight:600">${money(g.saving)} (${g.pct.toFixed(0)}%)</td></tr>`).join('')||'<tr><td colspan="12" style="text-align:center;color:var(--muted)">No rebookings found for this selection.</td></tr>')+
+      <td>${g.last.active?'Confirmed':'Cancelled'}</td><td style="color:var(--bad);font-weight:600">−${money(g.saving)} (−${g.pct.toFixed(0)}%)</td></tr>`).join('')||'<tr><td colspan="12" style="text-align:center;color:var(--muted)">No rebookings found for this selection.</td></tr>')+
     `</table></div>`;
   $('#rb-mode').value=mode;
   $('#rb-mode').onchange=e=>{ S.rebookMode=e.target.value; rebookView(); };
   $('#rb-csv').onclick=()=>{
     const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
-    const head=['Property','Guest','Check-in','Check-out','Pax','Bookings','First booking ID','First created','First cost','Latest booking ID','Latest created','Latest cost','Latest status','Saved','Saved %','All booking IDs'];
+    const head=['Property','Guest','Check-in','Check-out','Pax','Bookings','First booking ID','First created','First cost','Latest booking ID','Latest created','Latest cost','Latest status','Revenue lost','Revenue lost %','All booking IDs'];
     const lines=[head.map(q).join(',')].concat(list.map(g=>[g.first.prop,g.first.guest,g.first.ci,g.first.co,g.first.pax,g.all.length,g.first.id,day(g.first.created),g.first.cost.toFixed(2),g.last.id,day(g.last.created),g.last.cost.toFixed(2),g.last.active?'Confirmed':'Cancelled',g.saving.toFixed(2),g.pct.toFixed(1),g.all.map(b=>b.id).join(' ')].map(q).join(',')));
     const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+lines.join('\n')],{type:'text/csv'})); a.download='rebook-'+(S.filters.prop||S.filters.city||S.filters.master||S.filters.country||'all')+'.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
   };
