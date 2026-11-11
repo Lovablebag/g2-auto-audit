@@ -18,6 +18,18 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--bg
 .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
 .field{display:flex;flex-direction:column;gap:4px}
 .field label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase}
+.field.ms{position:relative}
+.ms-btn{padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--text);min-width:150px;max-width:220px;text-align:left;cursor:pointer;font:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ms-btn.on{border-color:var(--blue);font-weight:600}
+.ms-panel{position:absolute;top:100%;left:0;z-index:40;margin-top:4px;width:300px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:8px}
+.ms-panel.hidden{display:none}
+.ms-panel input.ms-q{width:100%;min-width:0;box-sizing:border-box}
+.ms-top{display:flex;justify-content:space-between;align-items:center;margin:6px 2px;font-size:12px;color:var(--muted)}
+.ms-top a{color:var(--blue);cursor:pointer}
+.ms-list{max-height:260px;overflow:auto}
+.ms-list label{display:flex;gap:8px;align-items:center;padding:4px 4px;font-size:13px;text-transform:none;font-weight:400;color:var(--text);cursor:pointer;border-radius:4px}
+.ms-list label:hover{background:var(--bg)}
+.ms-list input{min-width:0;width:auto}
 .field select,.field input{padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--text);min-width:140px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
 .kpi{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px}
@@ -74,6 +86,9 @@ table.rbt td:nth-child(3),table.rbt td:nth-child(4),table.rbt td:nth-child(6),ta
         <div class="field"><label>Property</label><select id="f-prop"><option value="">All</option></select></div>
         <div class="field"><label>Status</label><select id="f-status"><option value="">All</option><option value="Confirmed">Confirmed</option></select></div>
         <div class="field"><label>Contract</label><select id="f-contract"><option value="">All</option><option value="Static">Static</option><option value="Margin">Margin</option><option value="Dynamic">Dynamic</option><option value="Direct">Direct</option></select></div>
+        <div class="field ms" id="ms-clients" data-key="clients"><label>Client</label><button type="button" class="ms-btn">All</button><div class="ms-panel hidden"><input class="ms-q" type="search" placeholder="Search…"><div class="ms-top"><span class="ms-count"></span><a class="ms-clear">Clear</a></div><div class="ms-list"></div></div></div>
+        <div class="field ms" id="ms-chains" data-key="chains"><label>Chain</label><button type="button" class="ms-btn">All</button><div class="ms-panel hidden"><input class="ms-q" type="search" placeholder="Search…"><div class="ms-top"><span class="ms-count"></span><a class="ms-clear">Clear</a></div><div class="ms-list"></div></div></div>
+        <div class="field ms" id="ms-owners" data-key="owners"><label>Contract owner</label><button type="button" class="ms-btn">All</button><div class="ms-panel hidden"><input class="ms-q" type="search" placeholder="Search…"><div class="ms-top"><span class="ms-count"></span><a class="ms-clear">Clear</a></div><div class="ms-list"></div></div></div>
         <div class="field"><label>Compare vs</label><select id="cmp-type"><option value="">None</option><option value="master">Master City</option><option value="city">City</option><option value="prop">Property</option></select></div>
         <div class="field"><label>&nbsp;</label><select id="cmp-val" disabled><option value="">Select…</option></select></div>
         <button class="btn btn-primary" id="btn-audit" disabled>Audit property</button>
@@ -95,7 +110,7 @@ const $ = s => document.querySelector(s);
 // Current calendar year (YTD) vs previous year: every year shown or filtered below derives from these.
 const CUR_YEAR = new Date().getFullYear(), PREV_YEAR = CUR_YEAR - 1;
 const CUR_S = String(CUR_YEAR), PREV_S = String(PREV_YEAR);
-const S = {sales:[], avail:[], plans:[], offers:[], filters:{country:'',master:'',city:'',prop:'',status:'',contract:''}, cmp:{type:'',val:''}, tab:'sales'};
+const S = {sales:[], avail:[], plans:[], offers:[], filters:defFilters(), cmp:{type:'',val:''}, tab:'sales'};
 const TABS = ['Sales','Pick-up','Distributions','Cancellations','Allotment','Weekday','Demand','Offers','Rebook'];
 
 $('#dark-toggle').onclick = () => { const d = document.body.classList.toggle('dark'); $('#dark-toggle').textContent = d ? '\u2600\uFE0F Light' : '\uD83C\uDF19 Dark'; };
@@ -115,7 +130,7 @@ async function handleFiles(fileList, opts){
     msg('Need Daily Creations, Availability, Rate Plan and Offer Details.','err'); return;
   }
   S.sales=[]; S.avail=[]; S.plans=[]; S.offers=[];
-  S.filters={country:'',master:'',city:'',prop:'',status:'',contract:''}; S.cmp={type:'',val:''};
+  S.filters=defFilters(); S.cmp={type:'',val:''};
   ['f-country','f-master','f-city','f-prop','f-status','f-contract','cmp-type','cmp-val'].forEach(id=>{ const el=$('#'+id); if(el) el.value=''; });
   msg('Reading '+files.length+' files…');
   $('#prog').classList.remove('hidden');
@@ -203,10 +218,45 @@ function parseXLSX(file, headerKey){
 }
 function msg(t,k){ $('#msg').innerHTML = '<div class="msg'+(k==='err'?' err':'')+'">'+t+'</div>'; }
 
+function defFilters(){ return {country:'',master:'',city:'',prop:'',status:'',contract:'',clients:[],chains:[],owners:[]}; }
+// Multi-select filters: Client, Chain, Contract owner (search + tick several, independent of the cascading ones)
+const MS_DEF={clients:'Client Name', chains:'Chain', owners:'Contract Owner'};
+const MS={clients:{vals:[]},chains:{vals:[]},owners:{vals:[]}};
+function msLabel(key){ const a=S.filters[key]; return a.length===0?'All': a.length===1?a[0] : a.length+' selected'; }
+function msSync(){
+  Object.keys(MS).forEach(k=>{ const root=$('#ms-'+k), b=root.querySelector('.ms-btn'); b.textContent=msLabel(k); b.title=S.filters[k].join(', '); b.classList.toggle('on',S.filters[k].length>0); });
+}
+function msList(k){
+  const root=$('#ms-'+k), q=root.querySelector('.ms-q').value.trim().toLowerCase(), sel=new Set(S.filters[k]);
+  const rest=MS[k].vals.filter(v=>!sel.has(v) && (!q || v.toLowerCase().includes(q)));
+  const chosen=[...sel].filter(v=>!q || v.toLowerCase().includes(q)).sort();
+  const shown=chosen.concat(rest.slice(0,200-chosen.length));
+  root.querySelector('.ms-list').innerHTML=shown.map(v=>'<label><input type="checkbox" data-v="'+esc(v)+'"'+(sel.has(v)?' checked':'')+'>'+esc(v)+'</label>').join('') || '<div style="padding:6px;color:var(--muted);font-size:12px">No match</div>';
+  root.querySelector('.ms-count').textContent=S.filters[k].length+' selected · '+MS[k].vals.length.toLocaleString()+' values'+(rest.length+chosen.length>shown.length?' · type to narrow':'');
+}
+function msFill(){
+  Object.keys(MS).forEach(k=>{ MS[k].vals=[...new Set(S.sales.map(r=>r[MS_DEF[k]]).filter(Boolean))].sort(); });
+  msSync();
+}
+Object.keys(MS).forEach(k=>{
+  const root=$('#ms-'+k), panel=root.querySelector('.ms-panel');
+  root.querySelector('.ms-btn').onclick=e=>{ e.stopPropagation(); const open=panel.classList.contains('hidden'); document.querySelectorAll('.ms-panel').forEach(p=>p.classList.add('hidden')); if(open){ panel.classList.remove('hidden'); root.querySelector('.ms-q').value=''; msList(k); root.querySelector('.ms-q').focus(); } };
+  panel.onclick=e=>e.stopPropagation();
+  root.querySelector('.ms-q').oninput=()=>msList(k);
+  root.querySelector('.ms-clear').onclick=()=>{ S.filters[k]=[]; msSync(); msList(k); render(); };
+  root.querySelector('.ms-list').onchange=e=>{
+    const v=e.target.dataset.v, a=S.filters[k]; if(v===undefined) return;
+    if(e.target.checked){ if(!a.includes(v)) a.push(v); } else S.filters[k]=a.filter(x=>x!==v);
+    msSync(); root.querySelector('.ms-count').textContent=S.filters[k].length+' selected · '+MS[k].vals.length.toLocaleString()+' values'; render();
+  };
+});
+document.addEventListener('click',()=>document.querySelectorAll('.ms-panel').forEach(p=>p.classList.add('hidden')));
+
 function buildFilters(){
   const countries = uniq(S.sales.map(r=>r.Country));
   fill($('#f-country'), countries);
   cascade();
+  msFill();
 }
 function cascade(){
   const f = S.filters;
@@ -251,7 +301,11 @@ $('#cmp-val').onchange = () => { S.cmp.val = $('#cmp-val').value; render(); };
 
 function filtered(rows, key, ignoreStatus){
   const f = S.filters;
+  const sc=f.clients.length?new Set(f.clients):null, sh=f.chains.length?new Set(f.chains):null, so=f.owners.length?new Set(f.owners):null;
   return rows.filter(r =>
+    (!sc || sc.has(r['Client Name'])) &&
+    (!sh || sh.has(r.Chain)) &&
+    (!so || so.has(r['Contract Owner'])) &&
     (!f.country || r.Country===f.country) &&
     (!f.master || r['Master City']===f.master) &&
     (!f.city || r.City===f.city) &&
@@ -869,11 +923,11 @@ function offersView(){
 
 $('#btn-reset').onclick = () => {
   ['f-country','f-master','f-city','f-prop','f-status','f-contract','cmp-type','cmp-val'].forEach(id=>{ const el=$('#'+id); if(el) el.value=''; });
-  S.filters={country:'',master:'',city:'',prop:'',status:'',contract:''};
+  S.filters=defFilters();
   S.cmp={type:'',val:''};
   $('#cmp-val').disabled=true;
   $('#btn-audit').disabled=true;
-  cascade();
+  cascade(); msSync();
   render();
 };
 $('#btn-audit').onclick = async () => {
@@ -988,10 +1042,11 @@ function readSel(){ try{ const v=JSON.parse(localStorage.getItem(SEL_KEY)||'null
 function applySel(sel){
   if(!sel) return;
   const f=sel.filters||{};
-  S.filters={country:'',master:'',city:'',prop:'',status:'',contract:''};
+  S.filters=defFilters();
   const set=(id,key)=>{ const el=$('#'+id); if(f[key] && [...el.options].some(o=>o.value===f[key])){ el.value=f[key]; S.filters[key]=f[key]; } };
   set('f-country','country'); cascade(); set('f-master','master'); cascade(); set('f-city','city'); cascade(); set('f-prop','prop');
   set('f-status','status'); set('f-contract','contract');
+  Object.keys(MS).forEach(k=>{ S.filters[k]=(f[k]||[]).filter(v=>MS[k].vals.includes(v)); }); msSync();
   $('#btn-audit').disabled=!S.filters.prop;
   if(sel.cmp && sel.cmp.type){
     $('#cmp-type').value=sel.cmp.type; $('#cmp-type').onchange();
@@ -1035,7 +1090,7 @@ async function downloadReport(){
     const sel=id=>{ const e=$(id); return e && e.value ? e.selectedOptions[0].textContent.trim() : ''; };
     const scopeParts=[sel('#f-prop'),sel('#f-city'),sel('#f-master'),sel('#f-country')].filter(Boolean);
     const scope=scopeParts[0]||'All properties';
-    const fl=[['Country',sel('#f-country')],['Master city',sel('#f-master')],['City',sel('#f-city')],['Property',sel('#f-prop')],['Status',sel('#f-status')],['Contract',sel('#f-contract')]].filter(x=>x[1]).map(x=>x[0]+': '+x[1]);
+    const fl=[['Country',sel('#f-country')],['Master city',sel('#f-master')],['City',sel('#f-city')],['Property',sel('#f-prop')],['Status',sel('#f-status')],['Contract',sel('#f-contract')],['Client',S.filters.clients.join(', ')],['Chain',S.filters.chains.join(', ')],['Contract owner',S.filters.owners.join(', ')]].filter(x=>x[1]).map(x=>x[0]+': '+x[1]);
     const cmpTxt=S.cmp&&S.cmp.type&&S.cmp.val ? 'Compared with '+S.cmp.val : 'Compared with previous year';
     const today=new Date(); const dstr=today.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
     pres.title='Overview '+scope;
