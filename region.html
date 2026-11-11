@@ -96,6 +96,16 @@ table.rbt td:nth-child(3),table.rbt td:nth-child(4),table.rbt td:nth-child(6),ta
         <button class="btn btn-secondary" id="btn-report" title="PowerPoint with every tab for the current selection">⬇ Download report</button>
         
       </div>
+      <div class="filters" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
+        <div class="field"><label>Dates by</label><select id="rg-basis"><option value="created">Booked on</option><option value="stay">Stay date (check-in)</option></select></div>
+        <div class="field"><label>Quick ranges</label><select id="rg-preset"><option value="">Custom</option><option value="ytd">Year to date vs last year</option><option value="month">This month vs last year</option><option value="lastmonth">Last month vs last year</option><option value="d30">Last 30 days vs the 30 before</option><option value="d7">Last 7 days vs the 7 before</option></select></div>
+        <div class="field"><label>Range A from</label><input type="date" id="rg-af"></div>
+        <div class="field"><label>Range A to</label><input type="date" id="rg-at"></div>
+        <div class="field"><label>Range B from</label><input type="date" id="rg-bf"></div>
+        <div class="field"><label>Range B to</label><input type="date" id="rg-bt"></div>
+        <button class="btn btn-secondary" id="rg-clear" title="Back to the default comparison">Clear ranges</button>
+      </div>
+      <div id="rg-note" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
     </div>
     <div class="kpis" id="kpis"></div>
     <div class="card">
@@ -131,6 +141,7 @@ async function handleFiles(fileList, opts){
   }
   S.sales=[]; S.avail=[]; S.plans=[]; S.offers=[];
   S.filters=defFilters(); S.cmp={type:'',val:''};
+  S.rng={on:false,basis:'created',a:{from:'',to:''},b:{from:'',to:''},preset:''}; rngSync();
   ['f-country','f-master','f-city','f-prop','f-status','f-contract','cmp-type','cmp-val'].forEach(id=>{ const el=$('#'+id); if(el) el.value=''; });
   msg('Reading '+files.length+' files…');
   $('#prog').classList.remove('hidden');
@@ -299,6 +310,57 @@ $('#cmp-type').onchange = () => {
 };
 $('#cmp-val').onchange = () => { S.cmp.val = $('#cmp-val').value; render(); };
 
+
+// ───────── Range A vs Range B (optional; default stays "this year YTD vs last year") ─────────
+S.rng={on:false,basis:'created',a:{from:'',to:''},b:{from:'',to:''},preset:''};
+const RNG_MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function rngKey(){ return S.rng.basis==='stay'?'Check-In':'Created (UTC)'; }
+function inRng(r,g){ const d=String(r[rngKey()]||'').slice(0,10); return d!=='' && d>=g.from && d<=g.to; }
+function perCur(rows){ return S.rng.on? rows.filter(r=>inRng(r,S.rng.a)) : rows.filter(r=>(r['Created (UTC)']||'').startsWith(CUR_S)); }
+function perPrev(rows){ return S.rng.on? rows.filter(r=>inRng(r,S.rng.b)) : rows.filter(r=>(r['Created (UTC)']||'').startsWith(PREV_S)); }
+function fmtDay(iso){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||''); return m? (+m[3])+' '+RNG_MN[+m[2]-1]+' '+m[1] : ''; }
+function fmtRng(g){ return fmtDay(g.from)+' to '+fmtDay(g.to); }
+function labCur(){ return S.rng.on? fmtRng(S.rng.a) : CUR_YEAR+' YTD'; }
+function labPrev(){ return S.rng.on? fmtRng(S.rng.b) : PREV_S; }
+function labCurShort(){ return S.rng.on? 'Range A' : String(CUR_YEAR); }
+function curOnlyNote(){ return S.rng.on? 'Range A only ('+fmtRng(S.rng.a)+', '+(S.rng.basis==='stay'?'by stay date':'by booking date')+').' : CUR_YEAR+' bookings only.'; }
+function isoOf(y,m,d){ return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0'); }
+function addDays(iso,n){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso); const t=Date.UTC(+m[1],+m[2]-1,+m[3]+n); const d=new Date(t); return isoOf(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate()); }
+function shiftYear(iso,n){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso); const y=+m[1]+n; const last=new Date(Date.UTC(y,+m[2],0)).getUTCDate(); return isoOf(y,+m[2],Math.min(+m[3],last)); }
+function monthEnd(y,mo){ return isoOf(y,mo,new Date(Date.UTC(y,mo,0)).getUTCDate()); }
+function localToday(){ const d=new Date(); return isoOf(d.getFullYear(),d.getMonth()+1,d.getDate()); }
+const RNG_PRESETS={
+  ytd:()=>{ const t=localToday(), y=+t.slice(0,4); return {a:{from:y+'-01-01',to:t}, b:{from:(y-1)+'-01-01',to:shiftYear(t,-1)}}; },
+  d30:()=>{ const t=localToday(); return {a:{from:addDays(t,-29),to:t}, b:{from:addDays(t,-59),to:addDays(t,-30)}}; },
+  d7:()=>{ const t=localToday(); return {a:{from:addDays(t,-6),to:t}, b:{from:addDays(t,-13),to:addDays(t,-7)}}; },
+  month:()=>{ const t=localToday(), y=+t.slice(0,4), m=+t.slice(5,7); return {a:{from:isoOf(y,m,1),to:t}, b:{from:isoOf(y-1,m,1),to:shiftYear(t,-1)}}; },
+  lastmonth:()=>{ const t=localToday(); let y=+t.slice(0,4), m=+t.slice(5,7)-1; if(m<1){m=12;y--;} return {a:{from:isoOf(y,m,1),to:monthEnd(y,m)}, b:{from:isoOf(y-1,m,1),to:monthEnd(y-1,m)}}; }
+};
+function rngSync(){
+  const r=S.rng;
+  $('#rg-basis').value=r.basis; $('#rg-preset').value=r.preset||'';
+  $('#rg-af').value=r.a.from; $('#rg-at').value=r.a.to; $('#rg-bf').value=r.b.from; $('#rg-bt').value=r.b.to;
+  const on=r.on; $('#cmp-type').disabled=on;
+  if(on){ S.cmp={type:'',val:''}; $('#cmp-type').value=''; $('#cmp-val').value=''; $('#cmp-val').disabled=true; }
+  $('#rg-note').textContent = on ? 'Comparing Range A ('+fmtRng(r.a)+') with Range B ('+fmtRng(r.b)+'), '+(r.basis==='stay'?'by stay (check-in) date':'by booking date')+'. Compare vs is switched off while ranges are on.' : 'Default: '+CUR_YEAR+' year to date against '+PREV_YEAR+'. Fill both ranges (or pick a quick range) to compare any two sets of dates.';
+}
+function rngRead(fromUser){
+  const r=S.rng;
+  r.basis=$('#rg-basis').value; r.a={from:$('#rg-af').value,to:$('#rg-at').value}; r.b={from:$('#rg-bf').value,to:$('#rg-bt').value};
+  if(fromUser) r.preset='';
+  const ok=g=>g.from&&g.to&&g.from<=g.to;
+  r.on = !!(ok(r.a)&&ok(r.b));
+  rngSync(); render();
+}
+['rg-basis','rg-af','rg-at','rg-bf','rg-bt'].forEach(id=>{ $('#'+id).onchange=()=>rngRead(id!=='rg-basis'); });
+$('#rg-preset').onchange=()=>{
+  const k=$('#rg-preset').value; if(!k){ S.rng.preset=''; return; }
+  const v=RNG_PRESETS[k](); S.rng.preset=k; S.rng.a=v.a; S.rng.b=v.b;
+  $('#rg-af').value=v.a.from; $('#rg-at').value=v.a.to; $('#rg-bf').value=v.b.from; $('#rg-bt').value=v.b.to;
+  rngRead(false); S.rng.preset=k; rngSync();
+};
+$('#rg-clear').onclick=()=>{ S.rng={on:false,basis:S.rng.basis,a:{from:'',to:''},b:{from:'',to:''},preset:''}; rngSync(); render(); };
+
 function filtered(rows, key, ignoreStatus){
   const f = S.filters;
   const sc=f.clients.length?new Set(f.clients):null, sh=f.chains.length?new Set(f.chains):null, so=f.owners.length?new Set(f.owners):null;
@@ -351,32 +413,32 @@ function kpis(rows){
 function baseline(){
   const cmp = cmpRows();
   if(cmp){
-    const yCur = cmp.filter(r=>(r['Created (UTC)']||'').startsWith(CUR_S));
+    const yCur = perCur(cmp);
     return {rows: yCur, label: S.cmp.val+' '+CUR_YEAR};
   }
   return null;
 }
 function render(){
   const rows = filtered(S.sales);
-  const yPrev = rows.filter(r=>(r['Created (UTC)']||'').startsWith(PREV_S));
-  const yCur = rows.filter(r=>(r['Created (UTC)']||'').startsWith(CUR_S));
+  const yPrev = perPrev(rows);
+  const yCur = perCur(rows);
   const aCur = kpis(yCur);
   const base = baseline();
   const aBase = base ? kpis(base.rows) : kpis(yPrev);
-  const baseLabel = base ? base.label : PREV_S;
+  const baseLabel = base ? base.label : labPrev();
   // cancellations only make sense across all statuses, so the Status filter is ignored for the cancel rate
   const rowsC = S.filters.status ? filtered(S.sales,null,true) : rows;
-  const aCurC = S.filters.status ? kpis(rowsC.filter(r=>(r['Created (UTC)']||'').startsWith(CUR_S))) : aCur;
-  const aBaseC = base ? aBase : (S.filters.status ? kpis(rowsC.filter(r=>(r['Created (UTC)']||'').startsWith(PREV_S))) : aBase);
+  const aCurC = S.filters.status ? kpis(perCur(rowsC)) : aCur;
+  const aBaseC = base ? aBase : (S.filters.status ? kpis(perPrev(rowsC)) : aBase);
   const cards = [
     ['Room nights '+baseLabel, aBase.rn.toLocaleString(), null],
-    ['Room nights '+CUR_YEAR+' YTD', aCur.rn.toLocaleString(), delta(aCur.rn, aBase.rn)],
+    ['Room nights '+labCur(), aCur.rn.toLocaleString(), delta(aCur.rn, aBase.rn)],
     ['Cost '+baseLabel, '€'+Math.round(aBase.cost).toLocaleString(), null],
-    ['Cost '+CUR_YEAR+' YTD', '€'+Math.round(aCur.cost).toLocaleString(), delta(aCur.cost, aBase.cost)],
-    ['ADR '+CUR_YEAR, '€'+aCur.adr.toFixed(0), delta(aCur.adr, aBase.adr)],
-    ['Cancel rate '+CUR_YEAR+' (% of lines)', aCurC.cancelPct.toFixed(1)+'%', delta(aCurC.cancelPct, aBaseC.cancelPct, true)],
-    ['Multi-room '+CUR_YEAR, aCur.multi.toLocaleString(), null],
-    ['Bookings '+CUR_YEAR, aCur.bookings.toLocaleString(), delta(aCur.bookings, aBase.bookings)]
+    ['Cost '+labCur(), '€'+Math.round(aCur.cost).toLocaleString(), delta(aCur.cost, aBase.cost)],
+    ['ADR '+labCurShort(), '€'+aCur.adr.toFixed(0), delta(aCur.adr, aBase.adr)],
+    ['Cancel rate '+labCurShort()+' (% of lines)', aCurC.cancelPct.toFixed(1)+'%', delta(aCurC.cancelPct, aBaseC.cancelPct, true)],
+    ['Multi-room '+labCurShort(), aCur.multi.toLocaleString(), null],
+    ['Bookings '+labCurShort(), aCur.bookings.toLocaleString(), delta(aCur.bookings, aBase.bookings)]
   ];
   $('#kpis').innerHTML = cards.map(([l,v,d])=>'<div class="kpi"><div class="l">'+l+'</div><div class="v">'+v+'</div>'+(d?'<div class="d '+d.cls+'">'+d.txt+'</div>':'')+'</div>').join('');
   renderTabs(rows);
@@ -395,8 +457,8 @@ function renderTabs(rows){
   const body = $('#tab-body');
   if(S.tab==='sales') salesView(rows);
   else if(S.tab==='pick-up') pickupView(rows);
-  else if(S.tab==='distributions') body.innerHTML = distTable(rows);
-  else if(S.tab==='cancellations'){ cancelView((S.filters.status ? filtered(S.sales,null,true) : rows).filter(r=>String(r['Created (UTC)']||'').startsWith(CUR_S))); body.insertAdjacentHTML('afterbegin','<div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+CUR_YEAR+' bookings only.'+(S.filters.status?' The Status filter ('+esc(S.filters.status)+') is ignored here, because cancellations need all statuses.':'')+'</div>'); }
+  else if(S.tab==='distributions'){ body.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+curOnlyNote()+'</div>'+distTable(perCur(rows)); }
+  else if(S.tab==='cancellations'){ cancelView((S.filters.status ? filtered(S.sales,null,true) : rows).filter(r=>S.rng.on? inRng(r,S.rng.a) : String(r['Created (UTC)']||'').startsWith(CUR_S))); body.insertAdjacentHTML('afterbegin','<div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+curOnlyNote()+(S.filters.status?' The Status filter ('+esc(S.filters.status)+') is ignored here, because cancellations need all statuses.':'')+'</div>'); }
   else if(S.tab==='allotment') body.innerHTML = allotTable();
   else if(S.tab==='weekday') weekdayView(rows);
   else if(S.tab==='demand') demandView(rows);
@@ -416,8 +478,8 @@ function byYearMonth(rows, dateKey){
 }
 function salesView(rows){
   const base=baseline();
-  const yPrev=rows.filter(r=>(r['Created (UTC)']||'').startsWith(PREV_S));
-  const yCur=rows.filter(r=>(r['Created (UTC)']||'').startsWith(CUR_S));
+  const yPrev=perPrev(rows);
+  const yCur=perCur(rows);
   const kPrev=kpis(yPrev), kCur=kpis(yCur);
   const nrf=rows.filter(r=>/^y/i.test(r['Non-Refundable'])).reduce((s,r)=>s+(Number(r.Nights)||0),0);
   const flex=rows.reduce((s,r)=>s+(Number(r.Nights)||0),0)-nrf;
@@ -425,39 +487,49 @@ function salesView(rows){
   const bk=byYearMonth(rows,'Created (UTC)');
   $('#tab-body').innerHTML = `
     <div class="kpis" style="margin-bottom:12px">
-      <div class="kpi"><div class="l">Room nights ${PREV_YEAR}</div><div class="v">${kPrev.rn.toLocaleString()}</div></div>
-      <div class="kpi"><div class="l">Room nights ${CUR_YEAR} YTD</div><div class="v">${kCur.rn.toLocaleString()}</div></div>
-      <div class="kpi"><div class="l">Bookings ${PREV_YEAR}</div><div class="v">${kPrev.bookings.toLocaleString()}</div></div>
-      <div class="kpi"><div class="l">Bookings ${CUR_YEAR} YTD</div><div class="v">${kCur.bookings.toLocaleString()}</div></div>
-      <div class="kpi"><div class="l">Cost ${PREV_YEAR}</div><div class="v">€${Math.round(kPrev.cost).toLocaleString()}</div></div>
-      <div class="kpi"><div class="l">Cost ${CUR_YEAR} YTD</div><div class="v">€${Math.round(kCur.cost).toLocaleString()}</div></div>
+      <div class="kpi"><div class="l">Room nights ${labPrev()}</div><div class="v">${kPrev.rn.toLocaleString()}</div></div>
+      <div class="kpi"><div class="l">Room nights ${labCur()}</div><div class="v">${kCur.rn.toLocaleString()}</div></div>
+      <div class="kpi"><div class="l">Bookings ${labPrev()}</div><div class="v">${kPrev.bookings.toLocaleString()}</div></div>
+      <div class="kpi"><div class="l">Bookings ${labCur()}</div><div class="v">${kCur.bookings.toLocaleString()}</div></div>
+      <div class="kpi"><div class="l">Cost ${labPrev()}</div><div class="v">€${Math.round(kPrev.cost).toLocaleString()}</div></div>
+      <div class="kpi"><div class="l">Cost ${labCur()}</div><div class="v">€${Math.round(kCur.cost).toLocaleString()}</div></div>
     </div>
     <p style="color:var(--muted);font-size:12px">Room nights, cost and ADR include cancelled lines. NRF: ${nrf.toLocaleString()} RN · Flexible: ${flex.toLocaleString()} RN</p>
     <div class="grid2">
-      <div><div style="font-weight:600;margin-bottom:4px">Room nights by check-in date</div><div class="chart-box"><canvas id="c-ci"></canvas></div></div>
-      <div><div style="font-weight:600;margin-bottom:4px">Room nights by booking date</div><div class="chart-box"><canvas id="c-bk"></canvas></div></div>
+      <div><div style="font-weight:600;margin-bottom:4px">${S.rng.on?'Room nights per week of each range (W1 = first week)':'Room nights by check-in date'}</div><div class="chart-box"><canvas id="c-ci"></canvas></div></div>
+      <div><div style="font-weight:600;margin-bottom:4px">${S.rng.on?'Cumulative room nights':'Room nights by booking date'}</div><div class="chart-box"><canvas id="c-bk"></canvas></div></div>
     </div>
-    <div style="font-weight:600;margin:8px 0 4px">${PREV_YEAR} vs ${CUR_YEAR} YTD</div>
+    <div style="font-weight:600;margin:8px 0 4px">${labPrev()} vs ${labCur()}</div>
     <div class="chart-box"><canvas id="c-cmp"></canvas></div>`;
-  lineChart('c-ci', MN, ci.yPrev, ci.yCur, PREV_S);
-  lineChart('c-bk', MN, bk.yPrev, bk.yCur, PREV_S);
+  if(S.rng.on){
+    // ranges rarely line up with calendar months, so line them up by week since the start of each range
+    const wk=(list,g)=>{ const k=rngKey(), t0=isoDay(g.from), out=[]; list.forEach(r=>{ const d=isoDay(String(r[k]||'').slice(0,10)); if(isNaN(d)) return; const w=Math.floor((d-t0)/6048e5); if(w<0) return; out[w]=(out[w]||0)+(Number(r.Nights)||0); }); return out; };
+    const wa=wk(yCur,S.rng.a), wb=wk(yPrev,S.rng.b), n=Math.max(wa.length,wb.length,1);
+    const fill0=a=>Array.from({length:n},(_,i)=>a[i]||0), cum=a=>{ let t=0; return a.map(v=>t+=v); };
+    const labs=Array.from({length:n},(_,i)=>'W'+(i+1));
+    lineChart('c-ci', labs, fill0(wb), fill0(wa), labPrev(), labCur());
+    lineChart('c-bk', labs, cum(fill0(wb)), cum(fill0(wa)), labPrev(), labCur());
+  } else {
+    lineChart('c-ci', MN, ci.yPrev, ci.yCur, PREV_S);
+    lineChart('c-bk', MN, bk.yPrev, bk.yCur, PREV_S);
+  }
   const bK = base ? kpis(base.rows) : kPrev;
-  const bLabel = base ? base.label : PREV_S;
+  const bLabel = base ? base.label : labPrev();
   new Chart($('#c-cmp'), {type:'bar', data:{labels:['Room nights','Bookings','Cost /100'], datasets:[
     {label:bLabel, data:[bK.rn, bK.bookings, bK.cost/100], backgroundColor:'#94a3b8'},
-    {label:CUR_YEAR+' YTD', data:[kCur.rn, kCur.bookings, kCur.cost/100], backgroundColor:'#1e6fd9'}
+    {label:labCur(), data:[kCur.rn, kCur.bookings, kCur.cost/100], backgroundColor:'#1e6fd9'}
   ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}, datalabels:{display:false}},
     animation:{onComplete:function(){ const c=this; const ctx=c.ctx; ctx.font='12px system-ui'; ctx.fillStyle='#1a1a2e'; ctx.textAlign='center'; c.data.datasets.forEach((ds,i)=>{ const meta=c.getDatasetMeta(i); meta.data.forEach((bar,j)=>{ const v=ds.data[j]; if(v) ctx.fillText(Math.round(v).toLocaleString(), bar.x, bar.y-6); }); }); }},
     scales:{y:{beginAtZero:true}}}});
 }
-function lineChart(id, labels, a, b, aLabel){
+function lineChart(id, labels, a, b, aLabel, bLabel){
   new Chart($('#'+id), {type:'line', data:{labels, datasets:[
-    {label:aLabel||PREV_S, data:a, borderColor:'#94a3b8', backgroundColor:'rgba(148,163,184,.15)', fill:true, tension:.3},
-    {label:CUR_YEAR+' YTD', data:b, borderColor:'#1e6fd9', backgroundColor:'rgba(30,111,217,.15)', fill:true, tension:.3}
+    {label:aLabel||labPrev(), data:a, borderColor:'#94a3b8', backgroundColor:'rgba(148,163,184,.15)', fill:true, tension:.3},
+    {label:bLabel||labCur(), data:b, borderColor:'#1e6fd9', backgroundColor:'rgba(30,111,217,.15)', fill:true, tension:.3}
   ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true}}}});
 }
 function pickupView(rows){
-  const yCur=rows.filter(r=>(r['Created (UTC)']||'').startsWith(CUR_S));
+  const yCur=perCur(rows);
   const m=new Map();
   yCur.forEach(r=>{ const k=(r['Created (UTC)']||'').slice(0,7); if(!k) return; if(!m.has(k)) m.set(k,{rn:0,n:0,cost:0}); const o=m.get(k); o.rn+=Number(r.Nights)||0; o.n++; o.cost+=Number(r.Cost)||0; });
   const items=[...m.entries()].sort();
@@ -501,7 +573,7 @@ function cancelView(rows){
   const rnRate=rnTotal? rnLost/rnTotal*100 : 0;
   const costLost=cancelled.reduce((s,r)=>s+(Number(r.Cost)||0),0);
   const byM=Array(12).fill(0), byMT=Array(12).fill(0);
-  rows.forEach(r=>{ const d=new Date(r['Created (UTC)']); if(isNaN(d)||d.getFullYear()!==CUR_YEAR) return; byMT[d.getMonth()]++; if(isCancelled(r)) byM[d.getMonth()]++; });
+  rows.forEach(r=>{ const d=new Date(r['Created (UTC)']); if(isNaN(d)||(!S.rng.on&&d.getFullYear()!==CUR_YEAR)) return; byMT[d.getMonth()]++; if(isCancelled(r)) byM[d.getMonth()]++; });
   const mRate=byMT.map((t,i)=>t? Math.round(byM[i]/t*100) : 0);
   const mk=new Map();
   rows.forEach(r=>{ const k=r['Source Market']||'(blank)'; if(!mk.has(k)) mk.set(k,{t:0,c:0}); const o=mk.get(k); o.t++; if(isCancelled(r)) o.c++; });
@@ -538,7 +610,7 @@ function cancelView(rows){
       <div class="kpi"><div class="l">Room nights lost</div><div class="v">${rnLost.toLocaleString()}</div><div class="d">€${Math.round(costLost).toLocaleString()}</div></div>
     </div>
     <div class="grid2">
-      <div><div style="font-weight:600;margin-bottom:4px">Monthly cancellation rate % (${CUR_YEAR})</div><div class="chart-box"><canvas id="c-cm"></canvas></div></div>
+      <div><div style="font-weight:600;margin-bottom:4px">Monthly cancellation rate % (${S.rng.on?'Range A':CUR_YEAR})</div><div class="chart-box"><canvas id="c-cm"></canvas></div></div>
       <div><div style="font-weight:600;margin-bottom:4px">Rate by source market</div><div class="chart-box"><canvas id="c-cs"></canvas></div></div>
     </div>
     <div style="font-weight:600;margin:12px 0 4px">Where cancellations happen: lead time × length of stay</div>
@@ -553,14 +625,14 @@ function weekdayView(rows){
     list.forEach(r=>{ const d=new Date(r['Check-In']); if(isNaN(d)) return; m[d.getDay()]+=Number(r.Nights)||0; });
     return m;
   };
-  const yPrev=rows.filter(r=>(r['Created (UTC)']||'').startsWith(PREV_S));
-  const yCur=rows.filter(r=>(r['Created (UTC)']||'').startsWith(CUR_S));
+  const yPrev=perPrev(rows);
+  const yCur=perCur(rows);
   const a=count(yCur), b=count(yPrev);
-  const baseLabel=PREV_S;
+  const baseLabel=labPrev();
   $('#tab-body').innerHTML = '<div style="font-weight:600;margin-bottom:4px">Room nights by arrival day</div><div class="chart-box"><canvas id="c-wd"></canvas></div>';
   new Chart($('#c-wd'), {type:'bar', data:{labels:days, datasets:[
     {label:baseLabel, data:b, backgroundColor:'#94a3b8'},
-    {label:CUR_YEAR+' YTD', data:a, backgroundColor:'#1e6fd9'}
+    {label:labCur(), data:a, backgroundColor:'#1e6fd9'}
   ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true}}}});
 }
 function distTable(rows){
@@ -660,10 +732,10 @@ function pct(arr){ const s=arr.reduce((a,b)=>a+b,0)||1; return arr.map(v=>Math.r
 function demandView(rows){
   const base=baseline();
   if(!base){
-    $('#tab-body').innerHTML='<p style="color:var(--muted);padding:20px">Select a compare target to see demand.</p>';
+    $('#tab-body').innerHTML='<p style="color:var(--muted);padding:20px">'+(S.rng.on?'Demand compares your selection with a Compare vs target, which is switched off while Range A / Range B are on. Clear the ranges to use it.':'Select a compare target to see demand.')+'</p>';
     return;
   }
-  const sub=rows.filter(r=>(r['Created (UTC)']||'').startsWith(CUR_S));
+  const sub=perCur(rows);
   const tgt=base.rows;
   const name=subjectName();
   const los=bucket(sub, r=>Number(r.Nights)||0, [[1,1],[2,2],[3,3],[4,7],[8,14],[15,999]], ['1','2','3','4-7','8-14','15+']);
@@ -842,7 +914,8 @@ function rebookView(){
   const all=rebookGroups();
   const mode=S.rebookMode||'all';
   const show=S.rebookShow||(S.rebookShow={charts:false,clients:false});
-  const list=all.filter(g=>mode==='all'||(mode==='confirmed'?g.last.active:!g.last.active));
+  const inA=g=>!S.rng.on || ((d=>d>=S.rng.a.from&&d<=S.rng.a.to)(String(S.rng.basis==='stay'?g.last.ci:g.last.created).slice(0,10)));
+  const list=all.filter(g=>inA(g)&&(mode==='all'||(mode==='confirmed'?g.last.active:!g.last.active)));
   const saving=list.reduce((t,g)=>t+g.saving,0), bk=list.reduce((t,g)=>t+g.all.length,0);
   const avg=list.length?list.reduce((t,g)=>t+g.pct,0)/list.length:0;
   const money=v=>'€'+Math.round(v).toLocaleString();
@@ -863,7 +936,7 @@ function rebookView(){
       <button class="btn btn-secondary" id="rb-charts">${show.charts?'Hide charts':'Show charts'}</button>
       <button class="btn btn-secondary" id="rb-clients">${show.clients?'Hide clients':'Show clients'}</button>
       <button class="btn btn-secondary" id="rb-csv">Export CSV</button>
-      <span style="font-size:11px;color:var(--muted)">Same property, check-in, check-out, passengers and guest name · latest cheaper than first · earlier bookings cancelled · follows the property, chain, contract owner and client filters (client = latest booking's client); ignores status/contract filters and compare.${list.length>LIM?' Showing the latest '+LIM+'.':''}</span>
+      <span style="font-size:11px;color:var(--muted)">Same property, check-in, check-out, passengers and guest name · latest cheaper than first · earlier bookings cancelled · follows the property, chain, contract owner and client filters (client = latest booking's client); ignores status/contract filters and compare.${S.rng.on?' Only stays in Range A ('+fmtRng(S.rng.a)+', '+(S.rng.basis==='stay'?'by check-in date':'by latest booking date')+').':''}${list.length>LIM?' Showing the latest '+LIM+'.':''}</span>
     </div>
     ${show.charts?`<div class="grid2" style="margin-bottom:14px">
       ${box('rb-c-month','Revenue lost by month (when the cheaper booking was made)')}
@@ -927,6 +1000,7 @@ $('#btn-reset').onclick = () => {
   ['f-country','f-master','f-city','f-prop','f-status','f-contract','cmp-type','cmp-val'].forEach(id=>{ const el=$('#'+id); if(el) el.value=''; });
   S.filters=defFilters();
   S.cmp={type:'',val:''};
+  S.rng={on:false,basis:'created',a:{from:'',to:''},b:{from:'',to:''},preset:''}; rngSync();
   $('#cmp-val').disabled=true;
   $('#btn-audit').disabled=true;
   cascade(); msSync();
@@ -1038,7 +1112,7 @@ async function clearSaved(){ await cacheDelete(); try{ localStorage.removeItem(S
 function noteMsg(html){ const el=document.querySelector('#msg .msg'); if(el) el.innerHTML+=' · '+html; }
 function saveSel(){
   if(!S.sales.length || S.restoring) return;
-  try{ localStorage.setItem(SEL_KEY, JSON.stringify({day:dayKey(), filters:S.filters, cmp:S.cmp, tab:S.tab, rebookMode:S.rebookMode||'all', rebookShow:S.rebookShow||{charts:false,clients:false}})); }catch(e){}
+  try{ localStorage.setItem(SEL_KEY, JSON.stringify({day:dayKey(), filters:S.filters, cmp:S.cmp, rng:S.rng, tab:S.tab, rebookMode:S.rebookMode||'all', rebookShow:S.rebookShow||{charts:false,clients:false}})); }catch(e){}
 }
 function readSel(){ try{ const v=JSON.parse(localStorage.getItem(SEL_KEY)||'null'); return v&&v.day===dayKey()?v:null; }catch(e){ return null; } }
 function applySel(sel){
@@ -1050,7 +1124,8 @@ function applySel(sel){
   set('f-status','status'); set('f-contract','contract');
   Object.keys(MS).forEach(k=>{ S.filters[k]=(f[k]||[]).filter(v=>MS[k].vals.includes(v)); }); msSync();
   $('#btn-audit').disabled=!S.filters.prop;
-  if(sel.cmp && sel.cmp.type){
+  if(sel.rng && sel.rng.on){ S.rng=sel.rng; } rngSync();
+  if(sel.cmp && sel.cmp.type && !S.rng.on){
     $('#cmp-type').value=sel.cmp.type; $('#cmp-type').onchange();
     const cv=$('#cmp-val'); if(sel.cmp.val && [...cv.options].some(o=>o.value===sel.cmp.val)){ cv.value=sel.cmp.val; S.cmp.val=sel.cmp.val; }
   }
@@ -1093,7 +1168,7 @@ async function downloadReport(){
     const scopeParts=[sel('#f-prop'),sel('#f-city'),sel('#f-master'),sel('#f-country')].filter(Boolean);
     const scope=scopeParts[0]||'All properties';
     const fl=[['Country',sel('#f-country')],['Master city',sel('#f-master')],['City',sel('#f-city')],['Property',sel('#f-prop')],['Status',sel('#f-status')],['Contract',sel('#f-contract')],['Client',S.filters.clients.join(', ')],['Chain',S.filters.chains.join(', ')],['Contract owner',S.filters.owners.join(', ')]].filter(x=>x[1]).map(x=>x[0]+': '+x[1]);
-    const cmpTxt=S.cmp&&S.cmp.type&&S.cmp.val ? 'Compared with '+S.cmp.val : 'Compared with previous year';
+    const cmpTxt=S.rng.on ? 'Range A ('+fmtRng(S.rng.a)+') vs Range B ('+fmtRng(S.rng.b)+'), '+(S.rng.basis==='stay'?'by stay date':'by booking date') : (S.cmp&&S.cmp.type&&S.cmp.val ? 'Compared with '+S.cmp.val : 'Compared with previous year');
     const today=new Date(); const dstr=today.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
     pres.title='Overview '+scope;
     const chrome=(sl,n,sec)=>{
@@ -1137,7 +1212,7 @@ async function downloadReport(){
       const yy=kpiCards(sl,readKpis($('#kpis')),3.3,4);
       sl.addText('Selection',{x:0.6,y:yy+0.1,w:4,h:0.3,fontSize:12,bold:true,color:C.dk,fontFace:'Calibri',margin:0});
       sl.addText(fl.length?fl.join('   ·   '):'All data (no filters)',{x:0.6,y:yy+0.42,w:12,h:0.35,fontSize:11,color:C.gray,fontFace:'Calibri',margin:0});
-      sl.addText('Year-to-date figures compare '+CUR_YEAR+' with the comparison base. Cancelled = any status other than Confirmed.',{x:0.6,y:yy+0.8,w:12,h:0.3,fontSize:9,color:C.gray,fontFace:'Calibri',margin:0});
+      sl.addText((S.rng.on?'Range A is compared with Range B.':'Year-to-date figures compare '+CUR_YEAR+' with the comparison base.')+' Cancelled = any status other than Confirmed.',{x:0.6,y:yy+0.8,w:12,h:0.3,fontSize:9,color:C.gray,fontFace:'Calibri',margin:0});
     }
     const NOTES={rebook:'Rebooking = same property, check-in, check-out, passengers and guest name; earlier bookings cancelled and the latest cheaper than the first. Follows the property, chain, contract owner and client filters (client = latest booking); ignores status/contract filters and the comparison.'};
     const imgOf=cv=>{ const o=document.createElement('canvas'); o.width=cv.width; o.height=cv.height; const g=o.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,o.width,o.height); g.drawImage(cv,0,0); return {data:o.toDataURL('image/png'),w:o.width,h:o.height}; };
@@ -1149,7 +1224,7 @@ async function downloadReport(){
       S.tab=tKey; if(tKey==='rebook') S.rebookShow={charts:true,clients:true};
       // Cancellations are meaningless once rows are limited to one status, so that section ignores the Status filter
       const ignoreSt = tKey==='cancellations' && keep.status;
-      if(ignoreSt){ S.filters.status=''; NOTES.cancellations=CUR_YEAR+' bookings only. The Status filter ('+keep.status+') is ignored in this section, because cancellations need all statuses.'; } else NOTES.cancellations=CUR_YEAR+' bookings only.';
+      if(ignoreSt){ S.filters.status=''; NOTES.cancellations=curOnlyNote()+' The Status filter ('+keep.status+') is ignored in this section, because cancellations need all statuses.'; } else NOTES.cancellations=curOnlyNote();
       renderTabs(ignoreSt?filtered(S.sales):rowsNow);
       await new Promise(r=>setTimeout(r,80));
       S.filters.status=keep.status;
