@@ -775,11 +775,12 @@ function xlDate(v){
 let _rebookCache={key:'',groups:null};
 function normGuest(n){ return String(n||'').toLowerCase().replace(/[.,]/g,' ').replace(/\s+/g,' ').trim().replace(/^(mr|mrs|ms|miss|mx|dr|mstr)\s+/,''); }
 function rebookGroups(){
-  const f=S.filters, key=[f.country,f.master,f.city,f.prop,S.sales.length].join('|');
+  const f=S.filters, key=[f.country,f.master,f.city,f.prop,f.chains.join('~'),f.owners.join('~'),f.clients.join('~'),S.sales.length].join('|');
+  const sh=f.chains.length?new Set(f.chains):null, so=f.owners.length?new Set(f.owners):null, sc=f.clients.length?new Set(f.clients):null;
   if(_rebookCache.key===key) return _rebookCache.groups;
   const bookings=new Map();
   for(const r of S.sales){
-    if((f.country&&r.Country!==f.country)||(f.master&&r['Master City']!==f.master)||(f.city&&r.City!==f.city)||(f.prop&&r.Property!==f.prop)) continue;
+    if((f.country&&r.Country!==f.country)||(f.master&&r['Master City']!==f.master)||(f.city&&r.City!==f.city)||(f.prop&&r.Property!==f.prop)||(sh&&!sh.has(r.Chain))||(so&&!so.has(r['Contract Owner']))) continue;
     const id=r['Booking ID']; let b=bookings.get(id);
     if(!b){ b={id, prop:r.Property||'', ci:String(r['Check-In']||'').slice(0,10), co:String(r['Check-Out']||'').slice(0,10), pax:String(r.Passengers||'').trim(), guest:r['Lead Name']||'', created:r['Created (UTC)']||'', client:(r['Client Name']||'').trim()||'(blank)', cost:0, rn:0, active:false, lines:0};
       bookings.set(id,b); }
@@ -801,6 +802,7 @@ function rebookGroups(){
     const first=arr[0], last=arr[arr.length-1];
     if(arr.slice(0,-1).some(b=>b.active)) continue;
     if(!(last.cost<first.cost)) continue;
+    if(sc && !sc.has(last.client)) continue;
     out.push({first,last,all:arr,saving:first.cost-last.cost,pct:first.cost?(first.cost-last.cost)/first.cost*100:0});
   }
   out.sort((a,b)=>a.last.created<b.last.created?1:-1);
@@ -861,7 +863,7 @@ function rebookView(){
       <button class="btn btn-secondary" id="rb-charts">${show.charts?'Hide charts':'Show charts'}</button>
       <button class="btn btn-secondary" id="rb-clients">${show.clients?'Hide clients':'Show clients'}</button>
       <button class="btn btn-secondary" id="rb-csv">Export CSV</button>
-      <span style="font-size:11px;color:var(--muted)">Same property, check-in, check-out, passengers and guest name · latest cheaper than first · earlier bookings cancelled · ignores status/contract filters and compare.${list.length>LIM?' Showing the latest '+LIM+'.':''}</span>
+      <span style="font-size:11px;color:var(--muted)">Same property, check-in, check-out, passengers and guest name · latest cheaper than first · earlier bookings cancelled · follows the property, chain, contract owner and client filters (client = latest booking's client); ignores status/contract filters and compare.${list.length>LIM?' Showing the latest '+LIM+'.':''}</span>
     </div>
     ${show.charts?`<div class="grid2" style="margin-bottom:14px">
       ${box('rb-c-month','Revenue lost by month (when the cheaper booking was made)')}
@@ -1137,7 +1139,7 @@ async function downloadReport(){
       sl.addText(fl.length?fl.join('   ·   '):'All data (no filters)',{x:0.6,y:yy+0.42,w:12,h:0.35,fontSize:11,color:C.gray,fontFace:'Calibri',margin:0});
       sl.addText('Year-to-date figures compare '+CUR_YEAR+' with the comparison base. Cancelled = any status other than Confirmed.',{x:0.6,y:yy+0.8,w:12,h:0.3,fontSize:9,color:C.gray,fontFace:'Calibri',margin:0});
     }
-    const NOTES={rebook:'Rebooking = same property, check-in, check-out, passengers and guest name; earlier bookings cancelled and the latest cheaper than the first. Ignores status/contract filters and the comparison.'};
+    const NOTES={rebook:'Rebooking = same property, check-in, check-out, passengers and guest name; earlier bookings cancelled and the latest cheaper than the first. Follows the property, chain, contract owner and client filters (client = latest booking); ignores status/contract filters and the comparison.'};
     const imgOf=cv=>{ const o=document.createElement('canvas'); o.width=cv.width; o.height=cv.height; const g=o.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,o.width,o.height); g.drawImage(cv,0,0); return {data:o.toDataURL('image/png'),w:o.width,h:o.height}; };
     const MAXROWS=16, MAXTBL=2; // rows per slide / slides per table
     const rowsNow=filtered(S.sales);
