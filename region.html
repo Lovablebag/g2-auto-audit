@@ -499,7 +499,7 @@ function salesView(rows){
       <div><div style="font-weight:600;margin-bottom:4px">${S.rng.on?'Room nights per week of each range (W1 = first week)':'Room nights by check-in date'}</div><div class="chart-box"><canvas id="c-ci"></canvas></div></div>
       <div><div style="font-weight:600;margin-bottom:4px">${S.rng.on?'Cumulative room nights':'Room nights by booking date'}</div><div class="chart-box"><canvas id="c-bk"></canvas></div></div>
     </div>
-    <div style="font-weight:600;margin:8px 0 4px">${labPrev()} vs ${labCur()}</div>
+    <div style="font-weight:600;margin:8px 0 4px">${base?base.label:labPrev()} vs ${labCur()}</div>
     <div class="chart-box"><canvas id="c-cmp"></canvas></div>`;
   if(S.rng.on){
     // ranges rarely line up with calendar months, so line them up by week since the start of each range
