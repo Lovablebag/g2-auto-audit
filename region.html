@@ -477,7 +477,7 @@ function byYearMonth(rows, dateKey){
   return {yPrev,yCur};
 }
 function salesView(rows){
-  const base=baseline();
+  const base=null; // Sales always compares this year with last year (or Range A with Range B), never the Compare vs target
   const yPrev=perPrev(rows);
   const yCur=perCur(rows);
   const kPrev=kpis(yPrev), kCur=kpis(yCur);
