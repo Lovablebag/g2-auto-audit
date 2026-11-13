@@ -296,6 +296,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .hs-field label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
 .hs-field input{padding:8px 11px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;color:var(--text);background:var(--bg);outline:none;transition:border-color .15s;min-width:110px}
 .hs-field input:focus{border-color:var(--blue);background:var(--input-bg)}
+.hs-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg)}
+.hs-filters-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.hs-ms{position:relative}
+.hs-ms>button{padding:7px 11px;border:1.5px solid var(--border);border-radius:7px;background:var(--input-bg);color:var(--text);font-size:12.5px;font-family:inherit;cursor:pointer}
+.hs-ms>button.on{border-color:var(--blue);color:var(--blue);font-weight:600}
+.hs-ms-panel{display:none;position:absolute;z-index:30;top:calc(100% + 4px);left:0;min-width:240px;max-height:320px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:8px}
+.hs-ms.open .hs-ms-panel{display:block}
+.hs-ms-panel input[type=text]{width:100%;box-sizing:border-box;padding:6px 8px;margin-bottom:6px;border:1.5px solid var(--border);border-radius:6px;background:var(--input-bg);color:var(--text);font-size:12.5px;font-family:inherit}
+.hs-ms-actions{display:flex;gap:12px;margin-bottom:6px;font-size:11.5px}
+.hs-ms-actions a{color:var(--blue);cursor:pointer}
+.hs-ms-panel label{display:flex;gap:8px;align-items:center;padding:4px 2px;font-size:12.5px;color:var(--text);cursor:pointer}
+.hs-ms-panel label span.n{margin-left:auto;color:var(--muted);font-size:11.5px}
 .hs-status{font-size:12px;color:var(--muted);margin-bottom:12px}
 .hs-status.error{color:var(--error)}
 .hs-table-wrap{border:1px solid var(--border);border-radius:10px;overflow:auto;max-height:420px}
@@ -351,7 +363,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
         </div>
         <div class="hs-field">
           <label for="hs-limit">Max results</label>
-          <input id="hs-limit" type="number" value="50" min="1" max="200" style="width:100px">
+          <input id="hs-limit" type="number" value="50" min="1" style="width:100px">
         </div>
         <div class="hs-field" id="hs-key-wrap">
           <label for="hs-apikey">LiteAPI key</label>
@@ -360,6 +372,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
         </div>
         <button class="btn-gen" id="hs-search-btn">Search hotels</button>
         <button class="btn-reset" id="hs-export-btn" disabled>⬇️ Download Excel</button>
+      </div>
+      <div id="hs-filters" class="hs-filters" style="display:none">
+        <span class="hs-filters-label">Filter results</span>
+        <div id="hs-f-type" class="hs-ms"></div>
+        <div id="hs-f-stars" class="hs-ms"></div>
+        <div id="hs-f-chain" class="hs-ms"></div>
+        <button type="button" class="btn-reset" id="hs-f-reset">Clear filters</button>
       </div>
       <div id="hs-status" class="hs-status">Enter a destination and search.</div>
       <div id="hs-results" class="hs-table-wrap">
@@ -623,8 +642,7 @@ function hsApiKey(){
 }
 const HS_BASE_URL = "https://api.liteapi.travel/v3.0/data/hotels";
 
-// Allowed property types only
-const HS_ALLOWED_TYPES = new Set([203, 204, 205, 206, 207, 208, 219, 221]);
+// Known property type names (labels only, nothing is filtered by this list)
 const HS_TYPE_NAMES = {
   203: "Hostels",
   204: "Hotels",
@@ -635,8 +653,9 @@ const HS_TYPE_NAMES = {
   219: "Aparthotels",
   221: "Lodges"
 };
-const HS_HOTEL_TYPES_PARAM = "203,204,205,206,207,208,219,221";
 
+let hsAllHotels = [];
+let hsSel = { type: null, stars: null, chain: null };
 let hsLastHotels = [];
 let hsLastQuery = { country: "", city: "" };
 
@@ -702,6 +721,8 @@ async function hsSearchHotels() {
   searchBtn.disabled = true;
   exportBtn.disabled = true;
   hsLastHotels = [];
+  hsAllHotels = [];
+  document.getElementById("hs-filters").style.display = "none";
   statusEl.textContent = "Searching…";
   statusEl.className = "hs-status";
   const placeLabel = city ? `${hsEscapeHtml(city)}, ${hsEscapeHtml(country)}` : hsEscapeHtml(country);
@@ -709,8 +730,7 @@ async function hsSearchHotels() {
 
   let url =
     `${HS_BASE_URL}?countryCode=${encodeURIComponent(country)}` +
-    `&limit=${encodeURIComponent(limit)}` +
-    `&hotelTypes=${encodeURIComponent(HS_HOTEL_TYPES_PARAM)}`;
+    `&limit=${encodeURIComponent(limit)}`;
   if (city) {
     url += `&cityName=${encodeURIComponent(city)}`;
   }
@@ -728,20 +748,20 @@ async function hsSearchHotels() {
     const json = await res.json();
     const raw = Array.isArray(json.data) ? json.data : [];
 
-    // Server filter + client safety filter
-    const hotels = raw.filter((h) => HS_ALLOWED_TYPES.has(Number(h.hotelTypeId)));
-    hsLastHotels = hotels;
+    hsAllHotels = raw;
     hsLastQuery = { country, city };
+    hsSel = { type: null, stars: null, chain: null };
 
-    if (!hotels.length) {
-      statusEl.textContent = "No matching properties found for the selected types.";
-      resultsEl.innerHTML = `<div class="hs-empty">No hotels found for the allowed types.</div>`;
+    if (!raw.length) {
+      hsLastHotels = [];
+      document.getElementById("hs-filters").style.display = "none";
+      statusEl.textContent = "No properties found for this search.";
+      resultsEl.innerHTML = `<div class="hs-empty">No hotels found.</div>`;
       return;
     }
 
-    statusEl.textContent = `Found ${hotels.length} propert${hotels.length === 1 ? "y" : "ies"} in ${city ? city + ", " : ""}${country}.`;
-    hsRenderTable(hotels);
-    exportBtn.disabled = false;
+    hsBuildFilters();
+    hsApplyFilters();
   } catch (err) {
     console.error(err);
     statusEl.textContent = "Error: " + err.message;
@@ -751,6 +771,112 @@ async function hsSearchHotels() {
     searchBtn.disabled = false;
   }
 }
+
+function hsKey(field, h) {
+  if (field === "type") return h.hotelTypeId != null ? String(h.hotelTypeId) : "";
+  if (field === "stars") return String(Math.round(Number(h.stars) || 0));
+  return (h.chain || "").trim();
+}
+function hsKeyLabel(field, k) {
+  if (field === "type") return k === "" ? "Unknown type" : hsTypeLabel(k) + " (" + k + ")";
+  if (field === "stars") return k === "0" ? "No rating" : k + " star" + (k === "1" ? "" : "s");
+  return k === "" ? "No chain" : k;
+}
+const HS_FIELDS = [
+  { field: "type", el: "hs-f-type", title: "Type" },
+  { field: "stars", el: "hs-f-stars", title: "Stars" },
+  { field: "chain", el: "hs-f-chain", title: "Chain" }
+];
+function hsOptions(field) {
+  const counts = new Map();
+  hsAllHotels.forEach((h) => { const k = hsKey(field, h); counts.set(k, (counts.get(k) || 0) + 1); });
+  const arr = Array.from(counts.entries());
+  if (field === "stars") arr.sort((a, b) => Number(b[0]) - Number(a[0]));
+  else if (field === "type") arr.sort((a, b) => hsKeyLabel("type", a[0]).localeCompare(hsKeyLabel("type", b[0])));
+  else arr.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  return arr;
+}
+function hsBuildFilters() {
+  document.getElementById("hs-filters").style.display = "flex";
+  HS_FIELDS.forEach((f) => {
+    const opts = hsOptions(f.field);
+    hsSel[f.field] = new Set(opts.map((o) => o[0]));
+    const box = document.getElementById(f.el);
+    box.classList.remove("open");
+    box.innerHTML =
+      `<button type="button" class="hs-ms-btn"></button>` +
+      `<div class="hs-ms-panel">` +
+      (f.field === "chain" ? `<input type="text" placeholder="Search chain">` : "") +
+      `<div class="hs-ms-actions"><a data-act="all">Select all</a><a data-act="none">None</a></div>` +
+      opts.map((o) => `<label data-k="${hsEscapeHtml(o[0])}"><input type="checkbox" checked><span>${hsEscapeHtml(hsKeyLabel(f.field, o[0]))}</span><span class="n">${o[1]}</span></label>`).join("") +
+      `</div>`;
+    const btn = box.querySelector(".hs-ms-btn");
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const was = box.classList.contains("open");
+      document.querySelectorAll(".hs-ms.open").forEach((x) => x.classList.remove("open"));
+      if (!was) box.classList.add("open");
+    };
+    box.querySelector(".hs-ms-panel").onclick = (e) => e.stopPropagation();
+    box.querySelectorAll("label").forEach((lab) => {
+      lab.querySelector("input").onchange = (e) => {
+        const k = lab.getAttribute("data-k");
+        if (e.target.checked) hsSel[f.field].add(k); else hsSel[f.field].delete(k);
+        hsApplyFilters();
+      };
+    });
+    box.querySelectorAll(".hs-ms-actions a").forEach((a) => {
+      a.onclick = () => {
+        const all = a.getAttribute("data-act") === "all";
+        box.querySelectorAll("label").forEach((lab) => {
+          if (lab.style.display === "none") return;
+          lab.querySelector("input").checked = all;
+          const k = lab.getAttribute("data-k");
+          if (all) hsSel[f.field].add(k); else hsSel[f.field].delete(k);
+        });
+        hsApplyFilters();
+      };
+    });
+    const q = box.querySelector('input[type=text]');
+    if (q) q.oninput = () => {
+      const t = q.value.toLowerCase();
+      box.querySelectorAll("label").forEach((lab) => {
+        lab.style.display = lab.textContent.toLowerCase().includes(t) ? "" : "none";
+      });
+    };
+  });
+}
+function hsApplyFilters() {
+  const statusEl = document.getElementById("hs-status");
+  const exportBtn = document.getElementById("hs-export-btn");
+  hsLastHotels = hsAllHotels.filter((h) => HS_FIELDS.every((f) => hsSel[f.field].has(hsKey(f.field, h))));
+  HS_FIELDS.forEach((f) => {
+    const total = document.querySelectorAll("#" + f.el + " label").length;
+    const n = hsSel[f.field].size;
+    const btn = document.querySelector("#" + f.el + " .hs-ms-btn");
+    btn.textContent = f.title + ": " + (n === total ? "all" : n + " of " + total) + " \u25BE";
+    btn.classList.toggle("on", n !== total);
+  });
+  const place = (hsLastQuery.city ? hsLastQuery.city + ", " : "") + hsLastQuery.country;
+  const tot = hsAllHotels.length, shown = hsLastHotels.length;
+  statusEl.className = "hs-status";
+  statusEl.textContent = shown === tot
+    ? `Found ${tot} propert${tot === 1 ? "y" : "ies"} in ${place}.`
+    : `Showing ${shown} of ${tot} propert${tot === 1 ? "y" : "ies"} in ${place}.`;
+  if (!shown) {
+    document.getElementById("hs-results").innerHTML = `<div class="hs-empty">No properties match the selected filters.</div>`;
+    exportBtn.disabled = true;
+    return;
+  }
+  hsRenderTable(hsLastHotels);
+  exportBtn.disabled = false;
+}
+document.addEventListener("click", () => document.querySelectorAll(".hs-ms.open").forEach((x) => x.classList.remove("open")));
+document.getElementById("hs-f-reset").addEventListener("click", () => {
+  if (!hsAllHotels.length) return;
+  hsBuildFilters();
+  hsApplyFilters();
+});
 
 function hsDownloadExcel() {
   if (!hsLastHotels.length) return;
