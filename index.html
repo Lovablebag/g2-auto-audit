@@ -729,25 +729,41 @@ async function hsSearchHotels() {
   const placeLabel = city ? `${hsEscapeHtml(city)}, ${hsEscapeHtml(country)}` : hsEscapeHtml(country);
   resultsEl.innerHTML = `<div class="hs-empty">Loading hotels in ${placeLabel}…</div>`;
 
-  let url =
-    `${HS_BASE_URL}?countryCode=${encodeURIComponent(country)}` +
-    `&limit=${encodeURIComponent(limit)}`;
-  if (city) {
-    url += `&cityName=${encodeURIComponent(city)}`;
-  }
+  const PAGE = 5000;
+  const want = Math.max(1, parseInt(limit, 10) || 50);
 
   try {
-    const res = await fetch(url, {
-      headers: { "X-API-Key": hsApiKey(), "Accept": "application/json" }
-    });
+    const raw = [];
+    const seen = new Set();
+    let offset = 0;
+    while (raw.length < want) {
+      const pageSize = Math.min(PAGE, want - raw.length);
+      let url =
+        `${HS_BASE_URL}?countryCode=${encodeURIComponent(country)}` +
+        `&limit=${pageSize}&offset=${offset}`;
+      if (city) url += `&cityName=${encodeURIComponent(city)}`;
 
-    if (!res.ok) {
-      if (res.status === 401) throw new Error('LiteAPI rejected the key (401). Paste a current sandbox or live key from dash.liteapi.travel');
-      throw new Error(`API error ${res.status}: ${res.statusText}`);
+      const res = await fetch(url, {
+        headers: { "X-API-Key": hsApiKey(), "Accept": "application/json" }
+      });
+      if (!res.ok) {
+        if (res.status === 401) throw new Error('LiteAPI rejected the key (401). Paste a current sandbox or live key from dash.liteapi.travel');
+        throw new Error(`API error ${res.status}: ${res.statusText}`);
+      }
+      const json = await res.json();
+      const page = Array.isArray(json.data) ? json.data : [];
+      offset += page.length;
+      let added = 0;
+      page.forEach((h) => {
+        const id = h.id != null ? h.id : (h.hotelId != null ? h.hotelId : null);
+        if (id != null) { if (seen.has(id)) return; seen.add(id); }
+        if (raw.length >= want) return;
+        raw.push(h); added++;
+      });
+      statusEl.textContent = `Loading… ${raw.length} properties so far`;
+      // stop when the API has no more, or ignores offset (nothing new)
+      if (!page.length || added === 0) break;
     }
-
-    const json = await res.json();
-    const raw = Array.isArray(json.data) ? json.data : [];
 
     hsAllHotels = raw;
     hsLastQuery = { country, city };
